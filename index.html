@@ -4420,13 +4420,87 @@ class DAWController {
             toast('Project opgeslagen (lokaal)', 'success');
         });
 
-        // Timeline click (set playhead position)
-        document.getElementById('timeline-canvas').addEventListener('click', e => {
+        // Timeline mouse interaction (region drag + playhead click)
+        const tlCanvas = document.getElementById('timeline-canvas');
+        let regionDrag = null; // {region, track, offsetBeat}
+
+        const hitTestRegion = (mx, my) => {
+            const trackHeight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--track-height'));
+            const scroll = document.getElementById('timeline-scroll');
+            const sx = scroll.scrollLeft;
+            const sy = scroll.scrollTop;
+            for (let ti = 0; ti < state.tracks.length; ti++) {
+                const track = state.tracks[ti];
+                const ty = ti * trackHeight + 4;
+                const rh = trackHeight - 8;
+                if (my < ty - sy || my > ty + rh - sy) continue;
+                for (const region of track.regions) {
+                    const rx = beatsToPixels(region.startBeat) - sx;
+                    const isMidi = track.type === 'midi';
+                    const rw = isMidi ? beatsToPixels(region.lengthBeats || 4) : beatsToPixels(secondsToBeats(region.duration));
+                    if (mx >= rx && mx <= rx + rw) {
+                        return { region, track, trackIndex: ti };
+                    }
+                }
+            }
+            return null;
+        };
+
+        tlCanvas.addEventListener('mousedown', e => {
             if (state.transport.state === 'playing') return;
-            const rect = e.target.getBoundingClientRect();
-            const x = e.clientX - rect.left + document.getElementById('timeline-scroll').scrollLeft;
-            const beat = pixelsToBeats(x);
-            state.transport.position = beatsToSeconds(snapBeat(beat));
+            const rect = tlCanvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+            const hit = hitTestRegion(mx, my);
+            if (hit) {
+                const sx = document.getElementById('timeline-scroll').scrollLeft;
+                const beatAtMouse = pixelsToBeats(mx + sx);
+                regionDrag = {
+                    region: hit.region,
+                    track: hit.track,
+                    trackIndex: hit.trackIndex,
+                    offsetBeat: beatAtMouse - hit.region.startBeat,
+                    moved: false
+                };
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('mousemove', e => {
+            if (!regionDrag) return;
+            const rect = tlCanvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+            const sx = document.getElementById('timeline-scroll').scrollLeft;
+            const beatAtMouse = pixelsToBeats(mx + sx);
+            const newBeat = snapBeat(Math.max(0, beatAtMouse - regionDrag.offsetBeat));
+            regionDrag.region.startBeat = newBeat;
+            regionDrag.moved = true;
+
+            // Move to different track if mouse is on another track
+            const trackHeight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--track-height'));
+            const sy = document.getElementById('timeline-scroll').scrollTop;
+            const newTrackIdx = Math.floor((my + sy) / trackHeight);
+            if (newTrackIdx >= 0 && newTrackIdx < state.tracks.length && newTrackIdx !== regionDrag.trackIndex) {
+                const newTrack = state.tracks[newTrackIdx];
+                if (newTrack.type === regionDrag.track.type) {
+                    const idx = regionDrag.track.regions.indexOf(regionDrag.region);
+                    if (idx !== -1) regionDrag.track.regions.splice(idx, 1);
+                    newTrack.regions.push(regionDrag.region);
+                    regionDrag.track = newTrack;
+                    regionDrag.trackIndex = newTrackIdx;
+                }
+            }
+        });
+
+        document.addEventListener('mouseup', e => {
+            if (regionDrag && !regionDrag.moved) {
+                // Was a click, not a drag — set playhead
+                const rect = tlCanvas.getBoundingClientRect();
+                const x = e.clientX - rect.left + document.getElementById('timeline-scroll').scrollLeft;
+                state.transport.position = beatsToSeconds(snapBeat(pixelsToBeats(x)));
+            }
+            regionDrag = null;
         });
 
         // Ruler click + loop drag
