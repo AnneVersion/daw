@@ -6,6 +6,8 @@ Database: PostgreSQL 'daw'
 import os, uuid, json
 from datetime import datetime
 from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).parent / '.env')
 from flask import Flask, request, jsonify, send_file, abort
 from flask_cors import CORS
 import psycopg2
@@ -292,6 +294,6 @@ def list_categories():
 
 # --- Start ---
 if __name__ == '__main__':
-    print("DAW API Server: http://localhost:8085")
+    print("DAW API Server: http://localhost:8086")
     print("Database:", os.getenv('DB_NAME', 'daw'))
-    app.run(host='0.0.0.0', port=8085, debug=True)
+    app.run(host='0.0.0.0', port=8086, debug=True)

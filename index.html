@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DAW - Digital Audio Workstation</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='none' stroke='%2339ff14' stroke-width='1.5'/><circle cx='16' cy='16' r='3' fill='%2339ff14' opacity='.4'/><ellipse cx='16' cy='16' rx='14' ry='5' fill='none' stroke='%2339ff14' stroke-width='.7' opacity='.4' transform='rotate(-8 16 16)'/></svg>">
 <style>
 /* ============================================================
    CSS - Dark Theme (Logic Pro inspired)
@@ -562,6 +563,20 @@ body {
     font-size: 14px;
 }
 .library-fav.active { color: var(--yellow); }
+.library-play-btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-darkest);
+    border-radius: 50%;
+    font-size: 10px;
+    color: var(--text-dim);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.library-play-btn:hover { color: var(--accent); background: var(--bg-dark); }
 
 /* ---- Synth Panel ---- */
 #synth-panel {
@@ -3824,6 +3839,7 @@ class DAWController {
         this.instruments._renderPianoKeyboard();
         this.synth.init();
         this._bindSoundMatchEvents();
+        this._initLibrary();
 
         toast('DAW geladen', 'success');
     }
@@ -4796,6 +4812,175 @@ class DAWController {
                 source.onended = () => this.engine.activeSources.delete(key);
             }
         });
+    }
+
+    // ---- Library ----
+    async _initLibrary() {
+        await this._loadCategories();
+        await this._loadSounds();
+        this._bindLibraryEvents();
+    }
+
+    async _loadCategories() {
+        try {
+            const res = await fetch(`${API_BASE}/api/categories`);
+            const categories = await res.json();
+            const select = document.getElementById('library-category');
+            select.innerHTML = '<option value="">Alle categorieën</option>';
+            categories.forEach(c => {
+                if (c.sound_count > 0) {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = `${c.name} (${c.sound_count})`;
+                    select.appendChild(opt);
+                }
+            });
+        } catch (e) {
+            console.error('Categorieën laden mislukt:', e);
+        }
+    }
+
+    async _loadSounds(filters = {}) {
+        try {
+            const params = new URLSearchParams();
+            if (filters.q) params.set('q', filters.q);
+            if (filters.category) params.set('category', filters.category);
+            if (filters.favorite) params.set('favorite', 'true');
+            const url = `${API_BASE}/api/sounds${params.toString() ? '?' + params : ''}`;
+            const res = await fetch(url);
+            const sounds = await res.json();
+            this._renderLibraryGrid(sounds);
+        } catch (e) {
+            console.error('Sounds laden mislukt:', e);
+            document.getElementById('library-grid').innerHTML =
+                '<div style="color:var(--text-dim);padding:20px;text-align:center">Kan sounds niet laden. Is de API server actief?</div>';
+        }
+    }
+
+    _renderLibraryGrid(sounds) {
+        const grid = document.getElementById('library-grid');
+        if (sounds.length === 0) {
+            grid.innerHTML = '<div style="color:var(--text-dim);padding:20px;text-align:center">Geen sounds gevonden</div>';
+            return;
+        }
+        grid.innerHTML = sounds.map(s => {
+            const dur = s.duration_ms ? (s.duration_ms / 1000).toFixed(1) + 's' : '';
+            const bpm = s.bpm ? `${Math.round(s.bpm)} BPM` : '';
+            const key = s.musical_key || '';
+            const meta = [s.category_name, dur, bpm, key].filter(Boolean).join(' · ');
+            const favClass = s.is_favorite ? 'active' : '';
+            return `
+                <div class="library-item" draggable="true" data-sound-id="${s.id}" data-filename="${s.filename}" data-name="${s.name}">
+                    <div class="library-play-btn" data-sound-id="${s.id}" title="Preview">▶</div>
+                    <div class="library-info">
+                        <div class="library-name">${s.name}</div>
+                        <div class="library-meta">${meta}</div>
+                    </div>
+                    <button class="library-fav ${favClass}" data-sound-id="${s.id}" title="Favoriet">★</button>
+                </div>`;
+        }).join('');
+    }
+
+    _bindLibraryEvents() {
+        let debounceTimer;
+        const queryInput = document.getElementById('library-query');
+        const categorySelect = document.getElementById('library-category');
+
+        // Search
+        queryInput.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                this._loadSounds({
+                    q: queryInput.value.trim(),
+                    category: categorySelect.value
+                });
+            }, 300);
+        });
+
+        // Category filter
+        categorySelect.addEventListener('change', () => {
+            this._loadSounds({
+                q: queryInput.value.trim(),
+                category: categorySelect.value
+            });
+        });
+
+        // Delegate clicks on grid items
+        const grid = document.getElementById('library-grid');
+
+        // Favorite toggle
+        grid.addEventListener('click', async (e) => {
+            const favBtn = e.target.closest('.library-fav');
+            if (favBtn) {
+                e.stopPropagation();
+                const soundId = favBtn.dataset.soundId;
+                try {
+                    const res = await fetch(`${API_BASE}/api/sounds/${soundId}/favorite`, { method: 'PUT' });
+                    const data = await res.json();
+                    favBtn.classList.toggle('active', data.is_favorite);
+                } catch (err) {
+                    console.error('Favoriet toggle mislukt:', err);
+                }
+                return;
+            }
+
+            // Preview play
+            const playBtn = e.target.closest('.library-play-btn');
+            if (playBtn) {
+                e.stopPropagation();
+                const soundId = playBtn.dataset.soundId;
+                this._previewLibrarySound(soundId, playBtn);
+                return;
+            }
+        });
+
+        // Drag to timeline
+        grid.addEventListener('dragstart', (e) => {
+            const item = e.target.closest('.library-item');
+            if (!item) return;
+            e.dataTransfer.setData('application/x-daw-sound', JSON.stringify({
+                id: item.dataset.soundId,
+                name: item.dataset.name,
+                filename: item.dataset.filename
+            }));
+            e.dataTransfer.effectAllowed = 'copy';
+        });
+    }
+
+    async _previewLibrarySound(soundId, btn) {
+        // Stop previous preview
+        if (this._previewSource) {
+            try { this._previewSource.stop(); } catch (_) {}
+            this._previewSource = null;
+        }
+        // Toggle off if same sound
+        if (this._previewingSoundId === soundId) {
+            this._previewingSoundId = null;
+            btn.textContent = '▶';
+            return;
+        }
+        btn.textContent = '⏹';
+        this._previewingSoundId = soundId;
+        try {
+            const res = await fetch(`${API_BASE}/api/sounds/${soundId}/file`);
+            const arrayBuf = await res.arrayBuffer();
+            const audioBuf = await this.engine.ctx.decodeAudioData(arrayBuf);
+            const source = this.engine.ctx.createBufferSource();
+            source.buffer = audioBuf;
+            source.connect(this.engine.ctx.destination);
+            source.onended = () => {
+                if (this._previewingSoundId === soundId) {
+                    this._previewingSoundId = null;
+                    btn.textContent = '▶';
+                }
+            };
+            source.start();
+            this._previewSource = source;
+        } catch (e) {
+            console.error('Preview mislukt:', e);
+            btn.textContent = '▶';
+            this._previewingSoundId = null;
+        }
     }
 
     _bindSoundMatchEvents() {
