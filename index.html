@@ -845,6 +845,114 @@ body {
 .drum-pad-name { font-size: 10px; color: var(--text); font-weight: 500; }
 .drum-pad-key { font-size: 8px; color: var(--text-dim); }
 
+/* Guitar Fretboard */
+#guitar-fretboard {
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    height: 100%;
+}
+#guitar-fretboard.active { display: flex; }
+
+#guitar-chords {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+.chord-btn {
+    padding: 4px 10px;
+    background: var(--bg-track);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.1s;
+    min-width: 36px;
+    text-align: center;
+}
+.chord-btn:hover { border-color: var(--accent); background: var(--bg-hover); }
+.chord-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; transform: scale(0.95); }
+.chord-btn.minor { color: var(--text-dim); }
+
+#guitar-neck {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(90deg, #3a2a1a 0%, #5a4020 2%, #6a5030 4%, #6a5030 100%);
+    border-radius: 4px;
+    padding: 4px 0;
+    position: relative;
+    overflow-x: auto;
+    min-height: 70px;
+}
+.guitar-string {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    position: relative;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.guitar-string::before {
+    content: '';
+    position: absolute;
+    left: 0; right: 0;
+    height: 1px;
+    top: 50%;
+}
+.guitar-string:nth-child(1)::before { background: rgba(220,200,160,0.9); height: 1px; }
+.guitar-string:nth-child(2)::before { background: rgba(220,200,160,0.85); height: 1px; }
+.guitar-string:nth-child(3)::before { background: rgba(220,200,160,0.8); height: 1.5px; }
+.guitar-string:nth-child(4)::before { background: rgba(200,180,140,0.8); height: 1.5px; }
+.guitar-string:nth-child(5)::before { background: rgba(180,160,120,0.75); height: 2px; }
+.guitar-string:nth-child(6)::before { background: rgba(160,140,100,0.7); height: 2px; }
+
+.guitar-fret {
+    width: 50px;
+    min-width: 50px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    border-right: 2px solid rgba(180,180,180,0.4);
+}
+.guitar-fret:first-child { border-right: 3px solid rgba(220,220,200,0.8); width: 30px; min-width: 30px; }
+.guitar-fret:hover { background: rgba(74,127,255,0.15); }
+.guitar-fret.active { background: rgba(74,127,255,0.3); }
+.guitar-fret-dot {
+    width: 8px; height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 0.1s;
+}
+.guitar-fret.active .guitar-fret-dot, .guitar-fret:hover .guitar-fret-dot { opacity: 1; }
+.guitar-fret-num {
+    position: absolute;
+    bottom: -14px;
+    font-size: 8px;
+    color: var(--text-dim);
+}
+#guitar-strum-bar {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+#guitar-strum-bar label { font-size: 10px; color: var(--text-dim); }
+.strum-btn {
+    padding: 3px 8px;
+    background: var(--bg-dark);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text);
+    font-size: 10px;
+    cursor: pointer;
+}
+.strum-btn:hover { background: var(--bg-hover); }
+
 /* Loading indicator */
 .instrument-loading {
     font-size: 11px;
@@ -1194,6 +1302,7 @@ body {
                 </div>
                 <div id="piano-keyboard"></div>
                 <div id="drum-pads"></div>
+                <div id="guitar-fretboard"></div>
             </div>
             <!-- Synth Panel -->
             <div id="synth-panel">
@@ -2661,12 +2770,50 @@ class InstrumentEngine {
         return notes;
     }
 
+    // Guitar tuning: standard EADGBE (low to high)
+    guitarStrings = [
+        { open: 'E2', name: 'E' },  // 6th string (low)
+        { open: 'A2', name: 'A' },
+        { open: 'D3', name: 'D' },
+        { open: 'G3', name: 'G' },
+        { open: 'B3', name: 'B' },
+        { open: 'E4', name: 'e' },  // 1st string (high)
+    ];
+
+    // Common chords: [string6, string5, string4, string3, string2, string1] (-1 = muted, 0 = open, 1-12 = fret)
+    chords = {
+        'C':  [-1, 3, 2, 0, 1, 0],
+        'D':  [-1,-1, 0, 2, 3, 2],
+        'E':  [0, 2, 2, 1, 0, 0],
+        'F':  [1, 3, 3, 2, 1, 1],
+        'G':  [3, 2, 0, 0, 0, 3],
+        'A':  [-1, 0, 2, 2, 2, 0],
+        'B':  [-1, 2, 4, 4, 4, 2],
+        'Am': [-1, 0, 2, 2, 1, 0],
+        'Dm': [-1,-1, 0, 2, 3, 1],
+        'Em': [0, 2, 2, 0, 0, 0],
+        'Fm': [1, 3, 3, 1, 1, 1],
+        'Bm': [-1, 2, 4, 4, 3, 2],
+        'C7': [-1, 3, 2, 3, 1, 0],
+        'G7': [3, 2, 0, 0, 0, 1],
+        'A7': [-1, 0, 2, 0, 2, 0],
+        'D7': [-1,-1, 0, 2, 1, 2],
+        'E7': [0, 2, 0, 1, 0, 0],
+    };
+
+    isGuitarMode = false;
+
     async setInstrument(instrumentName) {
         this.isDrumMode = instrumentName === '__drums__';
+        this.isGuitarMode = instrumentName.includes('guitar') || instrumentName === 'electric_bass_finger';
+
         if (this.isDrumMode) {
             this.currentInstrument = 'synth_drum';
-            // Voor drums gebruiken we oscillator-gebaseerde sounds
             this._renderDrumPads();
+        } else if (this.isGuitarMode) {
+            this.currentInstrument = instrumentName;
+            await this.loadInstrument(instrumentName);
+            this._renderGuitarFretboard();
         } else {
             this.currentInstrument = instrumentName;
             await this.loadInstrument(instrumentName);
@@ -2890,6 +3037,7 @@ class InstrumentEngine {
         const container = document.getElementById('piano-keyboard');
         container.style.display = 'flex';
         document.getElementById('drum-pads').classList.remove('active');
+        document.getElementById('guitar-fretboard').classList.remove('active');
 
         let html = '';
         const startOct = Math.max(0, this.octave - 1);
@@ -2915,6 +3063,7 @@ class InstrumentEngine {
 
     _renderDrumPads() {
         document.getElementById('piano-keyboard').style.display = 'none';
+        document.getElementById('guitar-fretboard').classList.remove('active');
         const container = document.getElementById('drum-pads');
         container.classList.add('active');
 
@@ -2926,6 +3075,135 @@ class InstrumentEngine {
                 <span class="drum-pad-key">${drum.key.replace('Key', '')}</span>
             </div>
         `).join('');
+    }
+
+    _renderGuitarFretboard() {
+        document.getElementById('piano-keyboard').style.display = 'none';
+        document.getElementById('drum-pads').classList.remove('active');
+        const container = document.getElementById('guitar-fretboard');
+        container.innerHTML = ''; // Clear previous
+        container.classList.add('active');
+
+        const numFrets = 15;
+        const noteNames = this.noteNames;
+
+        // Chord buttons
+        let chordsHtml = '<div id="guitar-chords">';
+        Object.keys(this.chords).forEach(name => {
+            const isMinor = name.includes('m') || name.includes('7');
+            chordsHtml += `<button class="chord-btn ${isMinor ? 'minor' : ''}"
+                onclick="daw.instruments.strumChord('${name}')">${name}</button>`;
+        });
+        chordsHtml += '</div>';
+
+        // Strum bar
+        let strumHtml = `<div id="guitar-strum-bar">
+            <label>Strum:</label>
+            <button class="strum-btn" onclick="daw.instruments.strumDown()">&#x25BC; Down</button>
+            <button class="strum-btn" onclick="daw.instruments.strumUp()">&#x25B2; Up</button>
+            <label style="margin-left:8px">Snelheid:</label>
+            <input type="range" id="strum-speed" min="10" max="80" value="30" style="width:60px">
+        </div>`;
+
+        // Fretboard
+        let neckHtml = '<div id="guitar-neck">';
+        this.guitarStrings.forEach((str, strIdx) => {
+            neckHtml += `<div class="guitar-string" data-string="${strIdx}">`;
+            for (let fret = 0; fret <= numFrets; fret++) {
+                // Calculate note at this fret
+                const openMidi = this._noteNameToMidi(str.open);
+                const midi = openMidi + fret;
+                const noteName = `${noteNames[midi % 12]}${Math.floor(midi / 12) - 1}`;
+                const label = fret === 0 ? str.name : '';
+
+                neckHtml += `<div class="guitar-fret" data-note="${noteName}" data-fret="${fret}" data-string="${strIdx}"
+                    onmousedown="daw.instruments.playNote('${noteName}')"
+                    onmouseup="daw.instruments.stopNote('${noteName}')"
+                    onmouseleave="daw.instruments.stopNote('${noteName}')">
+                    <div class="guitar-fret-dot"></div>
+                    ${label ? `<span style="position:absolute;left:-18px;font-size:9px;color:var(--text-dim)">${label}</span>` : ''}
+                </div>`;
+            }
+            neckHtml += '</div>';
+        });
+        neckHtml += '</div>';
+
+        // Fret numbers
+        let fretNums = '<div style="display:flex;padding-left:30px">';
+        for (let f = 0; f <= numFrets; f++) {
+            const hasDot = [3,5,7,9,12,15].includes(f);
+            fretNums += `<div style="width:${f===0?'30':'50'}px;min-width:${f===0?'30':'50'}px;text-align:center;font-size:8px;color:${hasDot ? 'var(--accent)' : 'var(--text-dim)'}">${f || ''}</div>`;
+        }
+        fretNums += '</div>';
+
+        container.innerHTML = chordsHtml + strumHtml + neckHtml + fretNums;
+    }
+
+    _noteNameToMidi(noteName) {
+        const match = noteName.match(/^([A-G]b?)(\d+)$/);
+        if (!match) return 60;
+        return (parseInt(match[2]) + 1) * 12 + this.noteNames.indexOf(match[1]);
+    }
+
+    // Strum a chord with realistic delay between strings
+    strumChord(chordName) {
+        const chord = this.chords[chordName];
+        if (!chord) return;
+        this._lastChord = chordName;
+
+        const speedEl = document.getElementById('strum-speed');
+        const strumDelay = speedEl ? parseInt(speedEl.value) : 30; // ms between strings
+
+        // Highlight chord button
+        document.querySelectorAll('.chord-btn').forEach(b => b.classList.remove('active'));
+        const btn = [...document.querySelectorAll('.chord-btn')].find(b => b.textContent === chordName);
+        if (btn) { btn.classList.add('active'); setTimeout(() => btn.classList.remove('active'), 500); }
+
+        // Play each string with delay (strum effect)
+        chord.forEach((fret, strIdx) => {
+            if (fret === -1) return; // muted string
+            const openMidi = this._noteNameToMidi(this.guitarStrings[strIdx].open);
+            const midi = openMidi + fret;
+            const noteName = `${this.noteNames[midi % 12]}${Math.floor(midi / 12) - 1}`;
+
+            setTimeout(() => {
+                this.playNote(noteName);
+                // Highlight fret on UI
+                const fretEl = document.querySelector(`.guitar-fret[data-string="${strIdx}"][data-fret="${fret}"]`);
+                if (fretEl) {
+                    fretEl.classList.add('active');
+                    setTimeout(() => fretEl.classList.remove('active'), 500);
+                }
+                setTimeout(() => this.stopNote(noteName), 800);
+            }, strIdx * strumDelay);
+        });
+    }
+
+    strumDown() {
+        // Strum the last played chord, or default to Em
+        const lastChord = this._lastChord || 'Em';
+        this.strumChord(lastChord);
+    }
+
+    strumUp() {
+        const chord = this.chords[this._lastChord || 'Em'];
+        if (!chord) return;
+        const speedEl = document.getElementById('strum-speed');
+        const strumDelay = speedEl ? parseInt(speedEl.value) : 30;
+
+        // Reverse order (high to low)
+        const reversed = [...chord].reverse();
+        reversed.forEach((fret, i) => {
+            if (fret === -1) return;
+            const strIdx = 5 - i; // Reverse string index
+            const openMidi = this._noteNameToMidi(this.guitarStrings[strIdx].open);
+            const midi = openMidi + fret;
+            const noteName = `${this.noteNames[midi % 12]}${Math.floor(midi / 12) - 1}`;
+            setTimeout(() => {
+                this.playNote(noteName);
+                setTimeout(() => this.stopNote(noteName), 800);
+            }, i * strumDelay);
+        });
     }
 
     _updateUI() {
