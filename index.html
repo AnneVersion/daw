@@ -1542,15 +1542,103 @@ class AudioEngine {
             if (track.mute) return;
             track.regions.forEach(region => {
                 if (track.type === 'midi') {
-                    // MIDI regions: schedule individual notes
-                    const regionStart = beatsToSeconds(region.startBeat);
-                    const key = 'midi_region_' + region.id;
-                    if (regionStart >= playPos && regionStart < playPos + this.scheduleAheadTime) {
-                        if (this.activeSources.has(key)) return;
-                        this.activeSources.set(key, true); // Mark as scheduled
-                        // Delegate to DAW controller for instrument playback
-                        if (window.daw) window.daw._scheduleMidiRegion(track, region, this._startTime);
-                    }
+                    // MIDI regions: schedule individual notes within lookahead
+                    if (!region.notes) return;
+                    const startTime = this._startTime;
+                    region.notes.forEach(note => {
+                        const noteAbsBeat = region.startBeat + note.startBeat;
+                        const noteStartSec = beatsToSeconds(noteAbsBeat);
+                        const noteDurSec = beatsToSeconds(note.lengthBeats);
+                        const key = `midi_${region.id}_${note.note}_${noteAbsBeat}`;
+
+                        if (noteStartSec >= playPos && noteStartSec < playPos + this.scheduleAheadTime) {
+                            if (this.activeSources.has(key)) return;
+
+                            const nodes = this.trackNodes.get(track.id);
+                            if (!nodes) return;
+
+                            const when = startTime + noteStartSec;
+                            const vel = (note.velocity || 100) / 127 * 0.6;
+
+                            // Try soundfont first, then synth drum fallback, then oscillator
+                            const bufs = window.daw?.instruments?.loadedInstruments?.get(track.instrument);
+                            const buf = bufs?.[note.note];
+
+                            if (buf) {
+                                // Soundfont playback
+                                const source = this.ctx.createBufferSource();
+                                source.buffer = buf;
+                                const noteGain = this.ctx.createGain();
+                                noteGain.gain.value = vel;
+                                source.connect(noteGain);
+                                noteGain.connect(nodes.gain);
+                                source.start(when);
+                                noteGain.gain.setValueAtTime(vel, when + noteDurSec - 0.02);
+                                noteGain.gain.linearRampToValueAtTime(0, when + noteDurSec + 0.05);
+                                source.stop(when + noteDurSec + 0.1);
+                                source.onended = () => { this.activeSources.delete(key); noteGain.disconnect(); };
+                                this.activeSources.set(key, source);
+                            } else if (track.instrument === 'synth_drum') {
+                                // Synth drum: simple percussion synthesis at scheduled time
+                                const noteGain = this.ctx.createGain();
+                                noteGain.connect(nodes.gain);
+                                const names = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+                                const m = note.note.match(/^([A-G]b?)(\d+)$/);
+                                const midi = m ? (parseInt(m[2]) + 1) * 12 + names.indexOf(m[1]) : 60;
+                                // Map MIDI note to drum type
+                                if (midi <= 38) { // Kick/Snare range
+                                    const osc = this.ctx.createOscillator();
+                                    const isKick = midi <= 36;
+                                    osc.frequency.setValueAtTime(isKick ? 150 : 250, when);
+                                    osc.frequency.exponentialRampToValueAtTime(1, when + (isKick ? 0.5 : 0.15));
+                                    noteGain.gain.setValueAtTime(vel, when);
+                                    noteGain.gain.exponentialRampToValueAtTime(0.001, when + (isKick ? 0.5 : 0.2));
+                                    osc.connect(noteGain);
+                                    osc.start(when);
+                                    osc.stop(when + 0.5);
+                                    this.activeSources.set(key, osc);
+                                    osc.onended = () => { this.activeSources.delete(key); noteGain.disconnect(); };
+                                } else { // Hi-hat / perc range
+                                    const bufLen = this.ctx.sampleRate * 0.1;
+                                    const noiseBuf = this.ctx.createBuffer(1, bufLen, this.ctx.sampleRate);
+                                    const d = noiseBuf.getChannelData(0);
+                                    for (let i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.03));
+                                    const src = this.ctx.createBufferSource();
+                                    src.buffer = noiseBuf;
+                                    const hp = this.ctx.createBiquadFilter();
+                                    hp.type = 'highpass';
+                                    hp.frequency.value = 5000 + (midi - 40) * 200;
+                                    src.connect(hp);
+                                    hp.connect(noteGain);
+                                    noteGain.gain.setValueAtTime(vel * 0.5, when);
+                                    noteGain.gain.exponentialRampToValueAtTime(0.001, when + 0.1);
+                                    src.start(when);
+                                    this.activeSources.set(key, src);
+                                    src.onended = () => { this.activeSources.delete(key); noteGain.disconnect(); };
+                                }
+                            } else {
+                                // Oscillator fallback
+                                const names = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+                                const m = note.note.match(/^([A-G]b?)(\d+)$/);
+                                if (!m) return;
+                                const midi = (parseInt(m[2]) + 1) * 12 + names.indexOf(m[1]);
+                                const freq = 440 * Math.pow(2, (midi - 69) / 12);
+                                const osc = this.ctx.createOscillator();
+                                osc.type = 'triangle';
+                                osc.frequency.value = freq;
+                                const noteGain = this.ctx.createGain();
+                                noteGain.gain.value = vel;
+                                osc.connect(noteGain);
+                                noteGain.connect(nodes.gain);
+                                osc.start(when);
+                                noteGain.gain.setValueAtTime(vel, when + noteDurSec - 0.02);
+                                noteGain.gain.linearRampToValueAtTime(0, when + noteDurSec + 0.05);
+                                osc.stop(when + noteDurSec + 0.1);
+                                osc.onended = () => { this.activeSources.delete(key); noteGain.disconnect(); };
+                                this.activeSources.set(key, osc);
+                            }
+                        }
+                    });
                 } else {
                     // Audio regions
                     const regionStart = beatsToSeconds(region.startBeat);
