@@ -1,8 +1,8 @@
-"""DAW Development Server - port 8085"""
+"""DAW Development Server - port 8086"""
 import http.server
 import os
 
-PORT = 8085
+PORT = 8086
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 class CORSHandler(http.server.SimpleHTTPRequestHandler):
