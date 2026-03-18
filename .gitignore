@@ -1,0 +1,19 @@
+# Audio files (te groot voor git)
+audio/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment
+.env
+
+# Temp
+*.log
+*.tmp
+nul
+NUL
+
+# Claude Code
+.claude/
