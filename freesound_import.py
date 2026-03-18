@@ -14,9 +14,17 @@ Opties:
 """
 import os, sys, json, uuid, time, argparse
 from pathlib import Path
-from urllib.request import urlopen, Request
-from urllib.error import HTTPError
+import requests as _requests
 import psycopg2
+
+# Load .env file
+_env_path = Path(__file__).parent / '.env'
+if _env_path.exists():
+    for _line in _env_path.read_text().splitlines():
+        _line = _line.strip()
+        if _line and not _line.startswith('#') and '=' in _line:
+            _k, _v = _line.split('=', 1)
+            os.environ.setdefault(_k.strip(), _v.strip().strip('"\''))
 from psycopg2.extras import RealDictCursor
 
 # Config
@@ -67,21 +75,20 @@ def get_db():
 
 def api_request(endpoint, api_key, params=None):
     """Maak een API request naar Freesound."""
-    url = f"{API_BASE}{endpoint}?token={api_key}"
+    url = f"{API_BASE}{endpoint}"
+    p = {'token': api_key}
     if params:
-        for k, v in params.items():
-            url += f"&{k}={v}"
-
-    req = Request(url, headers={'User-Agent': 'DAW-Importer/1.0'})
+        p.update(params)
     try:
-        with urlopen(req) as resp:
-            return json.loads(resp.read().decode())
-    except HTTPError as e:
-        if e.code == 429:
+        resp = _requests.get(url, params=p, timeout=15)
+        if resp.status_code == 429:
             print("  Rate limit bereikt, wacht 60 seconden...")
             time.sleep(60)
             return api_request(endpoint, api_key, params)
-        print(f"  API fout {e.code}: {e.reason}")
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        print(f"  API fout: {e}")
         return None
 
 def search_sounds(api_key, query, max_results=5):
@@ -111,10 +118,10 @@ def download_sound(sound_id, api_key, dest_path):
         return False
 
     try:
-        req = Request(preview_url, headers={'User-Agent': 'DAW-Importer/1.0'})
-        with urlopen(req) as resp:
-            dest_path.parent.mkdir(parents=True, exist_ok=True)
-            dest_path.write_bytes(resp.read())
+        resp = _requests.get(preview_url, timeout=30)
+        resp.raise_for_status()
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        dest_path.write_bytes(resp.content)
         return True
     except Exception as e:
         print(f"  Download fout: {e}")
