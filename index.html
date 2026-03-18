@@ -2261,6 +2261,23 @@ class TimelineRenderer {
             rctx.stroke();
         }
 
+        // Loop region on ruler
+        if (state.transport.loopEnabled) {
+            const lx1 = beatsToPixels(state.transport.loopStart) - scrollX;
+            const lx2 = beatsToPixels(state.transport.loopEnd) - scrollX;
+            rctx.fillStyle = 'rgba(74, 127, 255, 0.2)';
+            rctx.fillRect(lx1, 0, lx2 - lx1, rh);
+            // Loop handles
+            rctx.fillStyle = '#4a7fff';
+            rctx.fillRect(lx1, 0, 3, rh);
+            rctx.fillRect(lx2 - 3, 0, 3, rh);
+            // Handle arrows
+            rctx.fillStyle = '#fff';
+            rctx.font = '8px sans-serif';
+            rctx.fillText('\u25B6', lx1 + 1, 20);
+            rctx.fillText('\u25C0', lx2 - 9, 20);
+        }
+
         // Playhead on ruler
         const playX = beatsToPixels(secondsToBeats(state.transport.position)) - scrollX;
         rctx.fillStyle = '#ff4a5a';
@@ -4412,13 +4429,58 @@ class DAWController {
             state.transport.position = beatsToSeconds(snapBeat(beat));
         });
 
-        // Ruler click
-        document.getElementById('ruler-canvas').addEventListener('click', e => {
-            const rect = e.target.getBoundingClientRect();
+        // Ruler click + loop drag
+        const rulerCanvas = document.getElementById('ruler-canvas');
+        let loopDrag = null; // null | 'start' | 'end' | 'create'
+        let loopDragOrigin = 0;
+
+        rulerCanvas.addEventListener('mousedown', e => {
+            const rect = rulerCanvas.getBoundingClientRect();
             const x = e.clientX - rect.left + document.getElementById('timeline-scroll').scrollLeft;
             const beat = pixelsToBeats(x);
+
+            if (state.transport.loopEnabled) {
+                const startPx = beatsToPixels(state.transport.loopStart);
+                const endPx = beatsToPixels(state.transport.loopEnd);
+                const hitPx = e.clientX - rect.left + document.getElementById('timeline-scroll').scrollLeft;
+                if (Math.abs(hitPx - startPx) < 8) { loopDrag = 'start'; return; }
+                if (Math.abs(hitPx - endPx) < 8) { loopDrag = 'end'; return; }
+            }
+            // Shift+drag creates new loop region
+            if (e.shiftKey) {
+                loopDrag = 'create';
+                loopDragOrigin = snapBeat(beat);
+                state.transport.loopStart = loopDragOrigin;
+                state.transport.loopEnd = loopDragOrigin;
+                state.transport.loopEnabled = true;
+                document.getElementById('btn-loop').classList.add('active');
+                return;
+            }
+            // Normal click = set playhead
             state.transport.position = beatsToSeconds(snapBeat(beat));
         });
+
+        document.addEventListener('mousemove', e => {
+            if (!loopDrag) return;
+            const rect = rulerCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left + document.getElementById('timeline-scroll').scrollLeft;
+            const beat = snapBeat(pixelsToBeats(Math.max(0, x)));
+            if (loopDrag === 'start') {
+                state.transport.loopStart = Math.min(beat, state.transport.loopEnd - 1);
+            } else if (loopDrag === 'end') {
+                state.transport.loopEnd = Math.max(beat, state.transport.loopStart + 1);
+            } else if (loopDrag === 'create') {
+                if (beat >= loopDragOrigin) {
+                    state.transport.loopStart = loopDragOrigin;
+                    state.transport.loopEnd = Math.max(beat, loopDragOrigin + 1);
+                } else {
+                    state.transport.loopStart = beat;
+                    state.transport.loopEnd = loopDragOrigin;
+                }
+            }
+        });
+
+        document.addEventListener('mouseup', () => { loopDrag = null; });
 
         // Drag & drop files onto timeline
         const timelineArea = document.getElementById('timeline-area');
@@ -4428,14 +4490,22 @@ class DAWController {
         });
         timelineArea.addEventListener('drop', async e => {
             e.preventDefault();
+            // Calculate drop position (beat + track)
+            const scroll = document.getElementById('timeline-scroll');
+            const rect = scroll.getBoundingClientRect();
+            const x = e.clientX - rect.left + scroll.scrollLeft;
+            const y = e.clientY - rect.top + scroll.scrollTop;
+            const dropBeat = snapBeat(pixelsToBeats(x));
+            const trackHeight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--track-height'));
+            const trackIdx = Math.floor(y / trackHeight);
+
             // Library sound drop
             const dawSound = e.dataTransfer.getData('application/x-daw-sound');
             if (dawSound) {
                 try {
                     const data = JSON.parse(dawSound);
-                    const track = state.tracks.find(t => t.id === state.selectedTrackId && t.type === 'audio')
-                        || state.tracks.find(t => t.type === 'audio');
-                    if (!track) { toast('Selecteer een audio track', 'error'); return; }
+                    const track = state.tracks[trackIdx] || state.tracks.find(t => t.type === 'audio');
+                    if (!track || track.type !== 'audio') { toast('Sleep naar een audio track', 'error'); return; }
                     toast(`Laden: ${data.name}...`, 'info');
                     const res = await fetch(`${API_BASE}/api/sounds/${data.id}/file`);
                     const arrayBuffer = await res.arrayBuffer();
@@ -4443,17 +4513,11 @@ class DAWController {
                     const soundId = uuid();
                     this.engine.audioBuffers.set(soundId, audioBuffer);
                     const peaks = this.engine.computePeaks(audioBuffer);
-                    let startBeat = 0;
-                    track.regions.forEach(r => {
-                        const end = r.startBeat + secondsToBeats(r.duration);
-                        if (end > startBeat) startBeat = end;
-                    });
-                    startBeat = snapBeat(startBeat);
                     track.regions.push({
-                        id: uuid(), soundId, startBeat, offset: 0,
+                        id: uuid(), soundId, startBeat: dropBeat, offset: 0,
                         duration: audioBuffer.duration, name: data.name, peaks
                     });
-                    toast(`${data.name} toegevoegd aan ${track.name}`, 'success');
+                    toast(`${data.name} op ${track.name} (beat ${Math.round(dropBeat)})`, 'success');
                 } catch (err) {
                     toast('Fout bij laden van sound', 'error');
                     console.error('Library drop error:', err);
