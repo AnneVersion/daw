@@ -856,6 +856,71 @@ body {
     50% { opacity: 1; }
 }
 
+/* ---- Piano Roll Modal ---- */
+#piano-roll-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#piano-roll {
+    width: 90vw;
+    height: 75vh;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+#piano-roll-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    background: var(--bg-dark);
+    border-bottom: 1px solid var(--border);
+}
+#piano-roll-header h3 { font-size: 14px; color: var(--text-bright); flex: 1; }
+#piano-roll-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+#piano-roll-keys {
+    width: 48px;
+    min-width: 48px;
+    background: var(--bg-dark);
+    border-right: 1px solid var(--border);
+    overflow: hidden;
+}
+.pr-key {
+    height: 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 8px;
+    display: flex;
+    align-items: center;
+    padding-left: 4px;
+    color: var(--text-dim);
+    cursor: pointer;
+}
+.pr-key.black { background: #1a1a26; }
+.pr-key.white { background: #222235; }
+.pr-key:hover { background: var(--bg-hover); }
+.pr-key.c-note { border-bottom: 1px solid var(--accent-dim); color: var(--text); }
+
+#piano-roll-grid-container {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+}
+#piano-roll-canvas {
+    display: block;
+}
+
 /* ---- Resize handle ---- */
 #bottom-resize {
     height: 4px;
@@ -1476,24 +1541,35 @@ class AudioEngine {
         state.tracks.forEach(track => {
             if (track.mute) return;
             track.regions.forEach(region => {
-                const regionStart = beatsToSeconds(region.startBeat);
-                const regionEnd = regionStart + region.duration;
-                const key = region.id;
+                if (track.type === 'midi') {
+                    // MIDI regions: schedule individual notes
+                    const regionStart = beatsToSeconds(region.startBeat);
+                    const key = 'midi_region_' + region.id;
+                    if (regionStart >= playPos && regionStart < playPos + this.scheduleAheadTime) {
+                        if (this.activeSources.has(key)) return;
+                        this.activeSources.set(key, true); // Mark as scheduled
+                        // Delegate to DAW controller for instrument playback
+                        if (window.daw) window.daw._scheduleMidiRegion(track, region, this._startTime);
+                    }
+                } else {
+                    // Audio regions
+                    const regionStart = beatsToSeconds(region.startBeat);
+                    const key = region.id;
+                    if (regionStart >= playPos && regionStart < playPos + this.scheduleAheadTime) {
+                        if (this.activeSources.has(key)) return;
+                        const buffer = this.audioBuffers.get(region.soundId);
+                        if (!buffer) return;
 
-                if (regionStart >= playPos && regionStart < playPos + this.scheduleAheadTime) {
-                    if (this.activeSources.has(key)) return; // Already scheduled
-                    const buffer = this.audioBuffers.get(region.soundId);
-                    if (!buffer) return;
+                        const source = this.ctx.createBufferSource();
+                        source.buffer = buffer;
+                        const nodes = this.trackNodes.get(track.id);
+                        if (nodes) source.connect(nodes.gain);
 
-                    const source = this.ctx.createBufferSource();
-                    source.buffer = buffer;
-                    const nodes = this.trackNodes.get(track.id);
-                    if (nodes) source.connect(nodes.gain);
-
-                    const when = this._startTime + regionStart;
-                    source.start(when, region.offset || 0, region.duration);
-                    source.onended = () => this.activeSources.delete(key);
-                    this.activeSources.set(key, source);
+                        const when = this._startTime + regionStart;
+                        source.start(when, region.offset || 0, region.duration);
+                        source.onended = () => this.activeSources.delete(key);
+                        this.activeSources.set(key, source);
+                    }
                 }
             });
         });
@@ -1791,19 +1867,22 @@ class TimelineRenderer {
             ctx.fillRect(0, y + trackHeight - 1, w, 1);
         });
 
-        // ---- Regions (waveforms) ----
+        // ---- Regions (waveforms + MIDI) ----
         state.tracks.forEach((track, trackIndex) => {
             const trackY = trackIndex * trackHeight;
+            const isMidi = track.type === 'midi';
 
             track.regions.forEach(region => {
                 const x = beatsToPixels(region.startBeat);
-                const regionW = beatsToPixels(secondsToBeats(region.duration));
+                const regionW = isMidi ?
+                    beatsToPixels(region.lengthBeats || 4) :
+                    beatsToPixels(secondsToBeats(region.duration));
                 const y = trackY + 4;
                 const regionH = trackHeight - 8;
 
                 // Region background
                 const color = track.color || TRACK_COLORS[trackIndex % TRACK_COLORS.length];
-                ctx.fillStyle = color + '30'; // semi-transparent
+                ctx.fillStyle = color + '30';
                 ctx.strokeStyle = color + '80';
                 ctx.lineWidth = 1;
                 ctx.beginPath();
@@ -1811,8 +1890,28 @@ class TimelineRenderer {
                 ctx.fill();
                 ctx.stroke();
 
-                // Waveform
-                if (region.peaks && region.peaks.length > 0) {
+                if (isMidi && region.notes && region.notes.length > 0) {
+                    // ---- MIDI: draw note blocks ----
+                    // Find note range for scaling
+                    let minNote = 127, maxNote = 0;
+                    region.notes.forEach(n => {
+                        const midi = this._noteNameToMidi(n.note);
+                        if (midi < minNote) minNote = midi;
+                        if (midi > maxNote) maxNote = midi;
+                    });
+                    const noteRange = Math.max(maxNote - minNote, 12) + 4;
+                    const noteH = Math.max(2, (regionH - 14) / noteRange);
+
+                    ctx.fillStyle = color + 'dd';
+                    region.notes.forEach(n => {
+                        const midi = this._noteNameToMidi(n.note);
+                        const noteX = x + (n.startBeat / (region.lengthBeats || 4)) * regionW;
+                        const noteW = Math.max(2, (n.lengthBeats / (region.lengthBeats || 4)) * regionW);
+                        const noteY = y + regionH - 4 - (midi - minNote + 2) * noteH;
+                        ctx.fillRect(noteX, noteY, noteW - 0.5, noteH - 0.5);
+                    });
+                } else if (!isMidi && region.peaks && region.peaks.length > 0) {
+                    // ---- Audio: draw waveform ----
                     const peaks = region.peaks;
                     const centerY = y + regionH / 2;
                     const amp = regionH / 2 - 2;
@@ -1918,6 +2017,13 @@ class TimelineRenderer {
 
     stopAnimation() {
         if (this._animFrame) cancelAnimationFrame(this._animFrame);
+    }
+
+    _noteNameToMidi(noteName) {
+        const names = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+        const match = noteName.match(/^([A-G]b?)(\d+)$/);
+        if (!match) return 60;
+        return (parseInt(match[2]) + 1) * 12 + names.indexOf(match[1]);
     }
 
     _updatePlayhead() {
@@ -2823,18 +2929,90 @@ class DAWController {
     }
 
     _addDefaultTracks() {
-        this.addTrack('Track 1');
-        this.addTrack('Track 2');
-        this.addTrack('Track 3');
-        this.addTrack('Track 4');
+        this.addTrack('Audio 1', 'audio');
+        this.addTrack('Audio 2', 'audio');
+        this.addTrack('Piano', 'midi', 'acoustic_grand_piano');
+        this.addTrack('Drums', 'midi', 'synth_drum');
     }
 
-    addTrack(name) {
+    showAddTrackDialog() {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.innerHTML = `
+            <div class="modal">
+                <h2>Nieuwe Track</h2>
+                <div style="display:flex;gap:8px;margin-bottom:12px">
+                    <button class="modal-btn primary" id="add-audio-track" style="flex:1;padding:16px;font-size:14px">
+                        Audio Track<br><span style="font-size:10px;opacity:0.7">Opname / bestanden</span>
+                    </button>
+                    <button class="modal-btn primary" id="add-midi-track" style="flex:1;padding:16px;font-size:14px;background:var(--purple)">
+                        MIDI Track<br><span style="font-size:10px;opacity:0.7">Noten / instrumenten</span>
+                    </button>
+                </div>
+                <div id="midi-instrument-select" style="display:none;margin-bottom:12px">
+                    <label style="font-size:11px;color:var(--text-dim)">Instrument:</label>
+                    <select class="modal-input" id="new-track-instrument" style="margin-top:4px">
+                        <option value="acoustic_grand_piano">Piano</option>
+                        <option value="electric_guitar_clean">Elektrische Gitaar</option>
+                        <option value="acoustic_guitar_nylon">Akoestische Gitaar</option>
+                        <option value="electric_bass_finger">Basgitaar</option>
+                        <option value="violin">Viool</option>
+                        <option value="string_ensemble_1">Strijkensemble</option>
+                        <option value="trumpet">Trompet</option>
+                        <option value="alto_sax">Saxofoon</option>
+                        <option value="flute">Fluit</option>
+                        <option value="synth_lead_2_sawtooth">Synth Lead</option>
+                        <option value="synth_pad_1_new_age">Synth Pad</option>
+                        <option value="synth_drum">Synth Drums</option>
+                    </select>
+                </div>
+                <input class="modal-input" id="new-track-name" placeholder="Track naam (optioneel)">
+                <div class="modal-buttons">
+                    <button class="modal-btn" id="add-track-cancel">Annuleren</button>
+                    <button class="modal-btn primary" id="add-track-confirm" style="display:none">Toevoegen</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        let selectedType = null;
+        const confirmBtn = overlay.querySelector('#add-track-confirm');
+        const midiSelect = overlay.querySelector('#midi-instrument-select');
+
+        overlay.querySelector('#add-audio-track').addEventListener('click', () => {
+            selectedType = 'audio';
+            overlay.querySelector('#add-audio-track').style.outline = '2px solid var(--accent)';
+            overlay.querySelector('#add-midi-track').style.outline = '';
+            midiSelect.style.display = 'none';
+            confirmBtn.style.display = 'block';
+        });
+        overlay.querySelector('#add-midi-track').addEventListener('click', () => {
+            selectedType = 'midi';
+            overlay.querySelector('#add-midi-track').style.outline = '2px solid var(--purple)';
+            overlay.querySelector('#add-audio-track').style.outline = '';
+            midiSelect.style.display = 'block';
+            confirmBtn.style.display = 'block';
+        });
+        overlay.querySelector('#add-track-cancel').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+        confirmBtn.addEventListener('click', () => {
+            const name = overlay.querySelector('#new-track-name').value;
+            const instrument = overlay.querySelector('#new-track-instrument').value;
+            this.addTrack(name, selectedType, selectedType === 'midi' ? instrument : null);
+            overlay.remove();
+        });
+    }
+
+    addTrack(name, type = 'audio', instrument = null) {
         const id = uuid();
         const index = state.tracks.length;
+        const isMidi = type === 'midi';
         const track = {
             id,
-            name: name || `Track ${index + 1}`,
+            name: name || `${isMidi ? 'MIDI' : 'Audio'} ${index + 1}`,
+            type, // 'audio' or 'midi'
+            instrument: instrument || (isMidi ? 'acoustic_grand_piano' : null),
             color: TRACK_COLORS[index % TRACK_COLORS.length],
             volume: 0.8,
             pan: 0,
@@ -2842,9 +3020,15 @@ class DAWController {
             solo: false,
             armed: false,
             regions: []
+            // Audio regions: { id, soundId, startBeat, offset, duration, name, peaks }
+            // MIDI regions:  { id, startBeat, lengthBeats, name, notes: [{note, startBeat, lengthBeats, velocity}] }
         };
         state.tracks.push(track);
         this.engine.createTrackNodes(id);
+        // Pre-load instrument for MIDI tracks
+        if (isMidi && this.instruments) {
+            this.instruments.loadInstrument(track.instrument);
+        }
         this._renderTrackHeaders();
         this._renderMixer();
         this.renderer.resize();
@@ -3097,11 +3281,17 @@ class DAWController {
 
     _renderTrackHeaders() {
         const container = document.getElementById('track-headers-list');
-        container.innerHTML = state.tracks.map(track => `
+        container.innerHTML = state.tracks.map(track => {
+            const isMidi = track.type === 'midi';
+            const typeLabel = isMidi ? 'MIDI' : 'AUD';
+            const typeColor = isMidi ? 'var(--purple)' : 'var(--accent-dim)';
+            return `
             <div class="track-header ${track.id === state.selectedTrackId ? 'selected' : ''}"
-                 data-track-id="${track.id}" onclick="daw.selectTrack('${track.id}')">
+                 data-track-id="${track.id}" onclick="daw.selectTrack('${track.id}')"
+                 ${isMidi ? `ondblclick="daw.openPianoRoll('${track.id}')"` : ''}>
                 <div class="track-header-top">
                     <div class="track-color" style="background:${track.color}"></div>
+                    <span style="font-size:8px;padding:1px 3px;border-radius:2px;background:${typeColor};color:#fff;font-weight:600">${typeLabel}</span>
                     <input class="track-name" value="${track.name}" spellcheck="false"
                            onchange="state.tracks.find(t=>t.id==='${track.id}').name=this.value; daw._renderMixer()"
                            onclick="event.stopPropagation()">
@@ -3119,8 +3309,8 @@ class DAWController {
                            oninput="daw.setTrackVolume('${track.id}', parseFloat(this.value))"
                            onclick="event.stopPropagation()">
                 </div>
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
     }
 
     _renderMixer() {
@@ -3245,7 +3435,7 @@ class DAWController {
 
         // Add track
         document.getElementById('add-track-btn').addEventListener('click', () => {
-            this.addTrack();
+            this.showAddTrackDialog();
         });
 
         // Bottom tabs
@@ -3430,6 +3620,279 @@ class DAWController {
             this.instruments.octave = Math.min(8, this.instruments.octave + 1);
             this.instruments._updateUI();
             if (!this.instruments.isDrumMode) this.instruments._renderPianoKeyboard();
+        });
+    }
+
+    // ---- Piano Roll Editor ----
+    openPianoRoll(trackId) {
+        const track = state.tracks.find(t => t.id === trackId);
+        if (!track || track.type !== 'midi') return;
+
+        // Create or get first MIDI region
+        let region = track.regions[0];
+        if (!region) {
+            region = {
+                id: uuid(),
+                startBeat: 0,
+                lengthBeats: 8,
+                name: 'Pattern 1',
+                notes: []
+            };
+            track.regions.push(region);
+        }
+
+        // Build piano roll modal
+        const overlay = document.createElement('div');
+        overlay.id = 'piano-roll-overlay';
+
+        const noteNames = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+        const minOct = 2, maxOct = 7;
+        const totalNotes = (maxOct - minOct + 1) * 12;
+        const noteH = 14;
+        const beatW = 40;
+        const totalBeats = region.lengthBeats || 8;
+        const canvasW = totalBeats * beatW;
+        const canvasH = totalNotes * noteH;
+
+        // Build keys HTML
+        let keysHtml = '';
+        for (let oct = maxOct; oct >= minOct; oct--) {
+            for (let n = 11; n >= 0; n--) {
+                const name = `${noteNames[n]}${oct}`;
+                const isBlack = [1,3,6,8,10].includes(n);
+                const isC = n === 0;
+                keysHtml += `<div class="pr-key ${isBlack ? 'black' : 'white'} ${isC ? 'c-note' : ''}"
+                    data-note="${name}" onmousedown="daw._prPreviewNote('${name}')">${isC ? name : (isBlack ? '' : noteNames[n])}</div>`;
+            }
+        }
+
+        overlay.innerHTML = `
+            <div id="piano-roll">
+                <div id="piano-roll-header">
+                    <h3>${track.name} — ${region.name}</h3>
+                    <div class="header-control">
+                        <label>Lengte (beats)</label>
+                        <input type="number" class="header-input" id="pr-length" value="${totalBeats}" min="1" max="64" style="width:50px">
+                    </div>
+                    <div class="header-control">
+                        <label>Grid</label>
+                        <select class="header-input" id="pr-grid" style="width:auto">
+                            <option value="1">1 beat</option>
+                            <option value="0.5">1/2 beat</option>
+                            <option value="0.25" selected>1/4 beat</option>
+                            <option value="0.125">1/8 beat</option>
+                        </select>
+                    </div>
+                    <button class="header-btn" onclick="daw._prClear()">Wissen</button>
+                    <button class="modal-btn primary" id="pr-close">Sluiten</button>
+                </div>
+                <div id="piano-roll-body">
+                    <div id="piano-roll-keys" style="overflow-y:hidden">${keysHtml}</div>
+                    <div id="piano-roll-grid-container">
+                        <canvas id="piano-roll-canvas" width="${canvasW}" height="${canvasH}"></canvas>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        // Sync scroll
+        const gridContainer = overlay.querySelector('#piano-roll-grid-container');
+        const keysDiv = overlay.querySelector('#piano-roll-keys');
+        gridContainer.addEventListener('scroll', () => {
+            keysDiv.scrollTop = gridContainer.scrollTop;
+        });
+
+        // Store piano roll state
+        this._prState = { track, region, overlay, noteH, beatW, totalNotes, minOct, maxOct, noteNames, gridSnap: 0.25 };
+
+        // Initial render + scroll to middle
+        this._prRender();
+        gridContainer.scrollTop = (canvasH / 2) - 100;
+
+        // Canvas click to add/remove notes
+        const canvas = overlay.querySelector('#piano-roll-canvas');
+        canvas.addEventListener('mousedown', e => this._prMouseDown(e));
+
+        // Length change
+        overlay.querySelector('#pr-length').addEventListener('change', e => {
+            region.lengthBeats = Math.max(1, parseInt(e.target.value) || 8);
+            canvas.width = region.lengthBeats * beatW;
+            this._prRender();
+        });
+
+        // Grid change
+        overlay.querySelector('#pr-grid').addEventListener('change', e => {
+            this._prState.gridSnap = parseFloat(e.target.value);
+        });
+
+        // Close
+        overlay.querySelector('#pr-close').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    }
+
+    _prRender() {
+        const s = this._prState;
+        if (!s) return;
+        const canvas = document.getElementById('piano-roll-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width, h = canvas.height;
+
+        ctx.clearRect(0, 0, w, h);
+
+        // Background rows (alternating for black/white keys)
+        for (let i = 0; i < s.totalNotes; i++) {
+            const noteIdx = 11 - (i % 12);
+            const isBlack = [1,3,6,8,10].includes(noteIdx);
+            const isC = noteIdx === 0;
+            ctx.fillStyle = isBlack ? '#151520' : '#1c1c2a';
+            ctx.fillRect(0, i * s.noteH, w, s.noteH);
+            if (isC) {
+                ctx.fillStyle = '#2a2a44';
+                ctx.fillRect(0, i * s.noteH, w, 1);
+            }
+        }
+
+        // Vertical grid lines (beats)
+        const beats = s.region.lengthBeats || 8;
+        for (let b = 0; b <= beats; b++) {
+            const x = b * s.beatW;
+            const isBar = b % state.project.timeSigNum === 0;
+            ctx.strokeStyle = isBar ? '#444466' : '#2a2a3e';
+            ctx.lineWidth = isBar ? 1 : 0.5;
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, h);
+            ctx.stroke();
+
+            // Sub-grid
+            if (s.gridSnap < 1) {
+                const steps = 1 / s.gridSnap;
+                for (let sub = 1; sub < steps; sub++) {
+                    const sx = x + (sub * s.gridSnap * s.beatW);
+                    ctx.strokeStyle = '#1e1e30';
+                    ctx.lineWidth = 0.5;
+                    ctx.beginPath();
+                    ctx.moveTo(sx, 0);
+                    ctx.lineTo(sx, h);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // Draw notes
+        const color = s.track.color || '#4a7fff';
+        s.region.notes.forEach(note => {
+            const midi = this.renderer._noteNameToMidi(note.note);
+            const rowFromTop = (s.maxOct * 12 + 11) - midi;
+            const y = rowFromTop * s.noteH;
+            const x = note.startBeat * s.beatW;
+            const w2 = Math.max(4, note.lengthBeats * s.beatW - 1);
+
+            // Note block
+            const vel = (note.velocity || 100) / 127;
+            ctx.fillStyle = color;
+            ctx.globalAlpha = 0.5 + vel * 0.5;
+            ctx.fillRect(x, y + 1, w2, s.noteH - 2);
+            ctx.globalAlpha = 1;
+
+            // Border
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x, y + 1, w2, s.noteH - 2);
+        });
+    }
+
+    _prMouseDown(e) {
+        const s = this._prState;
+        if (!s) return;
+        const canvas = e.target;
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        const beat = Math.floor(x / s.beatW / s.gridSnap) * s.gridSnap;
+        const rowFromTop = Math.floor(y / s.noteH);
+        const midi = (s.maxOct * 12 + 11) - rowFromTop;
+        const noteIdx = midi % 12;
+        const octave = Math.floor(midi / 12) - 1;
+        const noteName = `${s.noteNames[noteIdx]}${octave}`;
+
+        // Check if clicking existing note → remove it
+        const existing = s.region.notes.findIndex(n =>
+            n.note === noteName &&
+            beat >= n.startBeat &&
+            beat < n.startBeat + n.lengthBeats
+        );
+
+        if (existing >= 0) {
+            s.region.notes.splice(existing, 1);
+        } else {
+            // Add new note
+            s.region.notes.push({
+                note: noteName,
+                startBeat: beat,
+                lengthBeats: s.gridSnap,
+                velocity: 100
+            });
+            // Preview the note
+            this._prPreviewNote(noteName);
+        }
+
+        this._prRender();
+    }
+
+    _prPreviewNote(noteName) {
+        const track = this._prState?.track;
+        if (!track) return;
+        // Use instrument engine to play
+        if (track.instrument && this.instruments) {
+            this.instruments.playNote(noteName);
+            setTimeout(() => this.instruments.stopNote(noteName), 300);
+        }
+    }
+
+    _prClear() {
+        if (this._prState?.region) {
+            this._prState.region.notes = [];
+            this._prRender();
+        }
+    }
+
+    // ---- MIDI Playback ----
+    _scheduleMidiRegion(track, region, startTime) {
+        if (!region.notes || !track.instrument) return;
+        const nodes = this.engine.trackNodes.get(track.id);
+        if (!nodes) return;
+
+        region.notes.forEach(note => {
+            const noteStartSec = beatsToSeconds(region.startBeat + note.startBeat);
+            const noteDurSec = beatsToSeconds(note.lengthBeats);
+
+            // Schedule via instrument engine soundfont
+            const buffers = this.instruments?.loadedInstruments?.get(track.instrument);
+            if (buffers && buffers[note.note]) {
+                const when = startTime + noteStartSec;
+                if (when < this.engine.ctx.currentTime) return; // Already passed
+
+                const source = this.engine.ctx.createBufferSource();
+                source.buffer = buffers[note.note];
+                const noteGain = this.engine.ctx.createGain();
+                noteGain.gain.value = (note.velocity || 100) / 127 * 0.6;
+                source.connect(noteGain);
+                noteGain.connect(nodes.gain);
+
+                source.start(when);
+                // Fade out at note end
+                noteGain.gain.setValueAtTime((note.velocity || 100) / 127 * 0.6, when + noteDurSec - 0.02);
+                noteGain.gain.linearRampToValueAtTime(0, when + noteDurSec);
+                source.stop(when + noteDurSec + 0.05);
+
+                const key = `midi_${note.note}_${when}`;
+                this.engine.activeSources.set(key, source);
+                source.onended = () => this.engine.activeSources.delete(key);
+            }
         });
     }
 
