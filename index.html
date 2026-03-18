@@ -3392,6 +3392,8 @@ class DAWController {
                             onclick="event.stopPropagation(); daw.toggleSolo('${track.id}')">S</button>
                     <button class="track-btn ${track.armed ? 'arm-active' : ''}"
                             onclick="event.stopPropagation(); daw.toggleArm('${track.id}')">R</button>
+                    ${isMidi ? `<button class="track-btn" style="background:var(--purple);color:#fff;width:auto;padding:0 4px;font-size:8px"
+                            onclick="event.stopPropagation(); daw.openPianoRoll('${track.id}')">EDIT</button>` : ''}
                     <input type="range" class="track-volume" min="0" max="1" step="0.01"
                            value="${track.volume}"
                            oninput="daw.setTrackVolume('${track.id}', parseFloat(this.value))"
