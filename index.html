@@ -4426,8 +4426,41 @@ class DAWController {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'copy';
         });
-        timelineArea.addEventListener('drop', e => {
+        timelineArea.addEventListener('drop', async e => {
             e.preventDefault();
+            // Library sound drop
+            const dawSound = e.dataTransfer.getData('application/x-daw-sound');
+            if (dawSound) {
+                try {
+                    const data = JSON.parse(dawSound);
+                    const track = state.tracks.find(t => t.id === state.selectedTrackId && t.type === 'audio')
+                        || state.tracks.find(t => t.type === 'audio');
+                    if (!track) { toast('Selecteer een audio track', 'error'); return; }
+                    toast(`Laden: ${data.name}...`, 'info');
+                    const res = await fetch(`${API_BASE}/api/sounds/${data.id}/file`);
+                    const arrayBuffer = await res.arrayBuffer();
+                    const audioBuffer = await this.engine.ctx.decodeAudioData(arrayBuffer);
+                    const soundId = uuid();
+                    this.engine.audioBuffers.set(soundId, audioBuffer);
+                    const peaks = this.engine.computePeaks(audioBuffer);
+                    let startBeat = 0;
+                    track.regions.forEach(r => {
+                        const end = r.startBeat + secondsToBeats(r.duration);
+                        if (end > startBeat) startBeat = end;
+                    });
+                    startBeat = snapBeat(startBeat);
+                    track.regions.push({
+                        id: uuid(), soundId, startBeat, offset: 0,
+                        duration: audioBuffer.duration, name: data.name, peaks
+                    });
+                    toast(`${data.name} toegevoegd aan ${track.name}`, 'success');
+                } catch (err) {
+                    toast('Fout bij laden van sound', 'error');
+                    console.error('Library drop error:', err);
+                }
+                return;
+            }
+            // File upload drop
             if (e.dataTransfer.files.length) {
                 this.handleFileUpload(e.dataTransfer.files);
             }
