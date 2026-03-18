@@ -849,8 +849,9 @@ body {
 #guitar-fretboard {
     display: none;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
     height: 100%;
+    overflow-y: auto;
 }
 #guitar-fretboard.active { display: flex; }
 
@@ -2885,9 +2886,84 @@ class InstrumentEngine {
         const gain = ctx.createGain();
         gain.gain.value = 0.6;
 
-        // Route through wah filter if guitar mode + wah enabled
-        if (this.isGuitarMode && this._wahEnabled && this._wahFilter) {
-            gain.connect(this._wahFilter);
+        if (this.isGuitarMode) {
+            // Guitar amp chain: gain → overdrive → cabinet EQ → reverb → wah/output
+            // Subtle overdrive (waveshaper)
+            if (!this._guitarWaveshaper) {
+                this._guitarWaveshaper = ctx.createWaveShaper();
+                const curve = new Float32Array(256);
+                for (let i = 0; i < 256; i++) {
+                    const x = (i / 128) - 1;
+                    curve[i] = (Math.PI + 3.6) * x / (Math.PI + 3.6 * Math.abs(x)); // Soft clip
+                }
+                this._guitarWaveshaper.curve = curve;
+                this._guitarWaveshaper.oversample = '2x';
+
+                // Cabinet sim: low-pass + mid presence
+                this._cabinetLP = ctx.createBiquadFilter();
+                this._cabinetLP.type = 'lowpass';
+                this._cabinetLP.frequency.value = 5000;
+                this._cabinetLP.Q.value = 0.7;
+
+                this._cabinetMid = ctx.createBiquadFilter();
+                this._cabinetMid.type = 'peaking';
+                this._cabinetMid.frequency.value = 800;
+                this._cabinetMid.gain.value = 3;
+                this._cabinetMid.Q.value = 1.5;
+
+                // Warmth: slight low boost
+                this._cabinetWarmth = ctx.createBiquadFilter();
+                this._cabinetWarmth.type = 'lowshelf';
+                this._cabinetWarmth.frequency.value = 200;
+                this._cabinetWarmth.gain.value = 2;
+
+                // Simple convolution reverb (generate impulse)
+                this._guitarReverb = ctx.createConvolver();
+                const reverbLen = ctx.sampleRate * 0.8;
+                const reverbBuf = ctx.createBuffer(2, reverbLen, ctx.sampleRate);
+                for (let ch = 0; ch < 2; ch++) {
+                    const data = reverbBuf.getChannelData(ch);
+                    for (let i = 0; i < reverbLen; i++) {
+                        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.25));
+                    }
+                }
+                this._guitarReverb.buffer = reverbBuf;
+
+                // Dry/wet mix for reverb
+                this._reverbDry = ctx.createGain();
+                this._reverbWet = ctx.createGain();
+                this._reverbDry.gain.value = 0.75;
+                this._reverbWet.gain.value = 0.25;
+
+                // Chain: waveshaper → cabinet → split (dry + reverb wet) → output
+                this._guitarWaveshaper.connect(this._cabinetLP);
+                this._cabinetLP.connect(this._cabinetMid);
+                this._cabinetMid.connect(this._cabinetWarmth);
+                this._cabinetWarmth.connect(this._reverbDry);
+                this._cabinetWarmth.connect(this._guitarReverb);
+                this._guitarReverb.connect(this._reverbWet);
+
+                // Connect to output (wah or master)
+                const output = this.audioEngine.masterGain;
+                this._reverbDry.connect(output);
+                this._reverbWet.connect(output);
+                this._guitarOutputNode = this._cabinetWarmth; // Save for wah reconnection
+            }
+
+            // Route through wah if enabled, otherwise through amp chain
+            if (this._wahEnabled && this._wahFilter) {
+                // Reconnect reverb outputs through wah
+                this._reverbDry.disconnect();
+                this._reverbWet.disconnect();
+                this._reverbDry.connect(this._wahFilter);
+                this._reverbWet.connect(this._wahFilter);
+            } else {
+                try { this._reverbDry.disconnect(); } catch(e){}
+                try { this._reverbWet.disconnect(); } catch(e){}
+                this._reverbDry.connect(this.audioEngine.masterGain);
+                this._reverbWet.connect(this.audioEngine.masterGain);
+            }
+            gain.connect(this._guitarWaveshaper);
         } else {
             gain.connect(this.audioEngine.masterGain);
         }
@@ -3194,7 +3270,33 @@ class InstrumentEngine {
                 <span class="pattern-vis">${p.vis}</span>
             </button>`;
         });
-        patternsHtml += `<button class="strum-btn" style="font-size:9px" onclick="daw.instruments.stopPattern()">&#x23F9; Stop</button>`;
+        patternsHtml += `<button class="strum-btn" style="font-size:9px" onclick="daw.instruments.stopPattern(); daw.instruments.stopImprovisation()">&#x23F9; Stop</button>`;
+
+        // Improvisatie knoppen
+        patternsHtml += `</div><div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px">
+            <label style="font-size:10px;color:var(--accent);font-weight:600;align-self:center">AI Improv:</label>
+            <select id="improv-style" class="strum-btn" style="background:var(--bg-dark)">
+                <option value="jazz">Jazz</option><option value="blues">Blues</option>
+                <option value="funk">Funk</option><option value="pop">Pop</option>
+                <option value="rock">Rock</option><option value="sad">Sad</option>
+                <option value="spanish">Flamenco</option>
+            </select>
+            <select id="improv-key" class="strum-btn" style="background:var(--bg-dark);width:45px">
+                <option>C</option><option>D</option><option>E</option><option>F</option>
+                <option>G</option><option>A</option><option>Bb</option><option>Eb</option>
+            </select>
+            <select id="improv-scale" class="strum-btn" style="background:var(--bg-dark)">
+                <option value="pentatonic">Pentatonisch</option><option value="blues">Blues</option>
+                <option value="major">Majeur</option><option value="minor">Mineur</option>
+                <option value="dorian">Dorian</option><option value="mixolydian">Mixolydian</option>
+                <option value="phrygian">Phrygian</option>
+            </select>
+            <button class="strum-btn funk" style="font-weight:700" onclick="
+                const s=document.getElementById('improv-style').value;
+                const k=document.getElementById('improv-key').value;
+                const sc=document.getElementById('improv-scale').value;
+                daw.instruments.startImprovisation(s,k,sc,parseInt(document.getElementById('bpm-input').value)||120)
+            ">&#x25B6; Improviseer!</button>`;
         patternsHtml += '</div>';
 
         // Fretboard
@@ -3408,6 +3510,234 @@ class InstrumentEngine {
         }
         this._activePattern = null;
         document.querySelectorAll('.pattern-btn').forEach(b => b.classList.remove('active'));
+    }
+
+    // ============================================================
+    // AI IMPROVISATIE ENGINE - Muziektheorie-gebaseerd
+    // ============================================================
+
+    // Toonladders en modes
+    _scales = {
+        major:      [0,2,4,5,7,9,11],    // Ionisch
+        minor:      [0,2,3,5,7,8,10],    // Aeolisch (natuurlijk mineur)
+        dorian:     [0,2,3,5,7,9,10],    // Funky mineur
+        mixolydian: [0,2,4,5,7,9,10],    // Dominant / blues-rock
+        pentatonic: [0,2,4,7,9],          // Altijd safe
+        blues:      [0,3,5,6,7,10],       // Blues scale
+        phrygian:   [0,1,3,5,7,8,10],    // Spaans/flamenco
+    };
+
+    // Akkoord progressies per stijl (graden in de toonladder, 1-indexed)
+    _progressions = {
+        pop:     [[1,'M'],[5,'M'],[6,'m'],[4,'M']],           // I-V-vi-IV
+        jazz:    [[2,'m'],[5,'7'],[1,'M'],[6,'m']],           // ii-V-I-vi
+        blues:   [[1,'7'],[1,'7'],[4,'7'],[4,'7'],[1,'7'],[5,'7']], // 12-bar compressed
+        funk:    [[1,'m'],[4,'m'],[1,'m'],[5,'m']],           // i-iv-i-v funk vamp
+        sad:     [[6,'m'],[4,'M'],[1,'M'],[5,'M']],           // vi-IV-I-V
+        spanish: [[1,'m'],[7,'M'],[6,'M'],[5,'M']],           // Andalusian cadence
+        rock:    [[1,'M'],[4,'M'],[5,'M'],[4,'M']],           // I-IV-V-IV
+    };
+
+    // Harmonische functie: spanning/resolutie score per toonladdergraad
+    _tension = { 1: 0, 2: 0.4, 3: 0.3, 4: 0.5, 5: 0.8, 6: 0.3, 7: 0.9 };
+
+    _improv = null; // Active improvisation state
+
+    startImprovisation(style = 'jazz', key = 'C', scale = 'pentatonic', bpm = 120) {
+        this.stopImprovisation();
+
+        const noteNames = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+        const rootIdx = noteNames.indexOf(key);
+        if (rootIdx === -1) return;
+
+        const scaleNotes = this._scales[scale] || this._scales.pentatonic;
+        const progression = this._progressions[style] || this._progressions.jazz;
+
+        // Build available notes across octaves 3-5
+        const availableNotes = [];
+        for (let oct = 3; oct <= 5; oct++) {
+            for (const interval of scaleNotes) {
+                const midi = (oct + 1) * 12 + (rootIdx + interval) % 12;
+                const noteName = `${noteNames[midi % 12]}${Math.floor(midi / 12) - 1}`;
+                availableNotes.push({ name: noteName, midi, interval, octave: oct });
+            }
+        }
+
+        // Build chord progression with actual note names
+        const chordProgression = progression.map(([degree, quality]) => {
+            const chordRoot = (rootIdx + (this._scales.major[degree - 1] || 0)) % 12;
+            const chordName = noteNames[chordRoot] + (quality === 'm' ? 'm' : quality === '7' ? '7' : '');
+            // Chord tones (root, 3rd, 5th)
+            const third = quality === 'm' ? 3 : 4;
+            const tones = [chordRoot, (chordRoot + third) % 12, (chordRoot + 7) % 12];
+            return { name: chordName, root: chordRoot, tones, degree, quality };
+        });
+
+        this._improv = {
+            style, key, scale, bpm, rootIdx,
+            scaleNotes, availableNotes, chordProgression,
+            currentChordIdx: 0,
+            lastNoteMidi: 60 + rootIdx, // Start from tonic
+            lastInterval: 0,
+            beatCount: 0,
+            phraseLength: 4 + Math.floor(Math.random() * 5), // 4-8 noten per frase
+            phrasePos: 0,
+            restProbability: 0.15, // 15% kans op rust
+            tension: 0, // Huidige spanning 0-1
+        };
+
+        const eighthMs = (60000 / bpm) / 2;
+        let subBeat = 0;
+
+        this._improvTimer = setInterval(() => {
+            const imp = this._improv;
+            if (!imp) return;
+
+            // Wissel akkoord elke 4 beats (8 sub-beats)
+            if (subBeat % 8 === 0) {
+                imp.currentChordIdx = (imp.currentChordIdx + 1) % imp.chordProgression.length;
+                const chord = imp.chordProgression[imp.currentChordIdx];
+
+                // Speel akkoord als het gitaar is
+                if (this.isGuitarMode && this.chords[chord.name]) {
+                    this._strumChordDir(chord.name, subBeat % 16 < 8 ? 'down' : 'up', false);
+                }
+            }
+
+            // Melodie noten op wisselende sub-beats
+            const shouldPlay = this._shouldPlayNote(imp, subBeat);
+            if (shouldPlay) {
+                const note = this._chooseNote(imp);
+                if (note) {
+                    const duration = this._chooseDuration(imp, subBeat);
+                    this.playNote(note.name);
+                    setTimeout(() => this.stopNote(note.name), duration);
+
+                    imp.lastNoteMidi = note.midi;
+                    imp.lastInterval = note.interval;
+                    imp.phrasePos++;
+
+                    // Nieuwe frase?
+                    if (imp.phrasePos >= imp.phraseLength) {
+                        imp.phrasePos = 0;
+                        imp.phraseLength = 4 + Math.floor(Math.random() * 5);
+                    }
+                }
+            }
+
+            subBeat++;
+            imp.beatCount = subBeat;
+        }, eighthMs);
+
+        // UI feedback
+        toast(`Improvisatie: ${style} in ${key} ${scale} (${bpm} BPM)`, 'success');
+    }
+
+    _shouldPlayNote(imp, subBeat) {
+        // Muzikale timing: niet elke sub-beat een noot
+        const isStrongBeat = subBeat % 4 === 0;
+        const isMediumBeat = subBeat % 2 === 0;
+
+        // Meer noten op sterke tellen
+        if (isStrongBeat) return Math.random() > 0.1;
+        if (isMediumBeat) return Math.random() > 0.3;
+
+        // Zwakke tellen: afhankelijk van stijl
+        switch (imp.style) {
+            case 'funk': return Math.random() > 0.3; // Veel syncopatie
+            case 'blues': return Math.random() > 0.5;
+            case 'jazz': return Math.random() > 0.35;
+            case 'spanish': return Math.random() > 0.4;
+            default: return Math.random() > 0.5;
+        }
+    }
+
+    _chooseNote(imp) {
+        const chord = imp.chordProgression[imp.currentChordIdx];
+        const available = imp.availableNotes;
+        const lastMidi = imp.lastNoteMidi;
+
+        // Gewichten berekenen per beschikbare noot
+        const weighted = available.map(note => {
+            let weight = 1;
+
+            // 1. Voorkeur voor chord tones op sterke tellen
+            const isChordTone = chord.tones.includes(note.midi % 12);
+            if (isChordTone) weight *= 3;
+
+            // 2. Root note = thuiskomen (extra gewicht als spanning hoog is)
+            if (note.midi % 12 === imp.rootIdx) weight *= (1 + imp.tension);
+
+            // 3. Stapbeweging voorkeur (kleine intervallen klinken melodischer)
+            const distance = Math.abs(note.midi - lastMidi);
+            if (distance <= 2) weight *= 4;       // Secunde: zeer melodisch
+            else if (distance <= 4) weight *= 2.5; // Terts: goed
+            else if (distance <= 7) weight *= 1.5; // Kwint: sprong (soms mooi)
+            else if (distance > 12) weight *= 0.2; // > octaaf: vermijden
+
+            // 4. Leidtonen: halve toon onder chord tone = spanning → resolutie
+            const isLeadingTone = chord.tones.includes((note.midi + 1) % 12);
+            if (isLeadingTone) weight *= 2;
+
+            // 5. Richting: afwisselen stijgen/dalen per frase
+            const goingUp = note.midi > lastMidi;
+            if (imp.phrasePos < imp.phraseLength / 2 && goingUp) weight *= 1.5; // Frase begint stijgend
+            if (imp.phrasePos >= imp.phraseLength / 2 && !goingUp) weight *= 1.5; // Frase eindigt dalend
+
+            // 6. Einde frase: terug naar tonica/chord root
+            if (imp.phrasePos >= imp.phraseLength - 1) {
+                if (note.midi % 12 === chord.root) weight *= 5;
+                if (note.midi % 12 === imp.rootIdx) weight *= 3;
+            }
+
+            // 7. Bereik: voorkeur voor midden-register
+            if (note.octave === 4) weight *= 1.5;
+
+            return { note, weight };
+        });
+
+        // Gewogen random selectie
+        const totalWeight = weighted.reduce((s, w) => s + w.weight, 0);
+        let r = Math.random() * totalWeight;
+        for (const { note, weight } of weighted) {
+            r -= weight;
+            if (r <= 0) return note;
+        }
+        return weighted[0]?.note;
+    }
+
+    _chooseDuration(imp, subBeat) {
+        // Variatie in nootlengte
+        const eighth = (60000 / imp.bpm) / 2;
+        const options = [
+            { dur: eighth * 0.8, weight: 3 },    // Korte 8th
+            { dur: eighth * 1.5, weight: 2 },     // Dotted 8th
+            { dur: eighth * 2, weight: 2 },        // Quarter
+            { dur: eighth * 3, weight: 1 },        // Dotted quarter
+            { dur: eighth * 4, weight: 0.5 },      // Half note (zeldzaam)
+        ];
+
+        // Langere noten aan einde van frase
+        if (imp.phrasePos >= imp.phraseLength - 1) {
+            options[3].weight = 4;
+            options[4].weight = 2;
+        }
+
+        const total = options.reduce((s, o) => s + o.weight, 0);
+        let r = Math.random() * total;
+        for (const opt of options) {
+            r -= opt.weight;
+            if (r <= 0) return opt.dur;
+        }
+        return eighth;
+    }
+
+    stopImprovisation() {
+        if (this._improvTimer) {
+            clearInterval(this._improvTimer);
+            this._improvTimer = null;
+        }
+        this._improv = null;
     }
 
     _updateUI() {
