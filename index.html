@@ -936,22 +936,74 @@ body {
     font-size: 8px;
     color: var(--text-dim);
 }
-#guitar-strum-bar {
+#guitar-controls {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+#guitar-controls label { font-size: 10px; color: var(--text-dim); }
+.strum-btn {
+    padding: 4px 10px;
+    background: var(--bg-dark);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.1s;
+}
+.strum-btn:hover { background: var(--bg-hover); border-color: var(--accent-dim); }
+.strum-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.strum-btn.funk { border-color: var(--orange); }
+.strum-btn.funk.active { background: var(--orange); }
+.strum-btn.mute { border-color: var(--yellow); }
+.strum-btn.mute.active { background: var(--yellow); color: #000; }
+.strum-btn.effect { border-color: var(--purple); }
+.strum-btn.effect.active { background: var(--purple); }
+
+.pattern-btn {
+    padding: 4px 8px;
+    background: var(--bg-track);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 9px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    min-width: 50px;
+}
+.pattern-btn:hover { border-color: var(--orange); background: var(--bg-hover); }
+.pattern-btn.active { background: var(--orange); border-color: var(--orange); color: #fff; animation: pulse-pattern 0.5s infinite; }
+.pattern-btn .pattern-name { font-weight: 600; }
+.pattern-btn .pattern-vis { font-family: monospace; font-size: 7px; letter-spacing: 1px; opacity: 0.7; }
+@keyframes pulse-pattern { 0%,100% { opacity: 1; } 50% { opacity: 0.8; } }
+
+#guitar-fx-bar {
     display: flex;
     gap: 4px;
     align-items: center;
 }
-#guitar-strum-bar label { font-size: 10px; color: var(--text-dim); }
-.strum-btn {
-    padding: 3px 8px;
-    background: var(--bg-dark);
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    color: var(--text);
-    font-size: 10px;
-    cursor: pointer;
+.guitar-knob {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
 }
-.strum-btn:hover { background: var(--bg-hover); }
+.guitar-knob label { font-size: 7px; color: var(--text-dim); text-transform: uppercase; }
+.guitar-knob input[type="range"] {
+    width: 50px; height: 3px;
+    -webkit-appearance: none; appearance: none;
+    background: var(--border); border-radius: 2px;
+}
+.guitar-knob input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 10px; height: 10px;
+    background: var(--orange); border-radius: 50%; cursor: pointer;
+}
 
 /* Loading indicator */
 .instrument-loading {
@@ -2832,7 +2884,13 @@ class InstrumentEngine {
         const ctx = this.audioEngine.ctx;
         const gain = ctx.createGain();
         gain.gain.value = 0.6;
-        gain.connect(this.audioEngine.masterGain);
+
+        // Route through wah filter if guitar mode + wah enabled
+        if (this.isGuitarMode && this._wahEnabled && this._wahFilter) {
+            gain.connect(this._wahFilter);
+        } else {
+            gain.connect(this.audioEngine.masterGain);
+        }
 
         let source;
 
@@ -3077,11 +3135,30 @@ class InstrumentEngine {
         `).join('');
     }
 
+    // Strum patterns: D=down, U=up, x=mute/ghost, .=rest
+    strumPatterns = {
+        'Funk':     { vis: 'D.xU.xUx', pattern: [{t:0,d:'d'},{t:2,d:'x'},{t:3,d:'u'},{t:5,d:'x'},{t:6,d:'u'},{t:7,d:'x'}], bpm: 110 },
+        'Funk 2':   { vis: 'D.xUxU.x', pattern: [{t:0,d:'d'},{t:2,d:'x'},{t:3,d:'u'},{t:4,d:'x'},{t:5,d:'u'},{t:7,d:'x'}], bpm: 100 },
+        'Reggae':   { vis: '..D...D.', pattern: [{t:2,d:'d'},{t:6,d:'d'}], bpm: 75 },
+        'Pop':      { vis: 'D.DU.UDU', pattern: [{t:0,d:'d'},{t:2,d:'d'},{t:3,d:'u'},{t:5,d:'u'},{t:6,d:'d'},{t:7,d:'u'}], bpm: 120 },
+        'Rock':     { vis: 'D.D.D.D.', pattern: [{t:0,d:'d'},{t:2,d:'d'},{t:4,d:'d'},{t:6,d:'d'}], bpm: 130 },
+        '16th Funk':{ vis: 'DxUxDxUx', pattern: [{t:0,d:'d'},{t:1,d:'x'},{t:2,d:'u'},{t:3,d:'x'},{t:4,d:'d'},{t:5,d:'x'},{t:6,d:'u'},{t:7,d:'x'}], bpm: 95 },
+        'Ska':      { vis: '.D.D.D.D', pattern: [{t:1,d:'d'},{t:3,d:'d'},{t:5,d:'d'},{t:7,d:'d'}], bpm: 160 },
+        'Ballad':   { vis: 'D...DU..', pattern: [{t:0,d:'d'},{t:4,d:'d'},{t:5,d:'u'}], bpm: 70 },
+    };
+
+    _activePattern = null;
+    _patternTimer = null;
+    _palmMute = false;
+    _wahEnabled = false;
+    _wahFilter = null;
+    _wahLfo = null;
+
     _renderGuitarFretboard() {
         document.getElementById('piano-keyboard').style.display = 'none';
         document.getElementById('drum-pads').classList.remove('active');
         const container = document.getElementById('guitar-fretboard');
-        container.innerHTML = ''; // Clear previous
+        container.innerHTML = '';
         container.classList.add('active');
 
         const numFrets = 15;
@@ -3096,26 +3173,39 @@ class InstrumentEngine {
         });
         chordsHtml += '</div>';
 
-        // Strum bar
-        let strumHtml = `<div id="guitar-strum-bar">
-            <label>Strum:</label>
+        // Controls bar: strum + effects + patterns
+        let controlsHtml = `<div id="guitar-controls">
             <button class="strum-btn" onclick="daw.instruments.strumDown()">&#x25BC; Down</button>
             <button class="strum-btn" onclick="daw.instruments.strumUp()">&#x25B2; Up</button>
-            <label style="margin-left:8px">Snelheid:</label>
-            <input type="range" id="strum-speed" min="10" max="80" value="30" style="width:60px">
+            <div style="width:1px;height:20px;background:var(--border)"></div>
+            <button class="strum-btn mute" id="palm-mute-btn" onclick="daw.instruments.togglePalmMute()">Palm Mute</button>
+            <button class="strum-btn effect" id="wah-btn" onclick="daw.instruments.toggleWah()">Wah-Wah</button>
+            <div style="width:1px;height:20px;background:var(--border)"></div>
+            <div class="guitar-knob"><label>Speed</label><input type="range" id="strum-speed" min="8" max="60" value="25"></div>
+            <div class="guitar-knob"><label>Wah Rate</label><input type="range" id="wah-rate" min="1" max="15" value="4" oninput="daw.instruments._updateWah()"></div>
+            <div class="guitar-knob"><label>Wah Depth</label><input type="range" id="wah-depth" min="100" max="4000" value="1500" oninput="daw.instruments._updateWah()"></div>
         </div>`;
+
+        // Pattern buttons
+        let patternsHtml = '<div style="display:flex;gap:4px;flex-wrap:wrap">';
+        Object.entries(this.strumPatterns).forEach(([name, p]) => {
+            patternsHtml += `<button class="pattern-btn" data-pattern="${name}" onclick="daw.instruments.togglePattern('${name}')">
+                <span class="pattern-name">${name}</span>
+                <span class="pattern-vis">${p.vis}</span>
+            </button>`;
+        });
+        patternsHtml += `<button class="strum-btn" style="font-size:9px" onclick="daw.instruments.stopPattern()">&#x23F9; Stop</button>`;
+        patternsHtml += '</div>';
 
         // Fretboard
         let neckHtml = '<div id="guitar-neck">';
         this.guitarStrings.forEach((str, strIdx) => {
             neckHtml += `<div class="guitar-string" data-string="${strIdx}">`;
             for (let fret = 0; fret <= numFrets; fret++) {
-                // Calculate note at this fret
                 const openMidi = this._noteNameToMidi(str.open);
                 const midi = openMidi + fret;
                 const noteName = `${noteNames[midi % 12]}${Math.floor(midi / 12) - 1}`;
                 const label = fret === 0 ? str.name : '';
-
                 neckHtml += `<div class="guitar-fret" data-note="${noteName}" data-fret="${fret}" data-string="${strIdx}"
                     onmousedown="daw.instruments.playNote('${noteName}')"
                     onmouseup="daw.instruments.stopNote('${noteName}')"
@@ -3128,15 +3218,7 @@ class InstrumentEngine {
         });
         neckHtml += '</div>';
 
-        // Fret numbers
-        let fretNums = '<div style="display:flex;padding-left:30px">';
-        for (let f = 0; f <= numFrets; f++) {
-            const hasDot = [3,5,7,9,12,15].includes(f);
-            fretNums += `<div style="width:${f===0?'30':'50'}px;min-width:${f===0?'30':'50'}px;text-align:center;font-size:8px;color:${hasDot ? 'var(--accent)' : 'var(--text-dim)'}">${f || ''}</div>`;
-        }
-        fretNums += '</div>';
-
-        container.innerHTML = chordsHtml + strumHtml + neckHtml + fretNums;
+        container.innerHTML = chordsHtml + controlsHtml + patternsHtml + neckHtml;
     }
 
     _noteNameToMidi(noteName) {
@@ -3146,64 +3228,186 @@ class InstrumentEngine {
     }
 
     // Strum a chord with realistic delay between strings
-    strumChord(chordName) {
+    // Enhanced strum with palm mute and direction
+    _strumChordDir(chordName, direction = 'down', ghost = false) {
         const chord = this.chords[chordName];
         if (!chord) return;
-        this._lastChord = chordName;
 
         const speedEl = document.getElementById('strum-speed');
-        const strumDelay = speedEl ? parseInt(speedEl.value) : 30; // ms between strings
+        const strumDelay = speedEl ? parseInt(speedEl.value) : 25;
+        const isMuted = this._palmMute || ghost;
 
-        // Highlight chord button
+        // Highlight chord
         document.querySelectorAll('.chord-btn').forEach(b => b.classList.remove('active'));
         const btn = [...document.querySelectorAll('.chord-btn')].find(b => b.textContent === chordName);
-        if (btn) { btn.classList.add('active'); setTimeout(() => btn.classList.remove('active'), 500); }
+        if (btn) { btn.classList.add('active'); setTimeout(() => btn.classList.remove('active'), 300); }
 
-        // Play each string with delay (strum effect)
-        chord.forEach((fret, strIdx) => {
-            if (fret === -1) return; // muted string
-            const openMidi = this._noteNameToMidi(this.guitarStrings[strIdx].open);
+        const order = direction === 'up' ? [...chord].map((f,i) => ({fret:f, str:i})).reverse() : chord.map((f,i) => ({fret:f, str:i}));
+
+        order.forEach(({fret, str}, i) => {
+            if (fret === -1) return;
+            const openMidi = this._noteNameToMidi(this.guitarStrings[str].open);
             const midi = openMidi + fret;
             const noteName = `${this.noteNames[midi % 12]}${Math.floor(midi / 12) - 1}`;
 
             setTimeout(() => {
-                this.playNote(noteName);
-                // Highlight fret on UI
-                const fretEl = document.querySelector(`.guitar-fret[data-string="${strIdx}"][data-fret="${fret}"]`);
-                if (fretEl) {
-                    fretEl.classList.add('active');
-                    setTimeout(() => fretEl.classList.remove('active'), 500);
+                if (ghost) {
+                    // Ghost/mute strum: short percussive noise
+                    this._playGhostNote(str);
+                } else {
+                    this.playNote(noteName);
+                    if (isMuted) {
+                        // Palm mute: very short sustain
+                        setTimeout(() => this.stopNote(noteName), 80);
+                    } else {
+                        setTimeout(() => this.stopNote(noteName), 600);
+                    }
                 }
-                setTimeout(() => this.stopNote(noteName), 800);
-            }, strIdx * strumDelay);
+                // Visual
+                const fretEl = document.querySelector(`.guitar-fret[data-string="${str}"][data-fret="${fret}"]`);
+                if (fretEl) { fretEl.classList.add('active'); setTimeout(() => fretEl.classList.remove('active'), 300); }
+            }, i * strumDelay);
         });
+    }
+
+    _playGhostNote(stringIdx) {
+        // Short percussive "chik" sound for funk muted strums
+        const ctx = this.audioEngine.ctx;
+        if (!ctx) return;
+        const bufLen = ctx.sampleRate * 0.04;
+        const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < bufLen; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.01));
+        }
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        const hp = ctx.createBiquadFilter();
+        hp.type = 'bandpass';
+        hp.frequency.value = 800 + stringIdx * 400;
+        hp.Q.value = 2;
+        const gain = ctx.createGain();
+        gain.gain.value = 0.15;
+        src.connect(hp);
+        hp.connect(gain);
+
+        // Route through wah if enabled
+        if (this._wahEnabled && this._wahFilter) {
+            gain.connect(this._wahFilter);
+        } else {
+            gain.connect(this.audioEngine.masterGain);
+        }
+        src.start();
+    }
+
+    strumChord(chordName) {
+        this._lastChord = chordName;
+        this._strumChordDir(chordName, 'down', false);
     }
 
     strumDown() {
-        // Strum the last played chord, or default to Em
-        const lastChord = this._lastChord || 'Em';
-        this.strumChord(lastChord);
+        this._strumChordDir(this._lastChord || 'Em', 'down', false);
     }
 
     strumUp() {
-        const chord = this.chords[this._lastChord || 'Em'];
-        if (!chord) return;
-        const speedEl = document.getElementById('strum-speed');
-        const strumDelay = speedEl ? parseInt(speedEl.value) : 30;
+        this._strumChordDir(this._lastChord || 'Em', 'up', false);
+    }
 
-        // Reverse order (high to low)
-        const reversed = [...chord].reverse();
-        reversed.forEach((fret, i) => {
-            if (fret === -1) return;
-            const strIdx = 5 - i; // Reverse string index
-            const openMidi = this._noteNameToMidi(this.guitarStrings[strIdx].open);
-            const midi = openMidi + fret;
-            const noteName = `${this.noteNames[midi % 12]}${Math.floor(midi / 12) - 1}`;
-            setTimeout(() => {
-                this.playNote(noteName);
-                setTimeout(() => this.stopNote(noteName), 800);
-            }, i * strumDelay);
-        });
+    // Palm mute toggle
+    togglePalmMute() {
+        this._palmMute = !this._palmMute;
+        const btn = document.getElementById('palm-mute-btn');
+        if (btn) btn.classList.toggle('active', this._palmMute);
+    }
+
+    // Wah-wah effect
+    toggleWah() {
+        this._wahEnabled = !this._wahEnabled;
+        const btn = document.getElementById('wah-btn');
+        if (btn) btn.classList.toggle('active', this._wahEnabled);
+
+        const ctx = this.audioEngine.ctx;
+        if (!ctx) return;
+
+        if (this._wahEnabled) {
+            // Create wah filter chain
+            this._wahFilter = ctx.createBiquadFilter();
+            this._wahFilter.type = 'bandpass';
+            this._wahFilter.frequency.value = 1000;
+            this._wahFilter.Q.value = 5;
+            this._wahFilter.connect(this.audioEngine.masterGain);
+
+            // LFO for auto-wah
+            this._wahLfo = ctx.createOscillator();
+            this._wahLfoGain = ctx.createGain();
+            this._wahLfo.frequency.value = 4;
+            this._wahLfoGain.gain.value = 1500;
+            this._wahLfo.connect(this._wahLfoGain);
+            this._wahLfoGain.connect(this._wahFilter.frequency);
+            this._wahLfo.start();
+        } else {
+            if (this._wahLfo) { try { this._wahLfo.stop(); } catch(e){} this._wahLfo = null; }
+            if (this._wahFilter) { this._wahFilter.disconnect(); this._wahFilter = null; }
+        }
+    }
+
+    _updateWah() {
+        if (!this._wahLfo || !this._wahLfoGain) return;
+        const rate = document.getElementById('wah-rate');
+        const depth = document.getElementById('wah-depth');
+        if (rate) this._wahLfo.frequency.value = parseFloat(rate.value);
+        if (depth) this._wahLfoGain.gain.value = parseFloat(depth.value);
+    }
+
+    // Auto-strum pattern engine
+    togglePattern(patternName) {
+        if (this._activePattern === patternName) {
+            this.stopPattern();
+            return;
+        }
+        this.stopPattern();
+
+        const pattern = this.strumPatterns[patternName];
+        if (!pattern) return;
+        this._activePattern = patternName;
+
+        // Highlight active pattern button
+        document.querySelectorAll('.pattern-btn').forEach(b => b.classList.remove('active'));
+        const btn = document.querySelector(`.pattern-btn[data-pattern="${patternName}"]`);
+        if (btn) btn.classList.add('active');
+
+        const chordName = this._lastChord || 'Em';
+        const bpm = pattern.bpm || 120;
+        const eighthMs = (60000 / bpm) / 2; // 8th note duration
+
+        let step = 0;
+        const totalSteps = 8;
+
+        const tick = () => {
+            const hit = pattern.pattern.find(p => p.t === step);
+            if (hit) {
+                if (hit.d === 'd') {
+                    this._strumChordDir(this._lastChord || chordName, 'down', false);
+                } else if (hit.d === 'u') {
+                    this._strumChordDir(this._lastChord || chordName, 'up', false);
+                } else if (hit.d === 'x') {
+                    this._strumChordDir(this._lastChord || chordName, 'down', true); // ghost strum
+                }
+            }
+            step = (step + 1) % totalSteps;
+        };
+
+        tick(); // Start immediately
+        this._patternTimer = setInterval(tick, eighthMs);
+    }
+
+    stopPattern() {
+        if (this._patternTimer) {
+            clearInterval(this._patternTimer);
+            this._patternTimer = null;
+        }
+        this._activePattern = null;
+        document.querySelectorAll('.pattern-btn').forEach(b => b.classList.remove('active'));
     }
 
     _updateUI() {
