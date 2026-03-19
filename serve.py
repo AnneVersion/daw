@@ -1,21 +1,14 @@
-"""DAW Development Server - port 8086"""
-import http.server
+"""
+DAW Server - port 8086
+Launcher voor api_server.py (Flask) die zowel statische bestanden
+als de /api/* endpoints serveert.
+"""
+import runpy
 import os
+import sys
 
-PORT = 8086
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-class CORSHandler(http.server.SimpleHTTPRequestHandler):
-    def end_headers(self):
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Cache-Control', 'no-cache')
-        super().end_headers()
-
-    def do_OPTIONS(self):
-        self.send_response(200)
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
-        self.end_headers()
-
-print(f"DAW server: http://localhost:{PORT}")
-http.server.HTTPServer(('', PORT), CORSHandler).serve_forever()
+# Start api_server.py als main module
+sys.argv = [os.path.join(os.path.dirname(__file__), 'api_server.py')]
+runpy.run_path('api_server.py', run_name='__main__')

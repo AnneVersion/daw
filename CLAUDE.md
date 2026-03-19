@@ -6,8 +6,8 @@ Locatie: `E:\scripts\webscraper\CBSbuurt\daw\`
 
 ## Starten
 ```bash
-python serve.py       # Static files: http://localhost:8085
-python api_server.py  # Flask API: http://localhost:8085
+python api_server.py  # Flask API + static files: http://localhost:8086
+python serve.py       # Alternatief: wrapper die api_server.py start
 ```
 
 ## Branch-strategie
@@ -41,4 +41,4 @@ PostgreSQL database `daw`:
 - Audio bestanden staan in .gitignore
 - Web Audio API vereist user interaction voordat AudioContext start
 - AudioWorklet files moeten als aparte JS bestanden geladen worden
-- Port 8085 (geen conflict met 8888/8091/8090/8765/9090)
+- Port 8086 (geen conflict met 8888/8091/8090/8765/9090)

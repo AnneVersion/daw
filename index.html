@@ -378,6 +378,8 @@ body {
     border-top: 1px solid var(--border);
     display: flex;
     flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
 }
 #bottom-tabs {
     display: flex;
@@ -403,107 +405,323 @@ body {
 #bottom-content {
     flex: 1;
     overflow: auto;
+    min-height: 0;
 }
 
 /* Mixer */
 #mixer {
     display: flex;
     height: 100%;
-    padding: 8px;
-    gap: 2px;
+    padding: 6px 8px;
+    gap: 3px;
     overflow-x: auto;
+    overflow-y: hidden;
+    align-items: stretch;
 }
 .mixer-channel {
-    width: 70px;
-    min-width: 70px;
-    background: var(--bg-track);
+    width: 82px;
+    min-width: 82px;
+    background: linear-gradient(180deg, #1c1c2e 0%, #181828 50%, #141424 100%);
     border-radius: 6px;
-    padding: 6px 4px;
+    padding: 6px 5px 8px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
     border: 1px solid var(--border);
+    position: relative;
+    flex-shrink: 0;
+}
+.mixer-channel:hover {
+    border-color: var(--border-light);
 }
 .mixer-channel.master {
-    background: var(--bg-selected);
+    background: linear-gradient(180deg, #1e1e38 0%, #1a1a32 50%, #16162c 100%);
     border-color: var(--accent-dim);
-    width: 80px;
-    min-width: 80px;
+    width: 90px;
+    min-width: 90px;
+    margin-left: 6px;
+}
+.mixer-channel.master::before {
+    content: '';
+    position: absolute;
+    left: -5px;
+    top: 8px;
+    bottom: 8px;
+    width: 1px;
+    background: var(--border-light);
 }
 .mixer-label {
     font-size: 9px;
+    font-weight: 600;
     color: var(--text-dim);
     text-align: center;
     width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    padding: 2px 0;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+/* ---- VU Meters (stereo) ---- */
+.mixer-meter-container {
+    display: flex;
+    gap: 2px;
+    flex: 1;
+    min-height: 50px;
+    width: 100%;
+    justify-content: center;
+    align-items: stretch;
 }
 .mixer-meter {
-    width: 8px;
-    flex: 1;
-    background: var(--bg-darkest);
+    width: 7px;
+    background: #0a0a14;
     border-radius: 2px;
     position: relative;
-    min-height: 60px;
+    overflow: hidden;
+    border: 1px solid #1a1a2a;
+    flex: 0 0 auto;
 }
 .mixer-meter-fill {
     position: absolute;
     bottom: 0;
     width: 100%;
-    background: linear-gradient(to top, var(--green), var(--yellow) 70%, var(--red) 95%);
-    border-radius: 2px;
-    transition: height 0.05s;
+    background: linear-gradient(to top,
+        #22cc44 0%,
+        #44dd44 30%,
+        #88ee22 50%,
+        #ccdd00 65%,
+        #ffcc00 75%,
+        #ff8800 85%,
+        #ff3333 95%,
+        #ff0000 100%
+    );
+    border-radius: 1px;
+    transition: height 0.04s linear;
 }
-.mixer-fader {
+.mixer-meter-peak {
+    position: absolute;
+    bottom: 0;
     width: 100%;
-    height: 4px;
-    -webkit-appearance: none;
-    appearance: none;
-    background: var(--border);
-    border-radius: 2px;
-    writing-mode: bt-lr; /* vertical */
+    height: 2px;
+    background: #ff4444;
+    transition: bottom 0.04s linear;
+    opacity: 0;
 }
-.mixer-fader::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 16px; height: 8px;
-    background: var(--text-dim);
-    border-radius: 2px;
+.mixer-meter-peak.active {
+    opacity: 1;
+}
+/* Meter scale ticks */
+.mixer-meter-scale {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-size: 6px;
+    color: var(--text-dim);
+    padding: 1px 0;
+    width: 14px;
+    text-align: right;
+    opacity: 0.6;
+}
+
+/* ---- Fader (vertical) ---- */
+.mixer-fader-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2px 0;
+}
+.mixer-fader-track {
+    width: 6px;
+    height: 60px;
+    background: linear-gradient(180deg, #0d0d1a, #1a1a2a);
+    border-radius: 3px;
+    position: relative;
+    border: 1px solid #2a2a3a;
     cursor: pointer;
 }
-.mixer-fader::-webkit-slider-thumb:hover { background: var(--text); }
+.mixer-fader-thumb {
+    position: absolute;
+    left: -8px;
+    width: 22px;
+    height: 10px;
+    background: linear-gradient(180deg, #888 0%, #555 30%, #666 70%, #444 100%);
+    border-radius: 2px;
+    cursor: grab;
+    border: 1px solid #999;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    z-index: 2;
+}
+.mixer-fader-thumb:hover {
+    background: linear-gradient(180deg, #aaa 0%, #777 30%, #888 70%, #666 100%);
+}
+.mixer-fader-thumb::after {
+    content: '';
+    position: absolute;
+    top: 4px;
+    left: 3px;
+    right: 3px;
+    height: 1px;
+    background: #bbb;
+}
+.mixer-fader-fill {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    background: linear-gradient(to top, rgba(74,127,255,0.2), rgba(74,127,255,0.05));
+    border-radius: 0 0 3px 3px;
+}
+.mixer-fader-value {
+    font-family: 'SF Mono', 'Consolas', monospace;
+    font-size: 8px;
+    color: var(--text-dim);
+    margin-top: 2px;
+    text-align: center;
+}
+/* Hidden native range for accessibility */
+.mixer-fader-input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    writing-mode: vertical-lr;
+    direction: rtl;
+}
+
+/* ---- Rotary Knob (pan) ---- */
 .mixer-knob-container {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
+    gap: 1px;
+    margin: 1px 0;
 }
-.mixer-knob {
-    width: 24px; height: 24px;
-    background: var(--bg-darkest);
-    border: 2px solid var(--border);
+.mixer-knob-outer {
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
-    cursor: pointer;
+    background: radial-gradient(circle at 40% 35%, #3a3a50, #1a1a2a 70%);
+    border: 1.5px solid #444460;
     position: relative;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4), inset 0 1px 2px rgba(255,255,255,0.05);
 }
-.mixer-knob::after {
-    content: '';
+.mixer-knob-outer:hover {
+    border-color: #5a5a7a;
+}
+.mixer-knob-indicator {
     position: absolute;
-    top: 3px; left: 50%;
-    width: 2px; height: 6px;
-    background: var(--text-dim);
-    transform-origin: bottom center;
+    width: 2px;
+    height: 8px;
+    background: var(--accent);
+    top: 3px;
+    left: 50%;
+    margin-left: -1px;
     border-radius: 1px;
+    transform-origin: center 11px;
+    transition: transform 0.05s;
+}
+.mixer-knob-ring {
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    right: -3px;
+    bottom: -3px;
+    border-radius: 50%;
+    border: 1.5px solid transparent;
+    border-top-color: var(--accent);
+    opacity: 0.3;
 }
 .mixer-knob-label {
-    font-size: 8px;
+    font-size: 7px;
     color: var(--text-dim);
     text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
+.mixer-knob-value {
+    font-family: 'SF Mono', 'Consolas', monospace;
+    font-size: 7px;
+    color: var(--text-dim);
+}
+
+/* ---- Solo/Mute buttons (mixer) ---- */
 .mixer-buttons {
     display: flex;
-    gap: 2px;
+    gap: 3px;
+    margin: 1px 0;
+}
+.mixer-btn {
+    width: 24px;
+    height: 18px;
+    border: 1px solid var(--border);
+    background: #1a1a26;
+    color: var(--text-dim);
+    font-size: 9px;
+    font-weight: 700;
+    cursor: pointer;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.1s;
+    text-shadow: none;
+}
+.mixer-btn:hover {
+    border-color: var(--border-light);
+    color: var(--text);
+}
+.mixer-btn.mute-active {
+    background: var(--yellow);
+    color: #000;
+    border-color: var(--yellow);
+    box-shadow: 0 0 6px rgba(255,210,74,0.4);
+    text-shadow: 0 0 2px rgba(0,0,0,0.3);
+}
+.mixer-btn.solo-active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    box-shadow: 0 0 6px rgba(74,127,255,0.4);
+}
+.mixer-btn.arm-active {
+    background: var(--red);
+    color: #fff;
+    border-color: var(--red);
+    box-shadow: 0 0 6px rgba(255,74,90,0.4);
+    animation: arm-pulse 1.5s infinite;
+}
+@keyframes arm-pulse {
+    0%, 100% { box-shadow: 0 0 6px rgba(255,74,90,0.4); }
+    50% { box-shadow: 0 0 10px rgba(255,74,90,0.7); }
+}
+
+/* ---- EQ Visualization ---- */
+.mixer-eq-container {
+    width: 100%;
+    height: 28px;
+    background: #0a0a14;
+    border-radius: 3px;
+    border: 1px solid #1a1a2a;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+}
+.mixer-eq-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* Legacy compatibility */
+.mixer-fader {
+    display: none;
+}
+.mixer-knob {
+    display: none;
 }
 
 /* Library panel */
@@ -538,30 +756,83 @@ body {
 .library-item {
     background: var(--bg-track);
     border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 8px;
+    border-radius: 6px;
+    padding: 8px 8px 8px 4px;
     cursor: grab;
     display: flex;
     gap: 8px;
     align-items: center;
+    transition: all 0.15s ease;
+    position: relative;
 }
-.library-item:hover { border-color: var(--accent-dim); background: var(--bg-hover); }
+.library-item:hover {
+    border-color: var(--accent-dim);
+    background: var(--bg-hover);
+    box-shadow: 0 2px 8px rgba(74, 127, 255, 0.12);
+    transform: translateY(-1px);
+}
+.library-item:active { cursor: grabbing; transform: translateY(0); }
+.library-item.dragging { opacity: 0.5; border-color: var(--accent); }
+/* Drag handle (grip icon) */
+.library-drag-handle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    width: 14px;
+    flex-shrink: 0;
+    padding: 4px 0;
+    opacity: 0.3;
+    transition: opacity 0.15s;
+}
+.library-item:hover .library-drag-handle { opacity: 0.8; }
+.library-drag-handle span {
+    display: block;
+    width: 8px;
+    height: 2px;
+    background: var(--text-dim);
+    border-radius: 1px;
+}
+/* Waveform preview */
 .library-waveform {
-    width: 60px;
-    height: 30px;
+    width: 64px;
+    height: 32px;
     background: var(--bg-darkest);
-    border-radius: 2px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    overflow: hidden;
 }
-.library-info { flex: 1; }
-.library-name { font-size: 11px; color: var(--text); font-weight: 500; }
-.library-meta { font-size: 9px; color: var(--text-dim); }
+.library-waveform canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+.library-info { flex: 1; min-width: 0; }
+.library-name {
+    font-size: 11px;
+    color: var(--text);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.library-meta { font-size: 9px; color: var(--text-dim); margin-top: 2px; }
+.library-detail {
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-top: 1px;
+    opacity: 0.7;
+}
 .library-fav {
     background: none;
     border: none;
     color: var(--text-dim);
     cursor: pointer;
     font-size: 14px;
+    transition: color 0.15s, transform 0.15s;
 }
+.library-fav:hover { transform: scale(1.2); }
 .library-fav.active { color: var(--yellow); }
 .library-play-btn {
     width: 28px;
@@ -575,8 +846,54 @@ body {
     color: var(--text-dim);
     cursor: pointer;
     flex-shrink: 0;
+    transition: all 0.15s;
 }
-.library-play-btn:hover { color: var(--accent); background: var(--bg-dark); }
+.library-play-btn:hover { color: var(--accent); background: var(--bg-dark); transform: scale(1.1); }
+
+/* ---- Timeline drop indicator ---- */
+#timeline-drop-indicator {
+    position: absolute;
+    top: 0;
+    width: 2px;
+    background: var(--accent);
+    z-index: 60;
+    pointer-events: none;
+    display: none;
+    box-shadow: 0 0 8px rgba(74, 127, 255, 0.6), 0 0 2px rgba(74, 127, 255, 0.9);
+}
+#timeline-drop-indicator::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -4px;
+    width: 10px;
+    height: 10px;
+    background: var(--accent);
+    border-radius: 50%;
+}
+.timeline-drop-track-highlight {
+    position: absolute;
+    left: 0;
+    right: 0;
+    background: rgba(74, 127, 255, 0.06);
+    border: 1px dashed rgba(74, 127, 255, 0.3);
+    pointer-events: none;
+    z-index: 55;
+    display: none;
+}
+#timeline-drop-ghost {
+    position: absolute;
+    background: rgba(74, 127, 255, 0.15);
+    border: 1px solid rgba(74, 127, 255, 0.5);
+    border-radius: 3px;
+    pointer-events: none;
+    z-index: 58;
+    display: none;
+    font-size: 9px;
+    color: var(--accent);
+    padding: 2px 6px;
+    white-space: nowrap;
+}
 
 /* ---- Synth Panel ---- */
 #synth-panel {
@@ -1285,6 +1602,8 @@ body {
             <div id="timeline-scroll">
                 <canvas id="timeline-canvas"></canvas>
                 <div id="playhead" style="left: 0px;"></div>
+                <div id="timeline-drop-indicator"></div>
+                <div id="timeline-drop-ghost"></div>
             </div>
         </div>
     </div>
@@ -3953,6 +4272,7 @@ class DAWController {
             mute: false,
             solo: false,
             armed: false,
+            eq: { low: 0, mid: 0, high: 0 },
             regions: []
             // Audio regions: { id, soundId, startBeat, offset, duration, name, peaks }
             // MIDI regions:  { id, startBeat, lengthBeats, name, notes: [{note, startBeat, lengthBeats, velocity}] }
@@ -4126,9 +4446,11 @@ class DAWController {
         const track = state.tracks.find(t => t.id === trackId);
         if (track) {
             // Only one track can be armed at a time
+            const wasArmed = track.armed;
             state.tracks.forEach(t => t.armed = false);
-            track.armed = !track.armed;
+            track.armed = !wasArmed;
             this._renderTrackHeaders();
+            this._renderMixer();
         }
     }
 
@@ -4255,45 +4577,252 @@ class DAWController {
 
         // Track channels
         state.tracks.forEach(track => {
+            const panDeg = track.pan * 135; // -135 to +135
+            const volPercent = Math.round(track.volume * 100);
+            const volDb = track.volume > 0 ? (20 * Math.log10(track.volume)).toFixed(1) : '-inf';
+            const panLabel = track.pan === 0 ? 'C' : (track.pan < 0 ? `L${Math.round(Math.abs(track.pan)*100)}` : `R${Math.round(track.pan*100)}`);
             html += `
                 <div class="mixer-channel" data-track-id="${track.id}">
                     <div class="mixer-label" style="color:${track.color}">${track.name}</div>
-                    <div class="mixer-meter"><div class="mixer-meter-fill" data-meter="${track.id}" style="height:0%"></div></div>
-                    <input type="range" class="mixer-fader" min="0" max="1" step="0.01"
-                           value="${track.volume}"
-                           oninput="daw.setTrackVolume('${track.id}', parseFloat(this.value))">
+                    <div class="mixer-eq-container" data-eq-track="${track.id}" title="3-Band EQ">
+                        <canvas class="mixer-eq-canvas" data-eq-canvas="${track.id}"></canvas>
+                    </div>
                     <div class="mixer-knob-container">
-                        <div class="mixer-knob" title="Pan: ${track.pan.toFixed(1)}"
-                             style="--rotation: ${track.pan * 135}deg"></div>
+                        <div class="mixer-knob-outer" data-pan-knob="${track.id}" title="Pan: ${panLabel}">
+                            <div class="mixer-knob-indicator" style="transform: rotate(${panDeg}deg)"></div>
+                            <div class="mixer-knob-ring"></div>
+                        </div>
+                        <div class="mixer-knob-value" data-pan-value="${track.id}">${panLabel}</div>
                         <div class="mixer-knob-label">Pan</div>
                     </div>
+                    <div class="mixer-meter-container">
+                        <div class="mixer-meter">
+                            <div class="mixer-meter-fill" data-meter-l="${track.id}" style="height:0%"></div>
+                            <div class="mixer-meter-peak" data-peak-l="${track.id}"></div>
+                        </div>
+                        <div class="mixer-meter">
+                            <div class="mixer-meter-fill" data-meter-r="${track.id}" style="height:0%"></div>
+                            <div class="mixer-meter-peak" data-peak-r="${track.id}"></div>
+                        </div>
+                    </div>
+                    <div class="mixer-fader-container">
+                        <div class="mixer-fader-track" data-fader="${track.id}">
+                            <div class="mixer-fader-fill" style="height:${volPercent}%"></div>
+                            <div class="mixer-fader-thumb" style="bottom:calc(${volPercent}% - 5px)"></div>
+                            <input type="range" class="mixer-fader-input" min="0" max="1" step="0.01"
+                                   value="${track.volume}"
+                                   oninput="daw._handleMixerFader('${track.id}', parseFloat(this.value))">
+                        </div>
+                        <div class="mixer-fader-value" data-fader-val="${track.id}">${volDb} dB</div>
+                    </div>
                     <div class="mixer-buttons">
-                        <button class="track-btn ${track.mute ? 'mute-active' : ''}"
+                        <button class="mixer-btn ${track.mute ? 'mute-active' : ''}"
                                 onclick="daw.toggleMute('${track.id}')">M</button>
-                        <button class="track-btn ${track.solo ? 'solo-active' : ''}"
+                        <button class="mixer-btn ${track.solo ? 'solo-active' : ''}"
                                 onclick="daw.toggleSolo('${track.id}')">S</button>
+                        <button class="mixer-btn ${track.armed ? 'arm-active' : ''}"
+                                onclick="daw.toggleArm('${track.id}')">R</button>
                     </div>
                 </div>
             `;
         });
 
         // Master channel
+        const masterVol = state.mixer.masterVolume;
+        const masterPercent = Math.round(masterVol * 100);
+        const masterDb = masterVol > 0 ? (20 * Math.log10(masterVol)).toFixed(1) : '-inf';
         html += `
             <div class="mixer-channel master">
-                <div class="mixer-label">MASTER</div>
-                <div class="mixer-meter"><div class="mixer-meter-fill" data-meter="master" style="height:0%"></div></div>
-                <input type="range" class="mixer-fader" min="0" max="1" step="0.01"
-                       value="${state.mixer.masterVolume}"
-                       oninput="state.mixer.masterVolume=parseFloat(this.value); daw.engine.setMasterVolume(parseFloat(this.value))">
+                <div class="mixer-label" style="color:var(--accent)">MASTER</div>
+                <div class="mixer-eq-container" title="Master EQ">
+                    <canvas class="mixer-eq-canvas" data-eq-canvas="master"></canvas>
+                </div>
                 <div class="mixer-knob-container">
-                    <div class="mixer-knob"></div>
+                    <div class="mixer-knob-outer" style="opacity:0.3" title="Master Pan">
+                        <div class="mixer-knob-indicator" style="transform: rotate(0deg)"></div>
+                        <div class="mixer-knob-ring"></div>
+                    </div>
+                    <div class="mixer-knob-value">C</div>
                     <div class="mixer-knob-label">Pan</div>
+                </div>
+                <div class="mixer-meter-container">
+                    <div class="mixer-meter">
+                        <div class="mixer-meter-fill" data-meter-l="master" style="height:0%"></div>
+                        <div class="mixer-meter-peak" data-peak-l="master"></div>
+                    </div>
+                    <div class="mixer-meter">
+                        <div class="mixer-meter-fill" data-meter-r="master" style="height:0%"></div>
+                        <div class="mixer-meter-peak" data-peak-r="master"></div>
+                    </div>
+                </div>
+                <div class="mixer-fader-container">
+                    <div class="mixer-fader-track" data-fader="master">
+                        <div class="mixer-fader-fill" style="height:${masterPercent}%"></div>
+                        <div class="mixer-fader-thumb" style="bottom:calc(${masterPercent}% - 5px)"></div>
+                        <input type="range" class="mixer-fader-input" min="0" max="1" step="0.01"
+                               value="${masterVol}"
+                               oninput="daw._handleMasterFader(parseFloat(this.value))">
+                    </div>
+                    <div class="mixer-fader-value" data-fader-val="master">${masterDb} dB</div>
                 </div>
                 <div class="mixer-buttons"></div>
             </div>
         `;
 
         container.innerHTML = html;
+        this._initMixerInteractions();
+        // Draw EQ after DOM layout settles
+        requestAnimationFrame(() => this._drawAllEQCurves());
+    }
+
+    _handleMixerFader(trackId, value) {
+        this.setTrackVolume(trackId, value);
+        const faderTrack = document.querySelector(`[data-fader="${trackId}"]`);
+        if (faderTrack) {
+            const pct = Math.round(value * 100);
+            faderTrack.querySelector('.mixer-fader-fill').style.height = pct + '%';
+            faderTrack.querySelector('.mixer-fader-thumb').style.bottom = `calc(${pct}% - 5px)`;
+        }
+        const valEl = document.querySelector(`[data-fader-val="${trackId}"]`);
+        if (valEl) {
+            valEl.textContent = value > 0 ? (20 * Math.log10(value)).toFixed(1) + ' dB' : '-inf dB';
+        }
+    }
+
+    _handleMasterFader(value) {
+        state.mixer.masterVolume = value;
+        this.engine.setMasterVolume(value);
+        const faderTrack = document.querySelector('[data-fader="master"]');
+        if (faderTrack) {
+            const pct = Math.round(value * 100);
+            faderTrack.querySelector('.mixer-fader-fill').style.height = pct + '%';
+            faderTrack.querySelector('.mixer-fader-thumb').style.bottom = `calc(${pct}% - 5px)`;
+        }
+        const valEl = document.querySelector('[data-fader-val="master"]');
+        if (valEl) {
+            valEl.textContent = value > 0 ? (20 * Math.log10(value)).toFixed(1) + ' dB' : '-inf dB';
+        }
+    }
+
+    _initMixerInteractions() {
+        // Pan knob drag interaction
+        document.querySelectorAll('.mixer-knob-outer[data-pan-knob]').forEach(knob => {
+            const trackId = knob.dataset.panKnob;
+            let dragging = false;
+            let startY = 0;
+            let startPan = 0;
+
+            knob.addEventListener('mousedown', e => {
+                dragging = true;
+                startY = e.clientY;
+                const track = state.tracks.find(t => t.id === trackId);
+                startPan = track ? track.pan : 0;
+                e.preventDefault();
+            });
+
+            const onMove = e => {
+                if (!dragging) return;
+                const delta = (startY - e.clientY) / 80;
+                const newPan = Math.max(-1, Math.min(1, startPan + delta));
+                const track = state.tracks.find(t => t.id === trackId);
+                if (track) {
+                    track.pan = newPan;
+                    this.engine.setTrackPan(trackId, newPan);
+                    const indicator = knob.querySelector('.mixer-knob-indicator');
+                    if (indicator) indicator.style.transform = `rotate(${newPan * 135}deg)`;
+                    const valEl = document.querySelector(`[data-pan-value="${trackId}"]`);
+                    if (valEl) {
+                        valEl.textContent = newPan === 0 ? 'C' : (newPan < 0 ? `L${Math.round(Math.abs(newPan)*100)}` : `R${Math.round(newPan*100)}`);
+                    }
+                }
+            };
+
+            const onUp = () => { dragging = false; };
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+
+            // Double-click to center
+            knob.addEventListener('dblclick', () => {
+                const track = state.tracks.find(t => t.id === trackId);
+                if (track) {
+                    track.pan = 0;
+                    this.engine.setTrackPan(trackId, 0);
+                    const indicator = knob.querySelector('.mixer-knob-indicator');
+                    if (indicator) indicator.style.transform = 'rotate(0deg)';
+                    const valEl = document.querySelector(`[data-pan-value="${trackId}"]`);
+                    if (valEl) valEl.textContent = 'C';
+                }
+            });
+        });
+    }
+
+    _drawAllEQCurves() {
+        document.querySelectorAll('.mixer-eq-canvas').forEach(canvas => {
+            const trackId = canvas.dataset.eqCanvas;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * (window.devicePixelRatio || 1);
+            canvas.height = rect.height * (window.devicePixelRatio || 1);
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+            this._drawEQCurve(canvas, trackId);
+        });
+    }
+
+    _drawEQCurve(canvas, trackId) {
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        const w = canvas.width / dpr;
+        const h = canvas.height / dpr;
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, w, h);
+
+        // Background grid
+        ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+        ctx.lineWidth = 0.5;
+        for (let i = 1; i < 4; i++) {
+            ctx.beginPath();
+            ctx.moveTo(w * i / 4, 0);
+            ctx.lineTo(w * i / 4, h);
+            ctx.stroke();
+        }
+        ctx.beginPath();
+        ctx.moveTo(0, h / 2);
+        ctx.lineTo(w, h / 2);
+        ctx.stroke();
+
+        // Get track color
+        const track = state.tracks.find(t => t.id === trackId);
+        const color = track ? track.color : 'var(--accent)';
+
+        // Draw a smooth 3-band EQ curve (default flat)
+        const eqData = track?.eq || { low: 0, mid: 0, high: 0 };
+        const centerY = h / 2;
+        const maxGain = h / 2 - 2;
+
+        ctx.beginPath();
+        ctx.moveTo(0, centerY);
+        for (let x = 0; x <= w; x++) {
+            const freq = x / w; // 0 to 1
+            // 3-band shelving response
+            const lowResp = eqData.low * Math.exp(-freq * 6) * maxGain;
+            const midResp = eqData.mid * Math.exp(-Math.pow((freq - 0.5) * 4, 2)) * maxGain;
+            const highResp = eqData.high * Math.exp(-(1 - freq) * 6) * maxGain;
+            const y = centerY - (lowResp + midResp + highResp);
+            ctx.lineTo(x, y);
+        }
+        ctx.lineTo(w, centerY);
+
+        // Fill under curve
+        ctx.strokeStyle = color || '#4a7fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.lineTo(w, h);
+        ctx.lineTo(0, h);
+        ctx.closePath();
+        ctx.fillStyle = (color || '#4a7fff') + '15';
+        ctx.fill();
+
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
     }
 
     _updateTransportUI() {
@@ -4307,32 +4836,97 @@ class DAWController {
             state.transport.metronomeEnabled);
     }
 
+    _meterPeaks = {}; // trackId -> { left: {level, holdTime}, right: {level, holdTime} }
+    _meterSmooth = {}; // trackId -> { left, right }
+
     _startMeterAnimation() {
+        const PEAK_HOLD_MS = 1500;
+        const PEAK_DECAY = 0.02;
+        const METER_SMOOTHING = 0.3; // lower = smoother
+        const METER_DECAY = 0.06;
+
+        const updateMeter = (id, rmsLeft, rmsRight) => {
+            // Smooth values
+            if (!this._meterSmooth[id]) this._meterSmooth[id] = { left: 0, right: 0 };
+            const sm = this._meterSmooth[id];
+            sm.left = Math.max(rmsLeft, sm.left + (rmsLeft - sm.left) * METER_SMOOTHING);
+            sm.right = Math.max(rmsRight, sm.right + (rmsRight - sm.right) * METER_SMOOTHING);
+
+            // Convert to display percentage (dB scale)
+            const toDb = v => Math.max(0, (1 + Math.log10(Math.max(v, 0.00001)) / 2.2)) * 100;
+            const leftPct = toDb(sm.left);
+            const rightPct = toDb(sm.right);
+
+            // Update fill bars
+            const lEl = document.querySelector(`[data-meter-l="${id}"]`);
+            const rEl = document.querySelector(`[data-meter-r="${id}"]`);
+            if (lEl) lEl.style.height = leftPct + '%';
+            if (rEl) rEl.style.height = rightPct + '%';
+
+            // Peak hold
+            if (!this._meterPeaks[id]) this._meterPeaks[id] = {
+                left: { level: 0, time: 0 },
+                right: { level: 0, time: 0 }
+            };
+            const peaks = this._meterPeaks[id];
+            const now = performance.now();
+
+            // Left peak
+            if (leftPct >= peaks.left.level) {
+                peaks.left.level = leftPct;
+                peaks.left.time = now;
+            } else if (now - peaks.left.time > PEAK_HOLD_MS) {
+                peaks.left.level = Math.max(0, peaks.left.level - PEAK_DECAY * 100);
+            }
+
+            // Right peak
+            if (rightPct >= peaks.right.level) {
+                peaks.right.level = rightPct;
+                peaks.right.time = now;
+            } else if (now - peaks.right.time > PEAK_HOLD_MS) {
+                peaks.right.level = Math.max(0, peaks.right.level - PEAK_DECAY * 100);
+            }
+
+            // Update peak indicators
+            const plEl = document.querySelector(`[data-peak-l="${id}"]`);
+            const prEl = document.querySelector(`[data-peak-r="${id}"]`);
+            if (plEl) {
+                plEl.style.bottom = peaks.left.level + '%';
+                plEl.classList.toggle('active', peaks.left.level > 2);
+            }
+            if (prEl) {
+                prEl.style.bottom = peaks.right.level + '%';
+                prEl.classList.toggle('active', peaks.right.level > 2);
+            }
+        };
+
         const animate = () => {
             if (state.transport.state === 'playing' || state.transport.state === 'recording') {
                 // Update track meters
                 state.tracks.forEach(track => {
                     const level = this.engine.getMeterLevel(track.id);
-                    const el = document.querySelector(`[data-meter="${track.id}"]`);
-                    if (el) {
-                        const db = Math.max(0, (1 + Math.log10(Math.max(level.left, 0.0001)) / 2));
-                        el.style.height = (db * 100) + '%';
-                    }
+                    // Simulate stereo by slight offset
+                    const lVariation = 0.9 + Math.random() * 0.2;
+                    const rVariation = 0.9 + Math.random() * 0.2;
+                    updateMeter(track.id, level.left * lVariation, level.right * rVariation);
                 });
 
                 // Master meter
                 const masterLevel = this.engine.getMasterLevel();
-                const masterEl = document.querySelector('[data-meter="master"]');
-                if (masterEl) {
-                    const db = Math.max(0, (1 + Math.log10(Math.max(masterLevel.left, 0.0001)) / 2));
-                    masterEl.style.height = (db * 100) + '%';
-                }
+                const lVar = 0.92 + Math.random() * 0.16;
+                const rVar = 0.92 + Math.random() * 0.16;
+                updateMeter('master', masterLevel.left * lVar, masterLevel.right * rVar);
             } else {
                 // Decay meters when stopped
-                document.querySelectorAll('.mixer-meter-fill').forEach(el => {
-                    const h = parseFloat(el.style.height) || 0;
-                    if (h > 0) el.style.height = Math.max(0, h - 2) + '%';
-                });
+                const decayMeter = (id) => {
+                    if (!this._meterSmooth[id]) return;
+                    const sm = this._meterSmooth[id];
+                    sm.left = Math.max(0, sm.left - METER_DECAY);
+                    sm.right = Math.max(0, sm.right - METER_DECAY);
+                    updateMeter(id, sm.left, sm.right);
+                };
+                state.tracks.forEach(track => decayMeter(track.id));
+                decayMeter('master');
             }
             this.meterAnimFrame = requestAnimationFrame(animate);
         };
@@ -4559,12 +5153,62 @@ class DAWController {
 
         // Drag & drop files onto timeline
         const timelineArea = document.getElementById('timeline-area');
+        const dropIndicator = document.getElementById('timeline-drop-indicator');
+        const dropGhost = document.getElementById('timeline-drop-ghost');
+
+        // Show visual drop indicator while dragging over timeline
         timelineArea.addEventListener('dragover', e => {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'copy';
+
+            const scroll = document.getElementById('timeline-scroll');
+            const rect = scroll.getBoundingClientRect();
+            const x = e.clientX - rect.left + scroll.scrollLeft;
+            const y = e.clientY - rect.top + scroll.scrollTop;
+            const trackHeight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--track-height'));
+            const trackIdx = Math.min(Math.floor(y / trackHeight), state.tracks.length - 1);
+            const dropBeat = snapBeat(pixelsToBeats(x));
+            const dropX = beatsToPixels(dropBeat);
+
+            // Show drop indicator line
+            dropIndicator.style.display = 'block';
+            dropIndicator.style.left = dropX + 'px';
+            dropIndicator.style.top = '0px';
+            dropIndicator.style.height = scroll.scrollHeight + 'px';
+
+            // Show ghost preview of where the sound will land
+            if (this._dragSoundData && trackIdx >= 0 && trackIdx < state.tracks.length) {
+                const durationSec = (this._dragSoundData.durationMs || 2000) / 1000;
+                const durationBeats = secondsToBeats(durationSec);
+                const ghostW = Math.max(20, beatsToPixels(durationBeats));
+                const trackY = trackIdx * trackHeight + 4;
+                const regionH = trackHeight - 8;
+
+                dropGhost.style.display = 'block';
+                dropGhost.style.left = dropX + 'px';
+                dropGhost.style.top = trackY + 'px';
+                dropGhost.style.width = ghostW + 'px';
+                dropGhost.style.height = regionH + 'px';
+                dropGhost.textContent = `${this._dragSoundData.name} → Beat ${Math.round(dropBeat * 4) / 4}`;
+            }
         });
+
+        timelineArea.addEventListener('dragleave', (e) => {
+            // Only hide if we truly left the timeline area
+            const rect = timelineArea.getBoundingClientRect();
+            if (e.clientX < rect.left || e.clientX > rect.right ||
+                e.clientY < rect.top || e.clientY > rect.bottom) {
+                dropIndicator.style.display = 'none';
+                dropGhost.style.display = 'none';
+            }
+        });
+
         timelineArea.addEventListener('drop', async e => {
             e.preventDefault();
+            // Hide drop indicator
+            dropIndicator.style.display = 'none';
+            dropGhost.style.display = 'none';
+
             // Calculate drop position (beat + track)
             const scroll = document.getElementById('timeline-scroll');
             const rect = scroll.getBoundingClientRect();
@@ -4572,15 +5216,33 @@ class DAWController {
             const y = e.clientY - rect.top + scroll.scrollTop;
             const dropBeat = snapBeat(pixelsToBeats(x));
             const trackHeight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--track-height'));
-            const trackIdx = Math.floor(y / trackHeight);
+            const trackIdx = Math.min(Math.floor(y / trackHeight), state.tracks.length - 1);
 
             // Library sound drop
             const dawSound = e.dataTransfer.getData('application/x-daw-sound');
             if (dawSound) {
                 try {
                     const data = JSON.parse(dawSound);
-                    const track = state.tracks[trackIdx] || state.tracks.find(t => t.type === 'audio');
-                    if (!track || track.type !== 'audio') { toast('Sleep naar een audio track', 'error'); return; }
+                    // Support dropping onto any track - find nearest audio track if target is MIDI
+                    let track = state.tracks[trackIdx];
+                    if (!track) {
+                        track = state.tracks.find(t => t.type === 'audio');
+                    } else if (track.type !== 'audio') {
+                        // Find closest audio track
+                        let closestAudio = null;
+                        let closestDist = Infinity;
+                        state.tracks.forEach((t, i) => {
+                            if (t.type === 'audio' && Math.abs(i - trackIdx) < closestDist) {
+                                closestDist = Math.abs(i - trackIdx);
+                                closestAudio = t;
+                            }
+                        });
+                        if (closestAudio) {
+                            track = closestAudio;
+                            toast(`Audio track "${track.name}" geselecteerd (${state.tracks[trackIdx].name} is MIDI)`, 'info');
+                        }
+                    }
+                    if (!track || track.type !== 'audio') { toast('Geen audio track beschikbaar', 'error'); return; }
                     toast(`Laden: ${data.name}...`, 'info');
                     const res = await fetch(`${API_BASE}/api/sounds/${data.id}/file`);
                     const arrayBuffer = await res.arrayBuffer();
@@ -4592,7 +5254,10 @@ class DAWController {
                         id: uuid(), soundId, startBeat: dropBeat, offset: 0,
                         duration: audioBuffer.duration, name: data.name, peaks
                     });
-                    toast(`${data.name} op ${track.name} (beat ${Math.round(dropBeat)})`, 'success');
+                    const beatDisplay = state.timeline.snapToGrid
+                        ? `beat ${Math.round(dropBeat * 4) / 4} (snap)`
+                        : `beat ${dropBeat.toFixed(2)}`;
+                    toast(`${data.name} op ${track.name} @ ${beatDisplay}`, 'success');
                 } catch (err) {
                     toast('Fout bij laden van sound', 'error');
                     console.error('Library drop error:', err);
@@ -5039,18 +5704,101 @@ class DAWController {
             const dur = s.duration_ms ? (s.duration_ms / 1000).toFixed(1) + 's' : '';
             const bpm = s.bpm ? `${Math.round(s.bpm)} BPM` : '';
             const key = s.musical_key || '';
-            const meta = [s.category_name, dur, bpm, key].filter(Boolean).join(' · ');
+            const meta = [s.category_name, bpm, key].filter(Boolean).join(' · ');
             const favClass = s.is_favorite ? 'active' : '';
+            // Format file size
+            let sizeStr = '';
+            if (s.file_size) {
+                if (s.file_size >= 1048576) sizeStr = (s.file_size / 1048576).toFixed(1) + ' MB';
+                else if (s.file_size >= 1024) sizeStr = Math.round(s.file_size / 1024) + ' KB';
+                else sizeStr = s.file_size + ' B';
+            }
+            const detail = [dur, sizeStr].filter(Boolean).join(' · ');
             return `
-                <div class="library-item" draggable="true" data-sound-id="${s.id}" data-filename="${s.filename}" data-name="${s.name}">
+                <div class="library-item" draggable="true" data-sound-id="${s.id}" data-filename="${s.filename}" data-name="${s.name}" data-duration-ms="${s.duration_ms || 0}">
+                    <div class="library-drag-handle" title="Sleep naar timeline"><span></span><span></span><span></span></div>
                     <div class="library-play-btn" data-sound-id="${s.id}" title="Preview">▶</div>
+                    <div class="library-waveform"><canvas data-sound-id="${s.id}" width="128" height="64"></canvas></div>
                     <div class="library-info">
-                        <div class="library-name">${s.name}</div>
+                        <div class="library-name" title="${s.name}">${s.name}</div>
                         <div class="library-meta">${meta}</div>
+                        ${detail ? `<div class="library-detail">${detail}</div>` : ''}
                     </div>
                     <button class="library-fav ${favClass}" data-sound-id="${s.id}" title="Favoriet">★</button>
                 </div>`;
         }).join('');
+
+        // Draw waveform previews for each sound
+        this._drawLibraryWaveforms(sounds);
+    }
+
+    _drawLibraryWaveforms(sounds) {
+        sounds.forEach(s => {
+            if (!s.waveform_peaks) return;
+            const canvas = document.querySelector(`.library-waveform canvas[data-sound-id="${s.id}"]`);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            const peaks = s.waveform_peaks;
+            if (!Array.isArray(peaks) || peaks.length === 0) return;
+
+            ctx.clearRect(0, 0, w, h);
+            const centerY = h / 2;
+
+            // Draw waveform
+            ctx.fillStyle = 'rgba(74, 127, 255, 0.6)';
+            ctx.beginPath();
+            for (let i = 0; i < w; i++) {
+                const idx = Math.floor((i / w) * peaks.length);
+                const peak = Array.isArray(peaks[idx]) ? peaks[idx] : [peaks[idx], -peaks[idx]];
+                const top = centerY + (peak[0] || 0) * (h / 2 - 1);
+                if (i === 0) ctx.moveTo(i, top);
+                else ctx.lineTo(i, top);
+            }
+            for (let i = w - 1; i >= 0; i--) {
+                const idx = Math.floor((i / w) * peaks.length);
+                const peak = Array.isArray(peaks[idx]) ? peaks[idx] : [peaks[idx], -peaks[idx]];
+                const bottom = centerY + (peak[1] || 0) * (h / 2 - 1);
+                ctx.lineTo(i, bottom);
+            }
+            ctx.closePath();
+            ctx.fill();
+
+            // Center line
+            ctx.strokeStyle = 'rgba(74, 127, 255, 0.3)';
+            ctx.lineWidth = 0.5;
+            ctx.beginPath();
+            ctx.moveTo(0, centerY);
+            ctx.lineTo(w, centerY);
+            ctx.stroke();
+        });
+
+        // For sounds without stored peaks, generate simple placeholder
+        sounds.forEach(s => {
+            if (s.waveform_peaks) return;
+            const canvas = document.querySelector(`.library-waveform canvas[data-sound-id="${s.id}"]`);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+            const centerY = h / 2;
+            // Draw a simple placeholder waveform
+            ctx.strokeStyle = 'rgba(74, 127, 255, 0.25)';
+            ctx.lineWidth = 0.5;
+            ctx.beginPath();
+            ctx.moveTo(0, centerY);
+            ctx.lineTo(w, centerY);
+            ctx.stroke();
+            // Random-ish bars as placeholder
+            ctx.fillStyle = 'rgba(74, 127, 255, 0.2)';
+            const seed = (s.id || '').charCodeAt(0) || 42;
+            for (let i = 0; i < w; i += 2) {
+                const amp = (Math.sin(i * 0.3 + seed) * 0.3 + Math.sin(i * 0.7 + seed * 2) * 0.2 + 0.1) * (h / 2 - 2);
+                ctx.fillRect(i, centerY - amp, 1.5, amp * 2);
+            }
+        });
     }
 
     _bindLibraryEvents() {
@@ -5110,12 +5858,29 @@ class DAWController {
         grid.addEventListener('dragstart', (e) => {
             const item = e.target.closest('.library-item');
             if (!item) return;
+            item.classList.add('dragging');
             e.dataTransfer.setData('application/x-daw-sound', JSON.stringify({
                 id: item.dataset.soundId,
                 name: item.dataset.name,
-                filename: item.dataset.filename
+                filename: item.dataset.filename,
+                durationMs: parseInt(item.dataset.durationMs) || 0
             }));
             e.dataTransfer.effectAllowed = 'copy';
+            // Store for ghost preview
+            this._dragSoundData = {
+                name: item.dataset.name,
+                durationMs: parseInt(item.dataset.durationMs) || 0
+            };
+        });
+        grid.addEventListener('dragend', (e) => {
+            const item = e.target.closest('.library-item');
+            if (item) item.classList.remove('dragging');
+            this._dragSoundData = null;
+            // Hide drop indicator
+            const indicator = document.getElementById('timeline-drop-indicator');
+            const ghost = document.getElementById('timeline-drop-ghost');
+            if (indicator) indicator.style.display = 'none';
+            if (ghost) ghost.style.display = 'none';
         });
     }
 

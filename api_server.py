@@ -1,6 +1,6 @@
 """
 DAW API Server - Flask backend voor sound library en projecten.
-Port: 8085 (API), serve.py voor statische bestanden.
+Port: 8086 (API + static files)
 Database: PostgreSQL 'daw'
 """
 import os, uuid, json
