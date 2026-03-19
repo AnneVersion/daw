@@ -1,0 +1,1873 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DAW - Producer Contests</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='none' stroke='%2339ff14' stroke-width='1.5'/><circle cx='16' cy='16' r='3' fill='%2339ff14' opacity='.4'/><ellipse cx='16' cy='16' rx='14' ry='5' fill='none' stroke='%2339ff14' stroke-width='.7' opacity='.4' transform='rotate(-8 16 16)'/></svg>">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+/* ============================================================
+   CSS - DAW Contests Dark Theme
+   ============================================================ */
+:root {
+    --bg-darkest: #0a0a0f;
+    --bg-dark: #0d1117;
+    --bg-panel: #161b22;
+    --bg-card: #1a1f2e;
+    --bg-hover: #242d3d;
+    --bg-selected: #2d3548;
+    --border: #30363d;
+    --border-light: #484f58;
+    --text: #e0e0ee;
+    --text-dim: #8b949e;
+    --text-bright: #ffffff;
+    --accent: #4a9eff;
+    --accent-hover: #5aafff;
+    --purple: #a855f7;
+    --purple-dim: #7c3aed;
+    --green: #39ff14;
+    --green-dim: #22c55e;
+    --red: #ff4a5a;
+    --yellow: #ffd24a;
+    --orange: #ff8a4a;
+    --gold: #fbbf24;
+    --silver: #94a3b8;
+    --bronze: #d97706;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+    font-family: -apple-system, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg-dark);
+    min-height: 100vh;
+}
+
+/* ---- Scrollbars ---- */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-dark); }
+::-webkit-scrollbar-thumb { background: #484f58; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+
+/* ---- Navigation ---- */
+.nav-bar {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: rgba(13, 17, 23, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    height: 56px;
+    gap: 8px;
+}
+.nav-logo {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-decoration: none;
+    margin-right: 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.nav-logo .material-icons { font-size: 24px; color: var(--green); }
+.nav-links {
+    display: flex;
+    gap: 4px;
+    list-style: none;
+}
+.nav-links a {
+    color: var(--text-dim);
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.nav-links a:hover { color: var(--text); background: var(--bg-hover); }
+.nav-links a.active { color: var(--accent); background: rgba(74, 158, 255, 0.1); }
+.nav-links .material-icons { font-size: 18px; }
+.nav-spacer { flex: 1; }
+.nav-btn {
+    padding: 8px 18px;
+    background: linear-gradient(135deg, var(--purple), var(--accent));
+    border: none;
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.nav-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(168, 85, 247, 0.4); }
+.nav-btn .material-icons { font-size: 18px; }
+
+/* ---- Hero Section ---- */
+.hero {
+    position: relative;
+    padding: 60px 24px 40px;
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(74, 158, 255, 0.1) 50%, rgba(57, 255, 20, 0.05) 100%);
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+}
+.hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at 30% 50%, rgba(168, 85, 247, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 70% 50%, rgba(74, 158, 255, 0.06) 0%, transparent 50%);
+    animation: heroGlow 8s ease-in-out infinite alternate;
+}
+@keyframes heroGlow {
+    0% { transform: translate(0, 0); }
+    100% { transform: translate(-5%, 5%); }
+}
+.hero-content {
+    position: relative;
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    gap: 40px;
+    align-items: center;
+}
+.hero-text { flex: 1; }
+.hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    background: rgba(168, 85, 247, 0.2);
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--purple);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+}
+.hero-badge .pulse-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+}
+.hero h1 {
+    font-size: 42px;
+    font-weight: 800;
+    color: var(--text-bright);
+    line-height: 1.2;
+    margin-bottom: 12px;
+}
+.hero h1 span {
+    background: linear-gradient(135deg, var(--purple), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.hero p {
+    font-size: 16px;
+    color: var(--text-dim);
+    line-height: 1.6;
+    margin-bottom: 24px;
+    max-width: 500px;
+}
+.hero-stats {
+    display: flex;
+    gap: 32px;
+}
+.hero-stat {
+    text-align: center;
+}
+.hero-stat-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text-bright);
+}
+.hero-stat-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Hero featured contest card */
+.hero-featured {
+    flex: 0 0 380px;
+    background: rgba(26, 31, 46, 0.8);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+}
+.hero-featured::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--purple), var(--accent), var(--green));
+}
+.featured-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+.featured-live-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(255, 74, 90, 0.15);
+    border: 1px solid rgba(255, 74, 90, 0.3);
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--red);
+}
+.featured-live-badge .pulse-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--red);
+    border-radius: 50%;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+.featured-genre {
+    padding: 4px 10px;
+    background: rgba(74, 158, 255, 0.15);
+    border-radius: 12px;
+    font-size: 11px;
+    color: var(--accent);
+}
+.featured-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-bright);
+    margin-bottom: 8px;
+}
+.featured-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+    line-height: 1.5;
+}
+.featured-countdown {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+.countdown-item {
+    text-align: center;
+    background: var(--bg-darkest);
+    padding: 8px 12px;
+    border-radius: 8px;
+    min-width: 52px;
+}
+.countdown-value {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text-bright);
+    font-family: 'SF Mono', 'Consolas', monospace;
+}
+.countdown-label {
+    font-size: 9px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+.featured-meta {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    font-size: 12px;
+    color: var(--text-dim);
+}
+.featured-meta .material-icons { font-size: 16px; vertical-align: middle; margin-right: 4px; }
+.featured-actions {
+    display: flex;
+    gap: 8px;
+}
+.btn-primary {
+    flex: 1;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, var(--purple), var(--accent));
+    border: none;
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(168, 85, 247, 0.4); }
+.btn-secondary {
+    flex: 1;
+    padding: 10px 16px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.btn-secondary:hover { background: var(--bg-hover); border-color: var(--border-light); }
+.btn-secondary .material-icons, .btn-primary .material-icons { font-size: 18px; }
+
+/* ---- Section Layout ---- */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+}
+.section {
+    padding: 48px 0;
+}
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+.section-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-bright);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.section-title .material-icons { color: var(--purple); font-size: 28px; }
+.section-subtitle {
+    font-size: 14px;
+    color: var(--text-dim);
+    margin-top: 4px;
+}
+
+/* ---- Contest Cards Grid ---- */
+.contest-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 20px;
+}
+.contest-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+}
+.contest-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--purple), var(--accent));
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+.contest-card:hover {
+    border-color: var(--border-light);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+.contest-card:hover::before { opacity: 1; }
+.contest-card.past { opacity: 0.7; }
+.contest-card.past:hover { opacity: 1; }
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+.card-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.card-status.active {
+    background: rgba(57, 255, 20, 0.1);
+    border: 1px solid rgba(57, 255, 20, 0.2);
+    color: var(--green);
+}
+.card-status.ended {
+    background: rgba(139, 148, 158, 0.1);
+    border: 1px solid rgba(139, 148, 158, 0.2);
+    color: var(--text-dim);
+}
+.card-status .pulse-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+.card-status.active .pulse-dot {
+    background: var(--green);
+    animation: pulse 2s ease-in-out infinite;
+}
+.card-status.ended .pulse-dot { background: var(--text-dim); }
+
+.card-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.tag {
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.tag.lofi { background: rgba(168, 85, 247, 0.15); color: var(--purple); }
+.tag.synthwave { background: rgba(74, 158, 255, 0.15); color: var(--accent); }
+.tag.challenge { background: rgba(255, 138, 74, 0.15); color: var(--orange); }
+.tag.remix { background: rgba(57, 255, 20, 0.15); color: var(--green); }
+.tag.battle { background: rgba(255, 74, 90, 0.15); color: var(--red); }
+
+.card-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-bright);
+    margin-bottom: 8px;
+}
+.card-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    margin-bottom: 16px;
+}
+
+.card-countdown {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+.card-countdown .countdown-item {
+    padding: 6px 10px;
+    min-width: 44px;
+}
+.card-countdown .countdown-value {
+    font-size: 18px;
+}
+
+.card-meta {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    font-size: 12px;
+    color: var(--text-dim);
+}
+.card-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.card-meta-item .material-icons { font-size: 16px; }
+
+.card-prize {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: rgba(251, 191, 36, 0.08);
+    border: 1px solid rgba(251, 191, 36, 0.15);
+    border-radius: 10px;
+    margin-bottom: 16px;
+}
+.card-prize .material-icons { color: var(--gold); font-size: 20px; }
+.card-prize-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gold);
+}
+
+.card-actions {
+    display: flex;
+    gap: 8px;
+}
+.card-actions .btn-primary,
+.card-actions .btn-secondary { font-size: 12px; padding: 8px 14px; }
+
+/* ---- Contest Detail Modal ---- */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    z-index: 2000;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 24px;
+    overflow-y: auto;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 900px;
+    position: relative;
+    animation: modalIn 0.3s ease;
+}
+@keyframes modalIn {
+    from { opacity: 0; transform: translateY(20px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.modal-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: var(--bg-hover);
+    color: var(--text-dim);
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    z-index: 10;
+}
+.modal-close:hover { background: var(--bg-selected); color: var(--text); }
+
+.modal-header {
+    padding: 32px 32px 0;
+    position: relative;
+}
+.modal-header::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--purple), var(--accent), var(--green));
+    border-radius: 20px 20px 0 0;
+}
+.modal-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text-bright);
+    margin-bottom: 8px;
+}
+.modal-tags {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.modal-body {
+    padding: 24px 32px 32px;
+}
+.modal-grid {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 32px;
+}
+
+/* Rules section */
+.rules-section {
+    margin-bottom: 24px;
+}
+.rules-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-bright);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.rules-title .material-icons { color: var(--accent); font-size: 20px; }
+.rules-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.rules-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.5;
+}
+.rules-list li .material-icons { color: var(--green); font-size: 16px; margin-top: 2px; flex-shrink: 0; }
+
+/* Sample pack */
+.sample-pack {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.sample-pack-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, var(--purple), var(--accent));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.sample-pack-icon .material-icons { font-size: 24px; color: white; }
+.sample-pack-info { flex: 1; }
+.sample-pack-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-bright);
+}
+.sample-pack-size { font-size: 12px; color: var(--text-dim); }
+.sample-pack .btn-secondary { flex: 0; padding: 8px 14px; font-size: 12px; }
+
+/* Entries list */
+.entries-section {
+    margin-bottom: 24px;
+}
+.entry-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 10px;
+    transition: background 0.2s;
+    border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+}
+.entry-item:hover { background: var(--bg-hover); }
+.entry-rank {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    background: var(--bg-card);
+    color: var(--text-dim);
+}
+.entry-rank.gold { background: rgba(251, 191, 36, 0.2); color: var(--gold); }
+.entry-rank.silver { background: rgba(148, 163, 184, 0.2); color: var(--silver); }
+.entry-rank.bronze { background: rgba(217, 119, 6, 0.2); color: var(--bronze); }
+.entry-info { flex: 1; }
+.entry-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-bright);
+}
+.entry-artist {
+    font-size: 11px;
+    color: var(--text-dim);
+}
+.entry-play {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: rgba(74, 158, 255, 0.15);
+    color: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+.entry-play:hover { background: rgba(74, 158, 255, 0.25); }
+.entry-play .material-icons { font-size: 18px; }
+.entry-votes {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--text-dim);
+}
+.entry-votes .material-icons { font-size: 16px; color: var(--gold); }
+
+/* Audio player mini */
+.audio-player-mini {
+    width: 100%;
+    background: var(--bg-darkest);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.audio-waveform {
+    flex: 1;
+    height: 32px;
+    background: var(--bg-card);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+.waveform-bars {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    gap: 1px;
+    padding: 4px;
+}
+.waveform-bar {
+    flex: 1;
+    background: var(--accent);
+    opacity: 0.4;
+    border-radius: 1px;
+    min-width: 2px;
+}
+.audio-time {
+    font-size: 11px;
+    font-family: 'SF Mono', 'Consolas', monospace;
+    color: var(--text-dim);
+    min-width: 40px;
+}
+
+/* Voting stars */
+.vote-stars {
+    display: flex;
+    gap: 2px;
+}
+.vote-star {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px;
+    color: var(--border-light);
+    font-size: 18px;
+    transition: color 0.2s;
+}
+.vote-star:hover, .vote-star.active { color: var(--gold); }
+
+/* Sidebar (in modal) */
+.modal-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.sidebar-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+}
+.sidebar-card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-bright);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.sidebar-card-title .material-icons { font-size: 18px; color: var(--purple); }
+
+/* Leaderboard */
+.leaderboard-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(48, 54, 61, 0.3);
+}
+.leaderboard-item:last-child { border-bottom: none; }
+.lb-rank {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+}
+.lb-rank.r1 { background: rgba(251, 191, 36, 0.2); color: var(--gold); }
+.lb-rank.r2 { background: rgba(148, 163, 184, 0.2); color: var(--silver); }
+.lb-rank.r3 { background: rgba(217, 119, 6, 0.2); color: var(--bronze); }
+.lb-rank.r-other { background: var(--bg-darkest); color: var(--text-dim); }
+.lb-name { flex: 1; font-size: 13px; color: var(--text); }
+.lb-score {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+}
+
+/* Comments */
+.comment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 250px;
+    overflow-y: auto;
+}
+.comment {
+    display: flex;
+    gap: 10px;
+}
+.comment-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--purple), var(--accent));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+}
+.comment-body { flex: 1; }
+.comment-author {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 2px;
+}
+.comment-text {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.4;
+}
+.comment-time {
+    font-size: 10px;
+    color: var(--border-light);
+    margin-top: 2px;
+}
+.comment-input-wrap {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+.comment-input {
+    flex: 1;
+    background: var(--bg-darkest);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    outline: none;
+}
+.comment-input:focus { border-color: var(--accent); }
+.comment-send {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: var(--accent);
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.comment-send .material-icons { font-size: 18px; }
+
+/* ---- Winner Banner ---- */
+.winner-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(217, 119, 6, 0.08));
+    border: 1px solid rgba(251, 191, 36, 0.2);
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+.winner-trophy {
+    font-size: 28px;
+}
+.winner-info { flex: 1; }
+.winner-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--gold);
+    font-weight: 600;
+}
+.winner-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-bright);
+}
+
+/* ---- Past Contests ---- */
+.past-contest-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+.past-contest-row:hover {
+    border-color: var(--border-light);
+    background: var(--bg-hover);
+}
+.past-contest-rank {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: rgba(251, 191, 36, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+.past-contest-info { flex: 1; }
+.past-contest-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-bright);
+}
+.past-contest-meta {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 2px;
+}
+.past-contest-winner {
+    text-align: right;
+}
+.past-contest-winner-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+}
+.past-contest-winner-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gold);
+}
+
+/* ---- Create Contest CTA ---- */
+.cta-section {
+    padding: 48px 0;
+    text-align: center;
+}
+.cta-card {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.08), rgba(74, 158, 255, 0.06));
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 48px;
+    max-width: 600px;
+    margin: 0 auto;
+}
+.cta-card h2 {
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--text-bright);
+    margin-bottom: 12px;
+}
+.cta-card p {
+    font-size: 14px;
+    color: var(--text-dim);
+    margin-bottom: 24px;
+    line-height: 1.6;
+}
+.cta-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 32px;
+    background: linear-gradient(135deg, var(--purple), var(--accent));
+    border: none;
+    color: white;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 700;
+    transition: all 0.3s;
+}
+.cta-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(168, 85, 247, 0.4);
+}
+.cta-btn .material-icons { font-size: 22px; }
+
+/* ---- Footer ---- */
+.footer {
+    border-top: 1px solid var(--border);
+    padding: 24px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 900px) {
+    .hero-content { flex-direction: column; }
+    .hero-featured { flex: auto; width: 100%; }
+    .modal-grid { grid-template-columns: 1fr; }
+    .contest-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+    .hero h1 { font-size: 28px; }
+    .hero-stats { gap: 16px; }
+    .hero-stat-value { font-size: 22px; }
+    .nav-links a span.nav-label { display: none; }
+    .modal { border-radius: 12px; }
+    .modal-body { padding: 16px; }
+    .modal-header { padding: 24px 16px 0; }
+}
+</style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav class="nav-bar">
+    <a href="index.html" class="nav-logo">
+        <span class="material-icons">graphic_eq</span>
+        DAW
+    </a>
+    <ul class="nav-links">
+        <li><a href="index.html"><span class="material-icons">piano</span><span class="nav-label">Studio</span></a></li>
+        <li><a href="contests.html" class="active"><span class="material-icons">emoji_events</span><span class="nav-label">Contests</span></a></li>
+        <li><a href="live.html"><span class="material-icons">live_tv</span><span class="nav-label">Live</span></a></li>
+    </ul>
+    <div class="nav-spacer"></div>
+    <button class="nav-btn" onclick="document.getElementById('create-modal').classList.add('open')">
+        <span class="material-icons">add</span>
+        Start een Contest
+    </button>
+</nav>
+
+<!-- Hero Section -->
+<section class="hero">
+    <div class="hero-content">
+        <div class="hero-text">
+            <div class="hero-badge">
+                <span class="pulse-dot"></span>
+                Actieve Contests
+            </div>
+            <h1>Producer <span>Battles</span></h1>
+            <p>Doe mee aan beat battles, remix contests en producer challenges. Laat je skills zien, stem op je favorieten en win prijzen.</p>
+            <div class="hero-stats">
+                <div class="hero-stat">
+                    <div class="hero-stat-value">2</div>
+                    <div class="hero-stat-label">Actief</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-value">47</div>
+                    <div class="hero-stat-label">Inzendingen</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-value">312</div>
+                    <div class="hero-stat-label">Producers</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Featured Contest Card -->
+        <div class="hero-featured">
+            <div class="featured-header">
+                <div class="featured-live-badge">
+                    <span class="pulse-dot"></span>
+                    Actief
+                </div>
+                <span class="featured-genre">Lo-Fi</span>
+            </div>
+            <div class="featured-title">Beat Battle #12 - Lo-Fi Chill</div>
+            <div class="featured-desc">Maak de ultieme lo-fi chill beat. Gebruik de meegeleverde sample pack of je eigen sounds. Max 2 minuten.</div>
+            <div class="featured-countdown" id="hero-countdown">
+                <div class="countdown-item">
+                    <div class="countdown-value" id="hero-days">05</div>
+                    <div class="countdown-label">Dagen</div>
+                </div>
+                <div class="countdown-item">
+                    <div class="countdown-value" id="hero-hours">12</div>
+                    <div class="countdown-label">Uren</div>
+                </div>
+                <div class="countdown-item">
+                    <div class="countdown-value" id="hero-mins">34</div>
+                    <div class="countdown-label">Min</div>
+                </div>
+                <div class="countdown-item">
+                    <div class="countdown-value" id="hero-secs">00</div>
+                    <div class="countdown-label">Sec</div>
+                </div>
+            </div>
+            <div class="featured-meta">
+                <span><span class="material-icons">people</span> 28 / 50 inzendingen</span>
+                <span><span class="material-icons">emoji_events</span> Sample pack + Feature</span>
+            </div>
+            <div class="featured-actions">
+                <button class="btn-primary" onclick="openContest(0)">
+                    <span class="material-icons">upload</span>
+                    Inzending Uploaden
+                </button>
+                <button class="btn-secondary" onclick="openContest(0)">
+                    <span class="material-icons">headphones</span>
+                    Beluister
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Active Contests -->
+<section class="section">
+    <div class="container">
+        <div class="section-header">
+            <div>
+                <div class="section-title">
+                    <span class="material-icons">local_fire_department</span>
+                    Actieve Contests
+                </div>
+                <div class="section-subtitle">Doe nu mee en laat je talent zien</div>
+            </div>
+        </div>
+
+        <div class="contest-grid">
+            <!-- Contest 1 -->
+            <div class="contest-card" onclick="openContest(0)">
+                <div class="card-header">
+                    <div class="card-status active">
+                        <span class="pulse-dot"></span>
+                        Actief
+                    </div>
+                    <div class="card-tags">
+                        <span class="tag lofi">Lo-Fi</span>
+                        <span class="tag battle">Battle</span>
+                    </div>
+                </div>
+                <div class="card-title">Beat Battle #12 - Lo-Fi Chill</div>
+                <div class="card-desc">Maak de ultieme lo-fi chill beat. Gebruik de meegeleverde sample pack of je eigen sounds. Maximaal 2 minuten.</div>
+                <div class="card-countdown" data-deadline="5">
+                    <div class="countdown-item">
+                        <div class="countdown-value">05</div>
+                        <div class="countdown-label">Dagen</div>
+                    </div>
+                    <div class="countdown-item">
+                        <div class="countdown-value">12</div>
+                        <div class="countdown-label">Uren</div>
+                    </div>
+                    <div class="countdown-item">
+                        <div class="countdown-value">34</div>
+                        <div class="countdown-label">Min</div>
+                    </div>
+                </div>
+                <div class="card-meta">
+                    <div class="card-meta-item">
+                        <span class="material-icons">people</span>
+                        28 / 50
+                    </div>
+                    <div class="card-meta-item">
+                        <span class="material-icons">timer</span>
+                        Max 2 min
+                    </div>
+                    <div class="card-meta-item">
+                        <span class="material-icons">music_note</span>
+                        70-90 BPM
+                    </div>
+                </div>
+                <div class="card-prize">
+                    <span class="material-icons">workspace_premium</span>
+                    <span class="card-prize-text">Premium Sample Pack + Feature op hoofdpagina</span>
+                </div>
+                <div class="card-actions">
+                    <button class="btn-primary"><span class="material-icons">upload</span> Doe Mee</button>
+                    <button class="btn-secondary"><span class="material-icons">headphones</span> Beluister</button>
+                </div>
+            </div>
+
+            <!-- Contest 2 -->
+            <div class="contest-card" onclick="openContest(1)">
+                <div class="card-header">
+                    <div class="card-status active">
+                        <span class="pulse-dot"></span>
+                        Actief
+                    </div>
+                    <div class="card-tags">
+                        <span class="tag synthwave">Synthwave</span>
+                        <span class="tag remix">Remix</span>
+                    </div>
+                </div>
+                <div class="card-title">Remix Contest - Synthwave Classic</div>
+                <div class="card-desc">Remix de klassieker "Neon Horizon" in jouw eigen stijl. Stems zijn beschikbaar als download. Alle genres welkom.</div>
+                <div class="card-countdown" data-deadline="12">
+                    <div class="countdown-item">
+                        <div class="countdown-value">12</div>
+                        <div class="countdown-label">Dagen</div>
+                    </div>
+                    <div class="countdown-item">
+                        <div class="countdown-value">08</div>
+                        <div class="countdown-label">Uren</div>
+                    </div>
+                    <div class="countdown-item">
+                        <div class="countdown-value">15</div>
+                        <div class="countdown-label">Min</div>
+                    </div>
+                </div>
+                <div class="card-meta">
+                    <div class="card-meta-item">
+                        <span class="material-icons">people</span>
+                        19 / 100
+                    </div>
+                    <div class="card-meta-item">
+                        <span class="material-icons">timer</span>
+                        Max 5 min
+                    </div>
+                    <div class="card-meta-item">
+                        <span class="material-icons">music_note</span>
+                        Vrij BPM
+                    </div>
+                </div>
+                <div class="card-prize">
+                    <span class="material-icons">workspace_premium</span>
+                    <span class="card-prize-text">Officieel remix release + Synth plugin licentie</span>
+                </div>
+                <div class="card-actions">
+                    <button class="btn-primary"><span class="material-icons">upload</span> Doe Mee</button>
+                    <button class="btn-secondary"><span class="material-icons">headphones</span> Beluister</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Past Contests -->
+<section class="section" style="padding-top: 0;">
+    <div class="container">
+        <div class="section-header">
+            <div>
+                <div class="section-title">
+                    <span class="material-icons">history</span>
+                    Afgelopen Contests
+                </div>
+                <div class="section-subtitle">Bekijk eerdere battles en hun winnaars</div>
+            </div>
+        </div>
+
+        <div class="past-contest-row" onclick="openContest(2)">
+            <div class="past-contest-rank">&#127942;</div>
+            <div class="past-contest-info">
+                <div class="past-contest-title">Producer Challenge - 1 Minuut</div>
+                <div class="past-contest-meta">
+                    <span class="material-icons" style="font-size:14px;vertical-align:middle">people</span> 42 inzendingen &middot;
+                    <span class="material-icons" style="font-size:14px;vertical-align:middle">schedule</span> Gesloten op 10 maart 2026 &middot;
+                    <span class="tag challenge" style="display:inline;padding:2px 6px;font-size:9px">Challenge</span>
+                </div>
+            </div>
+            <div class="past-contest-winner">
+                <div class="past-contest-winner-label">Winnaar</div>
+                <div class="past-contest-winner-name">&#127775; ProducerX_NL</div>
+            </div>
+        </div>
+
+        <div class="past-contest-row">
+            <div class="past-contest-rank">&#127942;</div>
+            <div class="past-contest-info">
+                <div class="past-contest-title">Beat Battle #11 - Trap Anthem</div>
+                <div class="past-contest-meta">
+                    <span class="material-icons" style="font-size:14px;vertical-align:middle">people</span> 35 inzendingen &middot;
+                    <span class="material-icons" style="font-size:14px;vertical-align:middle">schedule</span> Gesloten op 25 feb 2026 &middot;
+                    <span class="tag battle" style="display:inline;padding:2px 6px;font-size:9px">Battle</span>
+                </div>
+            </div>
+            <div class="past-contest-winner">
+                <div class="past-contest-winner-label">Winnaar</div>
+                <div class="past-contest-winner-name">&#127775; BassKing_020</div>
+            </div>
+        </div>
+
+        <div class="past-contest-row">
+            <div class="past-contest-rank">&#127942;</div>
+            <div class="past-contest-info">
+                <div class="past-contest-title">Remix Contest - Deep House Vibes</div>
+                <div class="past-contest-meta">
+                    <span class="material-icons" style="font-size:14px;vertical-align:middle">people</span> 28 inzendingen &middot;
+                    <span class="material-icons" style="font-size:14px;vertical-align:middle">schedule</span> Gesloten op 8 feb 2026 &middot;
+                    <span class="tag remix" style="display:inline;padding:2px 6px;font-size:9px">Remix</span>
+                </div>
+            </div>
+            <div class="past-contest-winner">
+                <div class="past-contest-winner-label">Winnaar</div>
+                <div class="past-contest-winner-name">&#127775; DeepDiva</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Create Contest CTA -->
+<section class="cta-section">
+    <div class="container">
+        <div class="cta-card">
+            <h2>Start je eigen Contest</h2>
+            <p>Heb je een idee voor een beat battle, remix contest of producer challenge? Maak je eigen contest aan en daag de community uit.</p>
+            <button class="cta-btn" onclick="document.getElementById('create-modal').classList.add('open')">
+                <span class="material-icons">rocket_launch</span>
+                Contest Aanmaken
+            </button>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+    DAW Platform &copy; 2026 &middot; Producer Contests &middot; Gebouwd met Web Audio API
+</footer>
+
+<!-- Contest Detail Modal -->
+<div class="modal-overlay" id="contest-modal">
+    <div class="modal">
+        <button class="modal-close" onclick="closeModal('contest-modal')">&times;</button>
+        <div class="modal-header">
+            <div class="modal-tags" id="modal-tags"></div>
+            <div class="modal-title" id="modal-title"></div>
+        </div>
+        <div class="modal-body">
+            <div class="modal-grid">
+                <div class="modal-main">
+                    <!-- Winner banner (shown for past contests) -->
+                    <div class="winner-banner" id="modal-winner" style="display:none">
+                        <div class="winner-trophy">&#127942;</div>
+                        <div class="winner-info">
+                            <div class="winner-label">Winnaar</div>
+                            <div class="winner-name" id="modal-winner-name"></div>
+                        </div>
+                    </div>
+
+                    <!-- Rules -->
+                    <div class="rules-section">
+                        <div class="rules-title">
+                            <span class="material-icons">gavel</span>
+                            Regels & Vereisten
+                        </div>
+                        <ul class="rules-list" id="modal-rules"></ul>
+                    </div>
+
+                    <!-- Sample pack -->
+                    <div class="sample-pack" id="modal-samplepack" style="display:none">
+                        <div class="sample-pack-icon">
+                            <span class="material-icons">folder_zip</span>
+                        </div>
+                        <div class="sample-pack-info">
+                            <div class="sample-pack-name" id="modal-pack-name"></div>
+                            <div class="sample-pack-size" id="modal-pack-size"></div>
+                        </div>
+                        <button class="btn-secondary">
+                            <span class="material-icons">download</span>
+                            Download
+                        </button>
+                    </div>
+
+                    <!-- Entries -->
+                    <div class="entries-section">
+                        <div class="rules-title">
+                            <span class="material-icons">queue_music</span>
+                            Inzendingen
+                        </div>
+                        <div id="modal-entries"></div>
+                    </div>
+                </div>
+
+                <div class="modal-sidebar">
+                    <!-- Countdown / Status -->
+                    <div class="sidebar-card">
+                        <div class="sidebar-card-title">
+                            <span class="material-icons">timer</span>
+                            <span id="modal-status-label">Deadline</span>
+                        </div>
+                        <div id="modal-countdown-area"></div>
+                        <div style="margin-top: 12px;">
+                            <button class="btn-primary" style="width:100%" id="modal-submit-btn">
+                                <span class="material-icons">upload</span>
+                                Inzending Uploaden
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Leaderboard -->
+                    <div class="sidebar-card">
+                        <div class="sidebar-card-title">
+                            <span class="material-icons">leaderboard</span>
+                            Top 10
+                        </div>
+                        <div id="modal-leaderboard"></div>
+                    </div>
+
+                    <!-- Comments -->
+                    <div class="sidebar-card">
+                        <div class="sidebar-card-title">
+                            <span class="material-icons">chat_bubble</span>
+                            Reacties
+                        </div>
+                        <div class="comment-list" id="modal-comments"></div>
+                        <div class="comment-input-wrap">
+                            <input class="comment-input" placeholder="Schrijf een reactie..." id="comment-input">
+                            <button class="comment-send" onclick="addComment()">
+                                <span class="material-icons">send</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Contest Modal -->
+<div class="modal-overlay" id="create-modal">
+    <div class="modal" style="max-width:600px">
+        <button class="modal-close" onclick="closeModal('create-modal')">&times;</button>
+        <div class="modal-header">
+            <div class="modal-title">Nieuwe Contest Aanmaken</div>
+        </div>
+        <div class="modal-body">
+            <div style="display:flex;flex-direction:column;gap:16px">
+                <div>
+                    <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:600">Titel</label>
+                    <input type="text" class="comment-input" style="width:100%;padding:10px 14px;font-size:14px" placeholder="bijv. Beat Battle #13 - Boom Bap">
+                </div>
+                <div>
+                    <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:600">Type</label>
+                    <div style="display:flex;gap:8px">
+                        <button class="btn-secondary" style="flex:1;font-size:12px" onclick="this.classList.toggle('active')">Beat Battle</button>
+                        <button class="btn-secondary" style="flex:1;font-size:12px" onclick="this.classList.toggle('active')">Remix Contest</button>
+                        <button class="btn-secondary" style="flex:1;font-size:12px" onclick="this.classList.toggle('active')">Challenge</button>
+                    </div>
+                </div>
+                <div>
+                    <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:600">Beschrijving</label>
+                    <textarea class="comment-input" style="width:100%;height:80px;resize:vertical;padding:10px 14px;font-size:13px" placeholder="Beschrijf de regels en het thema..."></textarea>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div>
+                        <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:600">Deadline</label>
+                        <input type="date" class="comment-input" style="width:100%;padding:10px 14px;font-size:13px">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:600">Max inzendingen</label>
+                        <input type="number" class="comment-input" style="width:100%;padding:10px 14px;font-size:13px" value="50" min="5" max="500">
+                    </div>
+                </div>
+                <div>
+                    <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:600">Prijs</label>
+                    <input type="text" class="comment-input" style="width:100%;padding:10px 14px;font-size:14px" placeholder="bijv. Premium Plugin Licentie">
+                </div>
+                <div>
+                    <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:600">Sample Pack (optioneel)</label>
+                    <div class="sample-pack" style="margin:0;cursor:pointer">
+                        <div class="sample-pack-icon">
+                            <span class="material-icons">cloud_upload</span>
+                        </div>
+                        <div class="sample-pack-info">
+                            <div class="sample-pack-name">Klik om te uploaden</div>
+                            <div class="sample-pack-size">ZIP, max 100MB</div>
+                        </div>
+                    </div>
+                </div>
+                <button class="cta-btn" style="width:100%;justify-content:center;margin-top:8px">
+                    <span class="material-icons">rocket_launch</span>
+                    Contest Publiceren
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// Contest Data
+// ============================================================
+const contests = [
+    {
+        id: 0,
+        title: 'Beat Battle #12 - Lo-Fi Chill',
+        desc: 'Maak de ultieme lo-fi chill beat. Gebruik de meegeleverde sample pack of je eigen sounds. Maximaal 2 minuten.',
+        tags: ['Lo-Fi', 'Battle'],
+        tagClasses: ['lofi', 'battle'],
+        status: 'active',
+        deadlineDays: 5,
+        entries: 28,
+        maxEntries: 50,
+        prize: 'Premium Sample Pack + Feature op hoofdpagina',
+        bpm: '70-90 BPM',
+        maxLength: '2 min',
+        samplePack: { name: 'Lo-Fi Chill Sample Pack v3', size: '45 MB - 120 samples' },
+        rules: [
+            'Gebruik minimaal 3 samples uit de sample pack',
+            'Maximale lengte: 2 minuten',
+            'BPM range: 70-90',
+            'Alleen origineel werk - geen gestolen beats',
+            'Master naar -1dB, WAV of MP3 320kbps',
+            'Eén inzending per producer'
+        ],
+        entryList: [
+            { name: 'Midnight Rain', artist: 'ChillBeats_NL', votes: 42, duration: '1:48' },
+            { name: 'Coffee & Vinyl', artist: 'LoFiKing', votes: 38, duration: '1:55' },
+            { name: 'Sunset Boulevard', artist: 'VibeProducer', votes: 35, duration: '2:00' },
+            { name: 'Rainy Window', artist: 'BeatSmith_020', votes: 29, duration: '1:32' },
+            { name: 'Cassette Dreams', artist: 'RetroBeats', votes: 24, duration: '1:45' },
+            { name: 'Lazy Sunday', artist: 'ChillWave_NL', votes: 21, duration: '1:58' },
+            { name: 'Analog Memories', artist: 'TapeLoop', votes: 18, duration: '1:40' },
+            { name: 'Dusty Grooves', artist: 'CrateDigger', votes: 15, duration: '1:52' },
+            { name: 'Morning Dew', artist: 'AmbientKid', votes: 12, duration: '1:38' },
+            { name: 'Paper Moon', artist: 'JazzHands', votes: 9, duration: '1:47' }
+        ],
+        comments: [
+            { author: 'LoFiKing', text: 'Dikke sample pack dit keer! Die piano loop is fire.', time: '2 uur geleden', initial: 'L' },
+            { author: 'BeatSmith_020', text: 'Wie is er nog aan het twijfelen? Gewoon insturen!', time: '5 uur geleden', initial: 'B' },
+            { author: 'VibeProducer', text: 'Spannende lineup tot nu toe. Benieuwd naar de rest.', time: '1 dag geleden', initial: 'V' },
+            { author: 'ChillWave_NL', text: 'Mijn eerste contest, hopelijk val ik op!', time: '2 dagen geleden', initial: 'C' }
+        ],
+        winner: null
+    },
+    {
+        id: 1,
+        title: 'Remix Contest - Synthwave Classic',
+        desc: 'Remix de klassieker "Neon Horizon" in jouw eigen stijl. Stems zijn beschikbaar als download. Alle genres welkom.',
+        tags: ['Synthwave', 'Remix'],
+        tagClasses: ['synthwave', 'remix'],
+        status: 'active',
+        deadlineDays: 12,
+        entries: 19,
+        maxEntries: 100,
+        prize: 'Officieel remix release + Synth plugin licentie',
+        bpm: 'Vrij BPM',
+        maxLength: '5 min',
+        samplePack: { name: 'Neon Horizon - Stems Pack', size: '128 MB - Volledige stems' },
+        rules: [
+            'Gebruik minimaal de vocale stem uit de originele track',
+            'Maximale lengte: 5 minuten',
+            'Alle genres en BPM toegestaan',
+            'Remix moet herkenbaar blijven als "Neon Horizon"',
+            'WAV 44.1kHz 24-bit',
+            'Maximaal 2 inzendingen per producer'
+        ],
+        entryList: [
+            { name: 'Neon Horizon (Future Bass Remix)', artist: 'SynthWizard', votes: 31, duration: '3:42' },
+            { name: 'Neon Horizon (DnB Flip)', artist: 'BassKing_020', votes: 28, duration: '4:15' },
+            { name: 'Neon Horizon (Ambient Rework)', artist: 'CloudNine', votes: 22, duration: '4:50' },
+            { name: 'Neon Horizon (Techno Edit)', artist: 'BerlinBeat', votes: 19, duration: '3:58' },
+            { name: 'Neon Horizon (Chill Trap)', artist: 'TrapLord_NL', votes: 15, duration: '3:20' },
+            { name: 'Neon Horizon (80s Retro)', artist: 'RetroBeats', votes: 12, duration: '4:02' }
+        ],
+        comments: [
+            { author: 'SynthWizard', text: 'Die stems zijn van top kwaliteit! Props aan de originele artiest.', time: '1 uur geleden', initial: 'S' },
+            { author: 'BerlinBeat', text: 'Techno versie is bijna klaar, wordt vet!', time: '8 uur geleden', initial: 'B' },
+            { author: 'CloudNine', text: 'Iemand tips voor het processen van de vocals?', time: '1 dag geleden', initial: 'C' }
+        ],
+        winner: null
+    },
+    {
+        id: 2,
+        title: 'Producer Challenge - 1 Minuut',
+        desc: 'De ultieme challenge: maak een complete track in precies 1 minuut. Elk genre, elke stijl. Creativiteit is king.',
+        tags: ['Challenge'],
+        tagClasses: ['challenge'],
+        status: 'ended',
+        deadlineDays: 0,
+        entries: 42,
+        maxEntries: 50,
+        prize: 'Masterklas sessie met DJ Producer + Hardware synth',
+        bpm: 'Vrij BPM',
+        maxLength: '1 min (precies)',
+        samplePack: null,
+        rules: [
+            'Track moet precies 60 seconden zijn (58-62 sec toegestaan)',
+            'Alle genres en stijlen welkom',
+            'Geen samples van bestaande nummers',
+            'Moet minstens 3 verschillende instrumenten bevatten',
+            'WAV of MP3 320kbps',
+            'Eén inzending per producer'
+        ],
+        entryList: [
+            { name: 'Sixty Seconds of Chaos', artist: 'ProducerX_NL', votes: 67, duration: '1:00' },
+            { name: 'One Minute Wonder', artist: 'BeatSmith_020', votes: 58, duration: '1:00' },
+            { name: 'Compressed Universe', artist: 'SynthWizard', votes: 52, duration: '0:59' },
+            { name: 'Speed Run', artist: 'BassKing_020', votes: 45, duration: '1:01' },
+            { name: 'Blink', artist: 'ChillBeats_NL', votes: 41, duration: '1:00' },
+            { name: 'Flash Beat', artist: 'TrapLord_NL', votes: 38, duration: '0:58' },
+            { name: 'Micro Symphony', artist: 'CloudNine', votes: 35, duration: '1:00' },
+            { name: 'Minute Madness', artist: 'RetroBeats', votes: 30, duration: '1:02' },
+            { name: 'Quick Fix', artist: 'CrateDigger', votes: 25, duration: '0:59' },
+            { name: 'Tiny Epic', artist: 'JazzHands', votes: 20, duration: '1:00' }
+        ],
+        comments: [
+            { author: 'ProducerX_NL', text: 'Bedankt voor alle stemmen! Was een gave challenge.', time: '3 dagen geleden', initial: 'P' },
+            { author: 'BeatSmith_020', text: 'Gefeliciteerd ProducerX! Verdiende winnaar.', time: '3 dagen geleden', initial: 'B' },
+            { author: 'SynthWizard', text: 'Volgende keer pak ik de eerste plek!', time: '4 dagen geleden', initial: 'S' }
+        ],
+        winner: 'ProducerX_NL'
+    }
+];
+
+// ============================================================
+// Countdown Timer
+// ============================================================
+function updateCountdowns() {
+    // Hero countdown (contest 0)
+    const contest0 = contests[0];
+    const deadline = new Date();
+    deadline.setDate(deadline.getDate() + contest0.deadlineDays);
+    deadline.setHours(23, 59, 59);
+
+    const now = new Date();
+    const diff = deadline - now;
+
+    if (diff > 0) {
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+        document.getElementById('hero-days').textContent = String(days).padStart(2, '0');
+        document.getElementById('hero-hours').textContent = String(hours).padStart(2, '0');
+        document.getElementById('hero-mins').textContent = String(mins).padStart(2, '0');
+        document.getElementById('hero-secs').textContent = String(secs).padStart(2, '0');
+    }
+}
+
+setInterval(updateCountdowns, 1000);
+updateCountdowns();
+
+// ============================================================
+// Modal Logic
+// ============================================================
+function openContest(id) {
+    const contest = contests[id];
+    if (!contest) return;
+
+    const modal = document.getElementById('contest-modal');
+    document.getElementById('modal-title').textContent = contest.title;
+
+    // Tags
+    const tagsEl = document.getElementById('modal-tags');
+    tagsEl.innerHTML = contest.tags.map((t, i) =>
+        `<span class="tag ${contest.tagClasses[i]}">${t}</span>`
+    ).join('') + `<span class="card-status ${contest.status === 'active' ? 'active' : 'ended'}">
+        <span class="pulse-dot"></span>${contest.status === 'active' ? 'Actief' : 'Afgelopen'}
+    </span>`;
+
+    // Winner
+    const winnerEl = document.getElementById('modal-winner');
+    if (contest.winner) {
+        winnerEl.style.display = 'flex';
+        document.getElementById('modal-winner-name').textContent = contest.winner;
+    } else {
+        winnerEl.style.display = 'none';
+    }
+
+    // Rules
+    document.getElementById('modal-rules').innerHTML = contest.rules.map(r =>
+        `<li><span class="material-icons">check_circle</span>${r}</li>`
+    ).join('');
+
+    // Sample pack
+    const packEl = document.getElementById('modal-samplepack');
+    if (contest.samplePack) {
+        packEl.style.display = 'flex';
+        document.getElementById('modal-pack-name').textContent = contest.samplePack.name;
+        document.getElementById('modal-pack-size').textContent = contest.samplePack.size;
+    } else {
+        packEl.style.display = 'none';
+    }
+
+    // Entries
+    const entriesEl = document.getElementById('modal-entries');
+    entriesEl.innerHTML = contest.entryList.map((e, i) => {
+        const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+        const bars = generateWaveformBars();
+        return `
+            <div class="entry-item">
+                <div class="entry-rank ${rankClass}">${i + 1}</div>
+                <button class="entry-play" onclick="event.stopPropagation()">
+                    <span class="material-icons">play_arrow</span>
+                </button>
+                <div class="entry-info">
+                    <div class="entry-name">${e.name}</div>
+                    <div class="entry-artist">${e.artist}</div>
+                </div>
+                <div class="audio-time">${e.duration}</div>
+                <div class="entry-votes">
+                    <span class="material-icons">favorite</span>
+                    ${e.votes}
+                </div>
+                <div class="vote-stars">
+                    ${[1,2,3,4,5].map(s => `<button class="vote-star ${s <= Math.round(e.votes / 15) ? 'active' : ''}" onclick="event.stopPropagation()">&#9733;</button>`).join('')}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Status/Countdown sidebar
+    const statusLabel = document.getElementById('modal-status-label');
+    const countdownArea = document.getElementById('modal-countdown-area');
+    const submitBtn = document.getElementById('modal-submit-btn');
+
+    if (contest.status === 'active') {
+        statusLabel.textContent = 'Deadline';
+        countdownArea.innerHTML = `
+            <div class="featured-countdown">
+                <div class="countdown-item">
+                    <div class="countdown-value">${String(contest.deadlineDays).padStart(2,'0')}</div>
+                    <div class="countdown-label">Dagen</div>
+                </div>
+                <div class="countdown-item">
+                    <div class="countdown-value">00</div>
+                    <div class="countdown-label">Uren</div>
+                </div>
+                <div class="countdown-item">
+                    <div class="countdown-value">00</div>
+                    <div class="countdown-label">Min</div>
+                </div>
+            </div>
+            <div style="font-size:12px;color:var(--text-dim);margin-top:8px">
+                <span class="material-icons" style="font-size:14px;vertical-align:middle">people</span>
+                ${contest.entries} / ${contest.maxEntries} inzendingen
+            </div>
+        `;
+        submitBtn.style.display = 'flex';
+    } else {
+        statusLabel.textContent = 'Status';
+        countdownArea.innerHTML = `
+            <div style="text-align:center;padding:12px 0">
+                <div style="font-size:16px;font-weight:700;color:var(--text-dim)">Afgelopen</div>
+                <div style="font-size:12px;color:var(--text-dim);margin-top:4px">${contest.entries} inzendingen</div>
+            </div>
+        `;
+        submitBtn.style.display = 'none';
+    }
+
+    // Leaderboard
+    const lbEl = document.getElementById('modal-leaderboard');
+    lbEl.innerHTML = contest.entryList.slice(0, 10).map((e, i) => {
+        const rc = i === 0 ? 'r1' : i === 1 ? 'r2' : i === 2 ? 'r3' : 'r-other';
+        return `
+            <div class="leaderboard-item">
+                <div class="lb-rank ${rc}">${i + 1}</div>
+                <div class="lb-name">${e.artist}</div>
+                <div class="lb-score">${e.votes} &#9829;</div>
+            </div>
+        `;
+    }).join('');
+
+    // Comments
+    const commentsEl = document.getElementById('modal-comments');
+    commentsEl.innerHTML = contest.comments.map(c => `
+        <div class="comment">
+            <div class="comment-avatar">${c.initial}</div>
+            <div class="comment-body">
+                <div class="comment-author">${c.author}</div>
+                <div class="comment-text">${c.text}</div>
+                <div class="comment-time">${c.time}</div>
+            </div>
+        </div>
+    `).join('');
+
+    modal.classList.add('open');
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+}
+
+function generateWaveformBars() {
+    return Array.from({length: 40}, () =>
+        Math.floor(Math.random() * 80 + 20)
+    );
+}
+
+function addComment() {
+    const input = document.getElementById('comment-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    const commentsEl = document.getElementById('modal-comments');
+    const commentHTML = `
+        <div class="comment" style="animation: modalIn 0.3s ease">
+            <div class="comment-avatar">J</div>
+            <div class="comment-body">
+                <div class="comment-author">Jij</div>
+                <div class="comment-text">${text}</div>
+                <div class="comment-time">Zojuist</div>
+            </div>
+        </div>
+    `;
+    commentsEl.insertAdjacentHTML('afterbegin', commentHTML);
+    input.value = '';
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.classList.remove('open');
+    });
+});
+
+// Close on Escape
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+    }
+});
+</script>
+</body>
+</html>
