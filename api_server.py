@@ -292,6 +292,38 @@ def list_categories():
     """)
     return jsonify(rows)
 
+# --- Audio Proxy (voor externe streams die CORS blokkeren) ---
+import requests as ext_requests
+
+@app.route('/api/proxy/audio')
+def proxy_audio():
+    """Proxy externe audio URLs om CORS te omzeilen"""
+    url = request.args.get('url')
+    if not url:
+        return jsonify({"error": "url parameter vereist"}), 400
+    # Whitelist: alleen bekende muziek API's
+    allowed = ['jamendo.com', 'freesound.org', 'freemusicarchive.org', 'archive.org', 'cdn.freesound.org']
+    from urllib.parse import urlparse
+    host = urlparse(url).hostname or ''
+    if not any(d in host for d in allowed):
+        return jsonify({"error": "Domein niet toegestaan"}), 403
+    try:
+        r = ext_requests.get(url, stream=True, timeout=30,
+                             headers={'User-Agent': 'DAW-Platform/1.0'})
+        from flask import Response
+        def generate():
+            for chunk in r.iter_content(chunk_size=8192):
+                yield chunk
+        return Response(generate(),
+                       content_type=r.headers.get('content-type', 'audio/mpeg'),
+                       headers={
+                           'Content-Length': r.headers.get('content-length', ''),
+                           'Accept-Ranges': 'bytes',
+                           'Access-Control-Allow-Origin': '*'
+                       })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
 # --- Start ---
 if __name__ == '__main__':
     print("DAW API Server: http://localhost:8086")

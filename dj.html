@@ -716,6 +716,264 @@ body {
     background: rgba(74,127,255,0.05);
 }
 
+/* ---- Browser Tabs ---- */
+#browser-area { height: 280px; }
+.browser-tabs {
+    display: flex;
+    gap: 0;
+    padding: 0 12px;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+}
+.browser-tab {
+    padding: 7px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.browser-tab:hover { color: var(--text); }
+.browser-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+.browser-tab-content { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+.browser-tab-content.active { display: flex; }
+
+/* ---- Genre Chips ---- */
+.genre-chips {
+    display: flex;
+    gap: 6px;
+    padding: 6px 12px;
+    overflow-x: auto;
+    flex-shrink: 0;
+}
+.genre-chip {
+    padding: 3px 10px;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-panel);
+    color: var(--text-dim);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+.genre-chip:hover { border-color: var(--border-light); color: var(--text); }
+.genre-chip.active { border-color: var(--purple); color: var(--purple); background: rgba(154,74,255,0.1); box-shadow: 0 0 8px rgba(154,74,255,0.15); }
+.genre-chip[data-genre="electronic"].active { border-color: var(--cyan); color: var(--cyan); background: rgba(74,255,210,0.1); }
+.genre-chip[data-genre="hiphop"].active { border-color: var(--orange); color: var(--orange); background: rgba(255,138,74,0.1); }
+.genre-chip[data-genre="jazz"].active { border-color: var(--yellow); color: var(--yellow); background: rgba(255,210,74,0.1); }
+.genre-chip[data-genre="pop"].active { border-color: var(--accent); color: var(--accent); background: rgba(74,127,255,0.1); }
+.genre-chip[data-genre="rock"].active { border-color: var(--red); color: var(--red); background: rgba(255,74,90,0.1); }
+.genre-chip[data-genre="ambient"].active { border-color: #7a6aff; color: #7a6aff; background: rgba(122,106,255,0.1); }
+.genre-chip[data-genre="classical"].active { border-color: #ffa64a; color: #ffa64a; background: rgba(255,166,74,0.1); }
+.genre-chip[data-genre="reggae"].active { border-color: var(--green); color: var(--green); background: rgba(74,255,106,0.1); }
+.genre-chip[data-genre="latin"].active { border-color: #ff6a9a; color: #ff6a9a; background: rgba(255,106,154,0.1); }
+
+/* ---- Search Bar (browser) ---- */
+.browser-search-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    flex-shrink: 0;
+}
+.browser-search-input {
+    flex: 1;
+    padding: 5px 12px;
+    background: var(--bg-darkest);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 12px;
+    outline: none;
+}
+.browser-search-input:focus { border-color: var(--accent); }
+.browser-search-input::placeholder { color: var(--text-dim); }
+.browser-search-btn {
+    padding: 5px 14px;
+    background: var(--accent);
+    border: none;
+    border-radius: 4px;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.browser-search-btn:hover { background: var(--accent-hover); }
+
+/* ---- Results Grid ---- */
+.results-grid {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 0;
+}
+.result-row {
+    display: grid;
+    grid-template-columns: 44px 1fr 90px 55px 50px 50px 90px;
+    align-items: center;
+    padding: 4px 12px;
+    gap: 8px;
+    font-size: 11px;
+    border-bottom: 1px solid rgba(51,51,72,0.2);
+    transition: background 0.1s;
+    cursor: default;
+}
+.result-row:hover { background: var(--bg-hover); }
+.result-art {
+    width: 40px; height: 40px;
+    border-radius: 4px;
+    object-fit: cover;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+}
+.result-info { overflow: hidden; min-width: 0; }
+.result-title { color: var(--text-bright); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.result-artist { color: var(--text-dim); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.result-dur { color: var(--text-dim); font-family: 'SF Mono','Consolas',monospace; text-align: center; font-size: 10px; }
+.result-bpm { color: var(--text); font-family: 'SF Mono','Consolas',monospace; text-align: center; font-size: 10px; }
+.result-preview-btn {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--bg-panel);
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+.result-preview-btn:hover { border-color: var(--accent); color: var(--accent); }
+.result-preview-btn.playing { border-color: var(--green); color: var(--green); background: rgba(74,255,106,0.08); }
+.result-actions { display: flex; gap: 4px; justify-content: flex-end; }
+
+/* ---- Loading ---- */
+.browser-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 24px;
+    color: var(--text-dim);
+    font-size: 11px;
+}
+.spinner {
+    width: 24px; height: 24px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+.load-more-btn {
+    display: block;
+    margin: 8px auto;
+    padding: 5px 20px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.15s;
+}
+.load-more-btn:hover { border-color: var(--accent); color: var(--accent); }
+.browser-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    color: var(--text-dim);
+    font-size: 12px;
+}
+
+/* ---- Track Loading Progress ---- */
+.track-loading-bar {
+    height: 3px;
+    background: var(--bg-darkest);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 4px;
+}
+.track-loading-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.2s;
+    width: 0%;
+}
+.deck[data-deck="B"] .track-loading-fill { background: var(--deck-b); }
+
+/* ---- Drop Zone (Bestanden tab) ---- */
+.file-drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 12px;
+    margin: 8px 12px;
+    transition: all 0.2s;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.file-drop-zone:hover, .file-drop-zone.drag-active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(74,127,255,0.05);
+}
+.recent-files-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 0;
+}
+
+/* Freesound duration filter */
+.fs-filters {
+    display: flex;
+    gap: 8px;
+    padding: 4px 12px;
+    align-items: center;
+    flex-shrink: 0;
+}
+.fs-filters label { font-size: 10px; color: var(--text-dim); }
+.fs-filter-input {
+    width: 60px;
+    padding: 3px 6px;
+    background: var(--bg-darkest);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text);
+    font-size: 11px;
+    outline: none;
+}
+.fs-filter-input:focus { border-color: var(--accent); }
+
+/* Results header row */
+.results-header-row {
+    display: grid;
+    grid-template-columns: 44px 1fr 90px 55px 50px 50px 90px;
+    padding: 3px 12px;
+    gap: 8px;
+    font-size: 9px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-panel);
+    flex-shrink: 0;
+}
+
 /* ---- Responsive ---- */
 @media (max-width: 1200px) {
     .platter-wrap { width: 140px; height: 140px; }
@@ -730,6 +988,7 @@ body {
     <a href="index.html" id="logo">DAW</a>
     <a href="index.html" class="nav-link">Studio</a>
     <a href="dj.html" class="nav-link active">DJ</a>
+    <a href="editor.html" class="nav-link">Editor</a>
     <a href="contests.html" class="nav-link">Contests</a>
     <a href="live.html" class="nav-link">Live</a>
     <div class="spacer"></div>
@@ -751,11 +1010,15 @@ body {
                 <button class="load-btn" onclick="djApp.loadFileDialog('A')">Laad Track</button>
             </div>
             <div class="track-info" id="track-info-a">
-                <div class="track-title">Geen track geladen</div>
-                <div class="track-meta">
-                    <span>BPM: <span class="meta-val" id="bpm-a">---</span></span>
-                    <span>Key: <span class="meta-val" id="key-a">--</span></span>
-                    <span><span class="meta-val" id="dur-a">0:00</span></span>
+                <img class="deck-art" id="art-a" src="" style="width:36px;height:36px;border-radius:4px;object-fit:cover;display:none;flex-shrink:0;">
+                <div style="flex:1;min-width:0;">
+                    <div class="track-title">Geen track geladen</div>
+                    <div class="track-meta">
+                        <span>BPM: <span class="meta-val" id="bpm-a">---</span></span>
+                        <span>Key: <span class="meta-val" id="key-a">--</span></span>
+                        <span><span class="meta-val" id="dur-a">0:00</span></span>
+                    </div>
+                    <div class="track-loading-bar" id="loading-bar-a" style="display:none;"><div class="track-loading-fill" id="loading-fill-a"></div></div>
                 </div>
             </div>
             <div class="platter-row">
@@ -881,11 +1144,15 @@ body {
                 <button class="load-btn" onclick="djApp.loadFileDialog('B')">Laad Track</button>
             </div>
             <div class="track-info" id="track-info-b">
-                <div class="track-title">Geen track geladen</div>
-                <div class="track-meta">
-                    <span>BPM: <span class="meta-val" id="bpm-b">---</span></span>
-                    <span>Key: <span class="meta-val" id="key-b">--</span></span>
-                    <span><span class="meta-val" id="dur-b">0:00</span></span>
+                <img class="deck-art" id="art-b" src="" style="width:36px;height:36px;border-radius:4px;object-fit:cover;display:none;flex-shrink:0;">
+                <div style="flex:1;min-width:0;">
+                    <div class="track-title">Geen track geladen</div>
+                    <div class="track-meta">
+                        <span>BPM: <span class="meta-val" id="bpm-b">---</span></span>
+                        <span>Key: <span class="meta-val" id="key-b">--</span></span>
+                        <span><span class="meta-val" id="dur-b">0:00</span></span>
+                    </div>
+                    <div class="track-loading-bar" id="loading-bar-b" style="display:none;"><div class="track-loading-fill" id="loading-fill-b"></div></div>
                 </div>
             </div>
             <div class="platter-row">
@@ -955,21 +1222,129 @@ body {
 
     <!-- Track Browser -->
     <div id="browser-area">
-        <div class="browser-header">
-            <label>Bibliotheek</label>
-            <input type="text" id="search-input" placeholder="Zoek op titel, artiest, BPM...">
-            <input type="file" id="file-input" accept="audio/*" multiple>
-            <button class="browser-add-btn" onclick="document.getElementById('file-input').click()">+ Bestanden Toevoegen</button>
+        <div class="browser-tabs">
+            <button class="browser-tab active" data-tab="jamendo" onclick="djApp.switchBrowserTab('jamendo')">Jamendo</button>
+            <button class="browser-tab" data-tab="freesound" onclick="djApp.switchBrowserTab('freesound')">Freesound</button>
+            <button class="browser-tab" data-tab="archive" onclick="djApp.switchBrowserTab('archive')">Internet Archive</button>
+            <button class="browser-tab" data-tab="fma" onclick="djApp.switchBrowserTab('fma')">Free Music Archive</button>
+            <button class="browser-tab" data-tab="bestanden" onclick="djApp.switchBrowserTab('bestanden')">Bestanden</button>
+            <button class="browser-tab" data-tab="opnames" onclick="djApp.switchBrowserTab('opnames')">Opnames</button>
         </div>
-        <div class="browser-header-row">
-            <span>Titel / Artiest</span>
-            <span>Artiest</span>
-            <span>BPM</span>
-            <span>Key</span>
-            <span>Duur</span>
-            <span></span>
+
+        <!-- Jamendo Tab -->
+        <div class="browser-tab-content active" id="tab-jamendo">
+            <div class="browser-search-bar">
+                <input type="text" class="browser-search-input" id="jamendo-search" placeholder="Zoek muziek op Jamendo...">
+                <button class="browser-search-btn" onclick="djApp.searchJamendo()">Zoeken</button>
+            </div>
+            <div class="genre-chips" id="genre-chips">
+                <button class="genre-chip" data-genre="electronic" onclick="djApp.searchJamendoGenre('electronic')">Electronic</button>
+                <button class="genre-chip" data-genre="hiphop" onclick="djApp.searchJamendoGenre('hiphop')">Hip-Hop</button>
+                <button class="genre-chip" data-genre="jazz" onclick="djApp.searchJamendoGenre('jazz')">Jazz</button>
+                <button class="genre-chip" data-genre="pop" onclick="djApp.searchJamendoGenre('pop')">Pop</button>
+                <button class="genre-chip" data-genre="rock" onclick="djApp.searchJamendoGenre('rock')">Rock</button>
+                <button class="genre-chip" data-genre="ambient" onclick="djApp.searchJamendoGenre('ambient')">Ambient</button>
+                <button class="genre-chip" data-genre="classical" onclick="djApp.searchJamendoGenre('classical')">Classical</button>
+                <button class="genre-chip" data-genre="reggae" onclick="djApp.searchJamendoGenre('reggae')">Reggae</button>
+                <button class="genre-chip" data-genre="latin" onclick="djApp.searchJamendoGenre('latin')">Latin</button>
+            </div>
+            <div class="results-header-row">
+                <span></span><span>Titel / Artiest</span><span>Artiest</span><span>BPM</span><span></span><span>Duur</span><span></span>
+            </div>
+            <div class="results-grid" id="jamendo-results">
+                <div class="browser-empty">Zoek muziek of selecteer een genre om te beginnen</div>
+            </div>
         </div>
-        <div class="browser-list" id="browser-list"></div>
+
+        <!-- Freesound Tab -->
+        <div class="browser-tab-content" id="tab-freesound">
+            <div class="browser-search-bar">
+                <input type="text" class="browser-search-input" id="freesound-search" placeholder="Zoek loops en samples op Freesound...">
+                <button class="browser-search-btn" onclick="djApp.searchFreesound()">Zoeken</button>
+            </div>
+            <div class="fs-filters">
+                <label>Duur min:</label>
+                <input type="number" class="fs-filter-input" id="fs-dur-min" placeholder="0" min="0" value="">
+                <label>max:</label>
+                <input type="number" class="fs-filter-input" id="fs-dur-max" placeholder="300" min="0" value="">
+                <label>sec</label>
+            </div>
+            <div class="results-header-row">
+                <span></span><span>Titel / Uploader</span><span>Tags</span><span>BPM</span><span></span><span>Duur</span><span></span>
+            </div>
+            <div class="results-grid" id="freesound-results">
+                <div class="browser-empty">Zoek naar loops, samples en geluiden</div>
+            </div>
+        </div>
+
+        <!-- Internet Archive Tab -->
+        <div class="browser-tab-content" id="tab-archive">
+            <div class="browser-search-bar">
+                <input type="text" class="browser-search-input" id="archive-search" placeholder="Zoek muziek op Internet Archive...">
+                <button class="browser-search-btn" onclick="djApp.searchArchive()">Zoeken</button>
+            </div>
+            <div class="genre-chips">
+                <button class="genre-chip" onclick="djApp.searchArchive('electronic')">Electronic</button>
+                <button class="genre-chip" onclick="djApp.searchArchive('jazz')">Jazz</button>
+                <button class="genre-chip" onclick="djApp.searchArchive('blues')">Blues</button>
+                <button class="genre-chip" onclick="djApp.searchArchive('rock')">Rock</button>
+                <button class="genre-chip" onclick="djApp.searchArchive('hip hop')">Hip-Hop</button>
+                <button class="genre-chip" onclick="djApp.searchArchive('classical')">Classical</button>
+                <button class="genre-chip" onclick="djApp.searchArchive('ambient')">Ambient</button>
+                <button class="genre-chip" onclick="djApp.searchArchive('funk')">Funk</button>
+                <button class="genre-chip" onclick="djApp.searchArchive('soul')">Soul</button>
+            </div>
+            <div class="results-grid" id="archive-results">
+                <div class="browser-empty">Zoek in miljoenen gratis audio bestanden van Internet Archive</div>
+            </div>
+        </div>
+
+        <!-- Free Music Archive Tab -->
+        <div class="browser-tab-content" id="tab-fma">
+            <div class="browser-search-bar">
+                <input type="text" class="browser-search-input" id="fma-search" placeholder="Zoek muziek op Free Music Archive...">
+                <button class="browser-search-btn" onclick="djApp.searchFMA()">Zoeken</button>
+            </div>
+            <div class="genre-chips">
+                <button class="genre-chip" onclick="djApp.searchFMA('Electronic')">Electronic</button>
+                <button class="genre-chip" onclick="djApp.searchFMA('Hip-Hop')">Hip-Hop</button>
+                <button class="genre-chip" onclick="djApp.searchFMA('Jazz')">Jazz</button>
+                <button class="genre-chip" onclick="djApp.searchFMA('Pop')">Pop</button>
+                <button class="genre-chip" onclick="djApp.searchFMA('Rock')">Rock</button>
+                <button class="genre-chip" onclick="djApp.searchFMA('Experimental')">Experimental</button>
+                <button class="genre-chip" onclick="djApp.searchFMA('Folk')">Folk</button>
+                <button class="genre-chip" onclick="djApp.searchFMA('Instrumental')">Instrumental</button>
+            </div>
+            <div class="results-grid" id="fma-results">
+                <div class="browser-empty">Zoek in duizenden Creative Commons tracks</div>
+            </div>
+        </div>
+
+        <!-- Bestanden Tab -->
+        <div class="browser-tab-content" id="tab-bestanden">
+            <div class="browser-search-bar">
+                <input type="text" class="browser-search-input" id="search-input" placeholder="Zoek in lokale bestanden...">
+                <input type="file" id="file-input" accept="audio/*" multiple>
+                <button class="browser-search-btn" onclick="document.getElementById('file-input').click()">+ Bestanden</button>
+            </div>
+            <div class="file-drop-zone" id="file-drop-zone">
+                Sleep audiobestanden hierheen of klik op "+ Bestanden"
+            </div>
+            <div class="browser-header-row" style="display:grid; grid-template-columns: 1fr 70px 50px 60px 80px 80px;">
+                <span>Titel / Artiest</span><span>Artiest</span><span>BPM</span><span>Key</span><span>Duur</span><span></span>
+            </div>
+            <div class="browser-list" id="browser-list"></div>
+        </div>
+
+        <!-- Opnames Tab -->
+        <div class="browser-tab-content" id="tab-opnames">
+            <div class="browser-search-bar">
+                <input type="text" class="browser-search-input" id="opnames-search" placeholder="Zoek in opnames...">
+            </div>
+            <div class="results-grid" id="opnames-results">
+                <div class="browser-empty">Nog geen opnames beschikbaar. Maak opnames in de DAW Studio.</div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -987,6 +1362,17 @@ class DJApp {
         };
         this.library = [];
         this.animFrame = null;
+        this.audioCache = new Map(); // URL -> AudioBuffer cache
+        this.previewAudio = null; // HTMLAudioElement for previews
+        this.previewingId = null;
+        this.jamendoOffset = 0;
+        this.jamendoLastQuery = '';
+        this.jamendoLastGenre = '';
+        this.freesoundOffset = 1; // Freesound uses page numbers
+        this.freesoundLastQuery = '';
+        this.JAMENDO_CLIENT_ID = 'd14314a3';
+        this.FREESOUND_API_KEY = 'oGR9eJ0TvJ67WKDAS1dT7GcUg2pewZC5LoPZHJ55';
+        this.recentFiles = JSON.parse(localStorage.getItem('dj_recent_files') || '[]');
         this.initAudioContext();
         this.bindEvents();
         this.startAnimationLoop();
@@ -1023,7 +1409,8 @@ class DJApp {
             loopActive: false,
             syncEnabled: false,
             waveformData: null,
-            pitchValue: 0
+            pitchValue: 0,
+            artUrl: ''
         };
     }
 
@@ -1203,10 +1590,33 @@ class DJApp {
             this.addFilesToLibrary(e.target.files);
         });
 
-        // Search
+        // Local file search
         document.getElementById('search-input').addEventListener('input', (e) => {
             this.filterLibrary(e.target.value);
         });
+
+        // Jamendo search on Enter
+        document.getElementById('jamendo-search').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.searchJamendo();
+        });
+
+        // Freesound search on Enter
+        document.getElementById('freesound-search').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.searchFreesound();
+        });
+
+        // Archive search on Enter
+        document.getElementById('archive-search').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.searchArchive();
+        });
+
+        // FMA search on Enter
+        document.getElementById('fma-search').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.searchFMA();
+        });
+
+        // File drop zone
+        this.setupFileDropZone();
 
         // Drag and drop on decks
         ['deck-a', 'deck-b'].forEach(id => {
@@ -1302,6 +1712,7 @@ class DJApp {
         deck.loopIn = null;
         deck.loopOut = null;
         deck.loopActive = false;
+        deck.artUrl = '';
 
         // Extract name
         const name = file.name.replace(/\.[^/.]+$/, '');
@@ -1844,6 +2255,10 @@ class DJApp {
         document.getElementById(`bpm-${ch}`).textContent = deck.bpm || '---';
         document.getElementById(`key-${ch}`).textContent = deck.key || '--';
         document.getElementById(`dur-${ch}`).textContent = this.formatTime(deck.duration);
+        // Album art
+        const artEl = document.getElementById(`art-${ch}`);
+        if (deck.artUrl) { artEl.src = deck.artUrl; artEl.style.display = 'block'; }
+        else { artEl.style.display = 'none'; }
     }
 
     updateBpmDisplay(deckId) {
@@ -1948,6 +2363,465 @@ class DJApp {
             `;
             list.appendChild(row);
         });
+    }
+
+    // ---- Browser Tabs ----
+    switchBrowserTab(tabId) {
+        document.querySelectorAll('.browser-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabId));
+        document.querySelectorAll('.browser-tab-content').forEach(c => c.classList.toggle('active', c.id === `tab-${tabId}`));
+    }
+
+    // ---- Jamendo API ----
+    async searchJamendo(append = false) {
+        const query = document.getElementById('jamendo-search').value.trim();
+        if (!query && !this.jamendoLastGenre) return;
+        if (!append) { this.jamendoOffset = 0; this.jamendoLastQuery = query; this.jamendoLastGenre = ''; }
+
+        // Clear genre chips
+        if (!append) document.querySelectorAll('.genre-chip').forEach(c => c.classList.remove('active'));
+
+        const container = document.getElementById('jamendo-results');
+        if (!append) container.innerHTML = '<div class="browser-loading"><div class="spinner"></div><span>Zoeken op Jamendo...</span></div>';
+
+        try {
+            let url = `https://api.jamendo.com/v3.0/tracks/?client_id=${this.JAMENDO_CLIENT_ID}&format=json&limit=20&offset=${this.jamendoOffset}`;
+            if (query) url += `&search=${encodeURIComponent(query)}`;
+            if (this.jamendoLastGenre) url += `&tags=${encodeURIComponent(this.jamendoLastGenre)}`;
+            url += '&include=musicinfo';
+
+            const resp = await fetch(url);
+            const data = await resp.json();
+
+            if (!append) container.innerHTML = '';
+            if (!data.results || data.results.length === 0) {
+                if (!append) container.innerHTML = '<div class="browser-empty">Geen resultaten gevonden</div>';
+                return;
+            }
+
+            data.results.forEach(track => {
+                const dur = parseInt(track.duration) || 0;
+                const bpm = (track.musicinfo && track.musicinfo.tags && track.musicinfo.tags.vartags && track.musicinfo.tags.vartags.length > 0)
+                    ? '' : '';
+                const speedTag = track.musicinfo?.tags?.speed || '';
+                const row = document.createElement('div');
+                row.className = 'result-row';
+                row.innerHTML = `
+                    <img class="result-art" src="${track.album_image || ''}" alt="" onerror="this.style.display='none'">
+                    <div class="result-info">
+                        <div class="result-title" title="${this.escHtml(track.name)}">${this.escHtml(track.name)}</div>
+                        <div class="result-artist">${this.escHtml(track.artist_name)}</div>
+                    </div>
+                    <span class="result-artist" style="font-size:10px;">${this.escHtml(track.artist_name)}</span>
+                    <span class="result-bpm">${speedTag || '--'}</span>
+                    <button class="result-preview-btn" data-preview-url="${track.audio}" data-id="jam-${track.id}" onclick="djApp.togglePreview(this)" title="Preview">&#9654;</button>
+                    <span class="result-dur">${Math.floor(dur/60)}:${(dur%60).toString().padStart(2,'0')}</span>
+                    <span class="result-actions">
+                        <button class="bt-load-btn load-a" onclick="djApp.loadFromUrl('A','${track.audiodownload || track.audio}','${this.escAttr(track.name)}','${this.escAttr(track.artist_name)}','${track.album_image || ''}',${dur})">A</button>
+                        <button class="bt-load-btn load-b" onclick="djApp.loadFromUrl('B','${track.audiodownload || track.audio}','${this.escAttr(track.name)}','${this.escAttr(track.artist_name)}','${track.album_image || ''}',${dur})">B</button>
+                    </span>
+                `;
+                container.appendChild(row);
+            });
+
+            // Remove old load-more btn
+            const oldBtn = container.querySelector('.load-more-btn');
+            if (oldBtn) oldBtn.remove();
+
+            if (data.results.length >= 20) {
+                this.jamendoOffset += 20;
+                const btn = document.createElement('button');
+                btn.className = 'load-more-btn';
+                btn.textContent = 'Meer laden...';
+                btn.onclick = () => this.searchJamendo(true);
+                container.appendChild(btn);
+            }
+        } catch (err) {
+            container.innerHTML = `<div class="browser-empty">Fout bij laden: ${err.message}</div>`;
+        }
+    }
+
+    searchJamendoGenre(genre) {
+        document.querySelectorAll('.genre-chip').forEach(c => c.classList.toggle('active', c.dataset.genre === genre));
+        this.jamendoLastGenre = genre;
+        this.jamendoLastQuery = '';
+        this.jamendoOffset = 0;
+        document.getElementById('jamendo-search').value = '';
+
+        const container = document.getElementById('jamendo-results');
+        container.innerHTML = '<div class="browser-loading"><div class="spinner"></div><span>Laden...</span></div>';
+
+        // Use a small timeout to let UI update
+        setTimeout(() => this.searchJamendo(false), 50);
+    }
+
+    // ---- Freesound API ----
+    async searchFreesound(append = false) {
+        const query = document.getElementById('freesound-search').value.trim();
+        if (!query) return;
+        if (!append) { this.freesoundOffset = 1; this.freesoundLastQuery = query; }
+
+        const container = document.getElementById('freesound-results');
+        if (!append) container.innerHTML = '<div class="browser-loading"><div class="spinner"></div><span>Zoeken op Freesound...</span></div>';
+
+        const durMin = document.getElementById('fs-dur-min').value;
+        const durMax = document.getElementById('fs-dur-max').value;
+
+        try {
+            let url = `https://freesound.org/apiv2/search/text/?query=${encodeURIComponent(query)}&token=${this.FREESOUND_API_KEY}&page=${this.freesoundOffset}&page_size=20&fields=id,name,duration,tags,username,previews,images,avg_rating,num_downloads`;
+            if (durMin) url += `&filter=duration:[${durMin} TO *]`;
+            if (durMax) url += (durMin ? '' : '&filter=') + `duration:[* TO ${durMax}]`;
+
+            const resp = await fetch(url);
+            const data = await resp.json();
+
+            if (!append) container.innerHTML = '';
+            if (!data.results || data.results.length === 0) {
+                if (!append) container.innerHTML = '<div class="browser-empty">Geen resultaten gevonden</div>';
+                return;
+            }
+
+            data.results.forEach(sound => {
+                const dur = Math.round(sound.duration || 0);
+                const tags = (sound.tags || []).slice(0, 3).join(', ');
+                const previewUrl = sound.previews?.['preview-hq-mp3'] || sound.previews?.['preview-lq-mp3'] || '';
+                const waveImg = sound.images?.waveform_m || '';
+                const row = document.createElement('div');
+                row.className = 'result-row';
+                row.innerHTML = `
+                    <img class="result-art" src="${waveImg}" alt="" style="border-radius:2px;" onerror="this.style.display='none'">
+                    <div class="result-info">
+                        <div class="result-title" title="${this.escHtml(sound.name)}">${this.escHtml(sound.name)}</div>
+                        <div class="result-artist">${this.escHtml(sound.username)}</div>
+                    </div>
+                    <span class="result-artist" style="font-size:9px;" title="${this.escHtml(tags)}">${this.escHtml(tags)}</span>
+                    <span class="result-bpm">--</span>
+                    <button class="result-preview-btn" data-preview-url="${previewUrl}" data-id="fs-${sound.id}" onclick="djApp.togglePreview(this)" title="Preview">&#9654;</button>
+                    <span class="result-dur">${Math.floor(dur/60)}:${(dur%60).toString().padStart(2,'0')}</span>
+                    <span class="result-actions">
+                        <button class="bt-load-btn load-a" onclick="djApp.loadFromUrl('A','${previewUrl}','${this.escAttr(sound.name)}','${this.escAttr(sound.username)}','',${dur})">A</button>
+                        <button class="bt-load-btn load-b" onclick="djApp.loadFromUrl('B','${previewUrl}','${this.escAttr(sound.name)}','${this.escAttr(sound.username)}','',${dur})">B</button>
+                    </span>
+                `;
+                container.appendChild(row);
+            });
+
+            const oldBtn = container.querySelector('.load-more-btn');
+            if (oldBtn) oldBtn.remove();
+
+            if (data.next) {
+                this.freesoundOffset++;
+                const btn = document.createElement('button');
+                btn.className = 'load-more-btn';
+                btn.textContent = 'Meer laden...';
+                btn.onclick = () => this.searchFreesound(true);
+                container.appendChild(btn);
+            }
+        } catch (err) {
+            container.innerHTML = `<div class="browser-empty">Fout bij laden: ${err.message}</div>`;
+        }
+    }
+
+    // ---- Internet Archive Search ----
+    async searchArchive(genre) {
+        const input = document.getElementById('archive-search');
+        const query = genre || input.value.trim();
+        if (!query) return;
+        if (!genre) input.value = query;
+
+        const container = document.getElementById('archive-results');
+        container.innerHTML = '<div class="browser-empty">Laden...</div>';
+
+        try {
+            const url = `https://archive.org/advancedsearch.php?q=${encodeURIComponent(query)}+mediatype:audio+licenseurl:*creativecommons*&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=year&fl[]=downloads&output=json&rows=20&sort[]=downloads+desc`;
+            const res = await fetch(url);
+            const data = await res.json();
+            const items = data.response?.docs || [];
+
+            if (items.length === 0) {
+                container.innerHTML = '<div class="browser-empty">Geen resultaten gevonden</div>';
+                return;
+            }
+
+            container.innerHTML = items.map(item => {
+                const title = this.escAttr(item.title || 'Onbekend');
+                const artist = this.escAttr(item.creator || 'Onbekend');
+                const year = item.year || '';
+                const audioUrl = `https://archive.org/download/${item.identifier}/${item.identifier}_vbr.mp3`;
+                return `<div class="result-row">
+                    <img class="result-art" src="https://archive.org/services/img/${item.identifier}" alt="" style="width:40px;height:40px;border-radius:4px;object-fit:cover" onerror="this.style.display='none'">
+                    <span class="result-title">${item.title || 'Onbekend'}<br><small style="color:var(--text-dim)">${item.creator || ''}</small></span>
+                    <span style="font-size:11px;color:var(--text-dim)">${year}</span>
+                    <span style="font-size:11px;color:var(--text-dim)">${item.downloads || 0} dl</span>
+                    <button class="result-preview-btn" data-preview-url="https://archive.org/download/${item.identifier}/${item.identifier}_vbr.mp3" data-id="ia-${item.identifier}" onclick="djApp.togglePreview(this)">&#9654;</button>
+                    <span></span>
+                    <span class="result-load-btns">
+                        <button class="bt-load-btn load-a" onclick="djApp.loadFromUrl('A','${audioUrl}','${title}','${artist}','https://archive.org/services/img/${item.identifier}',300)">A</button>
+                        <button class="bt-load-btn load-b" onclick="djApp.loadFromUrl('B','${audioUrl}','${title}','${artist}','https://archive.org/services/img/${item.identifier}',300)">B</button>
+                    </span>
+                </div>`;
+            }).join('');
+        } catch (err) {
+            container.innerHTML = `<div class="browser-empty">Fout: ${err.message}</div>`;
+        }
+    }
+
+    // ---- Free Music Archive Search ----
+    async searchFMA(genre) {
+        const input = document.getElementById('fma-search');
+        const query = genre || input.value.trim();
+        if (!query) return;
+        if (!genre) input.value = query;
+
+        const container = document.getElementById('fma-results');
+        container.innerHTML = '<div class="browser-empty">Laden...</div>';
+
+        try {
+            // FMA uses the same API as Internet Archive but filtered
+            const url = `https://archive.org/advancedsearch.php?q=${encodeURIComponent(query)}+collection:freemusicarchive+mediatype:audio&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=year&fl[]=downloads&output=json&rows=20&sort[]=downloads+desc`;
+            const res = await fetch(url);
+            const data = await res.json();
+            const items = data.response?.docs || [];
+
+            if (items.length === 0) {
+                container.innerHTML = '<div class="browser-empty">Geen resultaten gevonden</div>';
+                return;
+            }
+
+            container.innerHTML = items.map(item => {
+                const title = this.escAttr(item.title || 'Onbekend');
+                const artist = this.escAttr(item.creator || 'Onbekend');
+                const year = item.year || '';
+                const audioUrl = `https://archive.org/download/${item.identifier}/${item.identifier}_vbr.mp3`;
+                return `<div class="result-row">
+                    <img class="result-art" src="https://archive.org/services/img/${item.identifier}" alt="" style="width:40px;height:40px;border-radius:4px;object-fit:cover" onerror="this.style.display='none'">
+                    <span class="result-title">${item.title || 'Onbekend'}<br><small style="color:var(--text-dim)">${item.creator || ''}</small></span>
+                    <span style="font-size:11px;color:var(--text-dim)">${year}</span>
+                    <span style="font-size:11px;color:var(--text-dim)">${item.downloads || 0} dl</span>
+                    <button class="result-preview-btn" data-preview-url="https://archive.org/download/${item.identifier}/${item.identifier}_vbr.mp3" data-id="fma-${item.identifier}" onclick="djApp.togglePreview(this)">&#9654;</button>
+                    <span></span>
+                    <span class="result-load-btns">
+                        <button class="bt-load-btn load-a" onclick="djApp.loadFromUrl('A','${audioUrl}','${title}','${artist}','https://archive.org/services/img/${item.identifier}',300)">A</button>
+                        <button class="bt-load-btn load-b" onclick="djApp.loadFromUrl('B','${audioUrl}','${title}','${artist}','https://archive.org/services/img/${item.identifier}',300)">B</button>
+                    </span>
+                </div>`;
+            }).join('');
+        } catch (err) {
+            container.innerHTML = `<div class="browser-empty">Fout: ${err.message}</div>`;
+        }
+    }
+
+    // ---- Preview playback ----
+    togglePreview(btn) {
+        const url = btn.dataset.previewUrl;
+        const id = btn.dataset.id;
+
+        // Stop current preview
+        if (this.previewAudio) {
+            this.previewAudio.pause();
+            this.previewAudio = null;
+            const prevBtn = document.querySelector(`.result-preview-btn.playing`);
+            if (prevBtn) { prevBtn.classList.remove('playing'); prevBtn.innerHTML = '&#9654;'; }
+            if (this.previewingId === id) { this.previewingId = null; return; }
+        }
+
+        if (!url) return;
+        this.previewAudio = new Audio(url);
+        this.previewAudio.volume = 0.5;
+        this.previewAudio.play().catch(() => {});
+        this.previewingId = id;
+        btn.classList.add('playing');
+        btn.innerHTML = '&#9646;&#9646;';
+
+        this.previewAudio.onended = () => {
+            btn.classList.remove('playing');
+            btn.innerHTML = '&#9654;';
+            this.previewingId = null;
+        };
+    }
+
+    // ---- Load audio from URL to deck ----
+    async loadFromUrl(deckId, url, title, artist, artUrl, estimatedDur) {
+        if (!this.audioCtx) return;
+        const deck = this.decks[deckId];
+        const ch = deckId.toLowerCase();
+
+        // Stop current playback
+        if (deck.playing) this.stopDeck(deckId);
+
+        // Stop preview if playing
+        if (this.previewAudio) { this.previewAudio.pause(); this.previewAudio = null; this.previewingId = null;
+            const prevBtn = document.querySelector('.result-preview-btn.playing');
+            if (prevBtn) { prevBtn.classList.remove('playing'); prevBtn.innerHTML = '&#9654;'; }
+        }
+
+        // Show loading
+        const loadBar = document.getElementById(`loading-bar-${ch}`);
+        const loadFill = document.getElementById(`loading-fill-${ch}`);
+        loadBar.style.display = 'block';
+        loadFill.style.width = '5%';
+
+        // Update track info early
+        const infoEl = document.getElementById(`track-info-${ch}`);
+        infoEl.querySelector('.track-title').textContent = `${artist} - ${title}`;
+
+        // Show album art
+        const artEl = document.getElementById(`art-${ch}`);
+        if (artUrl) { artEl.src = artUrl; artEl.style.display = 'block'; } else { artEl.style.display = 'none'; }
+
+        try {
+            let audioBuffer;
+
+            // Check cache
+            if (this.audioCache.has(url)) {
+                audioBuffer = this.audioCache.get(url);
+                loadFill.style.width = '100%';
+            } else {
+                // Fetch via proxy to avoid CORS issues
+                const proxyUrl = `/api/proxy/audio?url=${encodeURIComponent(url)}`;
+                const response = await fetch(proxyUrl);
+                const contentLength = response.headers.get('content-length');
+                const total = contentLength ? parseInt(contentLength) : 0;
+                const reader = response.body.getReader();
+                const chunks = [];
+                let received = 0;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    chunks.push(value);
+                    received += value.length;
+                    if (total > 0) {
+                        loadFill.style.width = Math.min(90, (received / total * 90)).toFixed(0) + '%';
+                    } else {
+                        // Estimate based on expected duration
+                        const estBytes = (estimatedDur || 180) * 16000; // rough mp3 bitrate
+                        loadFill.style.width = Math.min(90, (received / estBytes * 90)).toFixed(0) + '%';
+                    }
+                }
+
+                const blob = new Blob(chunks);
+                const arrayBuffer = await blob.arrayBuffer();
+                loadFill.style.width = '95%';
+
+                audioBuffer = await this.audioCtx.decodeAudioData(arrayBuffer);
+                // Cache it
+                this.audioCache.set(url, audioBuffer);
+            }
+
+            loadFill.style.width = '100%';
+
+            deck.buffer = audioBuffer;
+            deck.duration = audioBuffer.duration;
+            deck.pauseOffset = 0;
+            deck.cuePoint = 0;
+            deck.hotCues = [null, null, null, null];
+            deck.loopIn = null;
+            deck.loopOut = null;
+            deck.loopActive = false;
+            deck.title = title;
+            deck.artist = artist;
+            deck.artUrl = artUrl || '';
+
+            // Detect BPM
+            deck.bpm = await this.detectBPM(audioBuffer);
+            deck.key = this.estimateKey(audioBuffer);
+
+            this.updateTrackInfo(deckId);
+            this.generateWaveform(deckId, audioBuffer);
+            this.updateBpmDisplay(deckId);
+
+            const deckEl = document.getElementById(`deck-${ch}`);
+            deckEl.querySelectorAll('.hotcue-btn').forEach(b => b.classList.remove('set'));
+
+            // Hide loading bar after short delay
+            setTimeout(() => { loadBar.style.display = 'none'; loadFill.style.width = '0%'; }, 600);
+
+        } catch (err) {
+            console.error('Fout bij laden track:', err);
+            loadBar.style.display = 'none';
+            infoEl.querySelector('.track-title').textContent = `Fout: kon track niet laden`;
+        }
+    }
+
+    // ---- File Drop Zone ----
+    setupFileDropZone() {
+        const zone = document.getElementById('file-drop-zone');
+        if (!zone) return;
+        zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('drag-active'); });
+        zone.addEventListener('dragleave', () => zone.classList.remove('drag-active'));
+        zone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            zone.classList.remove('drag-active');
+            if (e.dataTransfer.files.length > 0) this.addFilesToLibrary(e.dataTransfer.files);
+        });
+        zone.addEventListener('click', () => document.getElementById('file-input').click());
+    }
+
+    // ---- Opnames (Recordings) ----
+    loadOpnames() {
+        const container = document.getElementById('opnames-results');
+        // Try to load recordings from DAW localStorage
+        const recordings = JSON.parse(localStorage.getItem('daw_recordings') || '[]');
+        if (recordings.length === 0) {
+            container.innerHTML = '<div class="browser-empty">Nog geen opnames beschikbaar. Maak opnames in de DAW Studio.</div>';
+            return;
+        }
+        container.innerHTML = '';
+        recordings.forEach((rec, i) => {
+            const row = document.createElement('div');
+            row.className = 'result-row';
+            row.innerHTML = `
+                <div style="width:40px;height:40px;background:var(--bg-panel);border-radius:4px;display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:16px;">&#9835;</div>
+                <div class="result-info">
+                    <div class="result-title">${this.escHtml(rec.name || 'Opname ' + (i+1))}</div>
+                    <div class="result-artist">${rec.date || ''}</div>
+                </div>
+                <span></span><span></span><span></span>
+                <span class="result-dur">${rec.duration || '--'}</span>
+                <span class="result-actions">
+                    <button class="bt-load-btn load-a" onclick="djApp.loadRecording('A',${i})">A</button>
+                    <button class="bt-load-btn load-b" onclick="djApp.loadRecording('B',${i})">B</button>
+                </span>
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    async loadRecording(deckId, index) {
+        const recordings = JSON.parse(localStorage.getItem('daw_recordings') || '[]');
+        const rec = recordings[index];
+        if (!rec || !rec.data) return;
+        // Assume data is base64 audio
+        try {
+            const binary = atob(rec.data);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            const audioBuffer = await this.audioCtx.decodeAudioData(bytes.buffer);
+            const deck = this.decks[deckId];
+            if (deck.playing) this.stopDeck(deckId);
+            deck.buffer = audioBuffer;
+            deck.duration = audioBuffer.duration;
+            deck.pauseOffset = 0; deck.cuePoint = 0;
+            deck.hotCues = [null,null,null,null];
+            deck.loopIn = null; deck.loopOut = null; deck.loopActive = false;
+            deck.title = rec.name || 'Opname';
+            deck.artist = 'Studio';
+            deck.bpm = await this.detectBPM(audioBuffer);
+            deck.key = this.estimateKey(audioBuffer);
+            this.updateTrackInfo(deckId);
+            this.generateWaveform(deckId, audioBuffer);
+            this.updateBpmDisplay(deckId);
+        } catch(e) { console.error('Kan opname niet laden:', e); }
+    }
+
+    // ---- Helpers ----
+    escHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    escAttr(str) {
+        if (!str) return '';
+        return str.replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/</g,'').replace(/>/g,'');
     }
 
     // ---- Animation Loop ----

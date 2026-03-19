@@ -1,13 +1,12 @@
 # DAW - Claude Code Instructies
 
 ## Project
-Web-based Digital Audio Workstation met Logic Pro-achtige interface.
+Web-based muziekproductie platform met 5 pagina's.
 Locatie: `E:\scripts\webscraper\CBSbuurt\daw\`
 
 ## Starten
 ```bash
-python api_server.py  # Flask API + static files: http://localhost:8086
-python serve.py       # Alternatief: wrapper die api_server.py start
+python serve.py  # Start Flask API + static files: http://localhost:8086
 ```
 
 ## Branch-strategie
@@ -15,30 +14,53 @@ python serve.py       # Alternatief: wrapper die api_server.py start
 - **develop** = dagelijkse ontwikkeling (standaard werkbranch)
 - **feature/*** = nieuwe features, maak aan vanuit develop
 
+## Pagina's
+| Pagina | URL | Beschrijving |
+|--------|-----|-------------|
+| `index.html` | `/` | DAW - Multi-track timeline, mixer, recording, export |
+| `dj.html` | `/dj.html` | DJ App - Twee decks, crossfader, effects, Jamendo/Freesound streaming |
+| `editor.html` | `/editor.html` | Audio Editor - Cut/copy/paste, effects, filters, export |
+| `contests.html` | `/contests.html` | Producer Contests - Battles, voting, leaderboard |
+| `live.html` | `/live.html` | Live Kanalen - Streaming channels, chat |
+
 ## Architectuur
-- `index.html` - Volledige DAW frontend (single-file, ~groot)
+- `index.html` - DAW frontend (single-file)
   - `AudioEngine` class - Web Audio API, scheduling, opname
   - `TimelineRenderer` class - Canvas 2D rendering
   - `DAWController` class - Hoofd controller, events, state management
+- `dj.html` - DJ App met dual decks, crossfader, effecten, muziek streaming
+- `editor.html` - Audio editor met volledige bewerkingsmogelijkheden
+- `contests.html` - Producer battles met stemmen en leaderboard
+- `live.html` - Live streaming kanalen met chat
+- `serve.py` - Flask server (start API + static files)
 - `api_server.py` - Flask API voor projecten en sound library
+- `freesound_import.py` - Freesound API import tool
 - `worklets/` - AudioWorklet processors (meter, gain)
 - `sql/` - PostgreSQL schema
 - `audio/` - Audio bestanden (gitignored)
 
 ## Database
-PostgreSQL database `daw`:
-- `categories` - Sound categorieën
+PostgreSQL database `daw`, user `postgres`, pw `postgres`:
+- `categories` - Sound categorieen
 - `sounds` - Audio metadata (tags, BPM, key, waveform peaks)
 - `projects` - DAW sessies (project_data als JSONB)
 
-## Waar gebleven (maart 2026)
-- Fase 1 core DAW: timeline, transport, mixer, recording, export
-- Fase 2 (todo): Sound library browser met zoek/filter
-- Fase 3 (todo): Effects chain per track
-- Fase 4 (todo): Mobile companion PWA
+## Key Features (maart 2026)
+- **DAW**: Timeline, transport, mixer met VU meters, rotary knobs, EQ, master channel
+- **Mixer**: Drag & drop van library naar timeline met positie-gebaseerde plaatsing
+- **DJ App**: Twee decks, crossfader, effecten, 4 muziek API's (Jamendo, Freesound, Internet Archive, Free Music Archive), audio proxy voor CORS
+- **Audio Editor**: Cut/copy/paste, effecten, filters, export
+- **Contests**: Producer battles, voting, leaderboard
+- **Live**: Streaming kanalen, chat
+- **Improvisatie-engine**: 18 toonladders, 12 progressies, muziektheorie (voice leading, motivic development, chord-scale theory, tension/resolution)
+- **Ensemble Improvisatie**: 7 instrumenten (drums, bass, gitaar, piano, lead, strings, brass) spelen samen met solo/mute per instrument
+- **Library**: Metadata filters (BPM, toonsoort, formaat, duur), categorie chips, sorteren
+- **Audio Proxy**: `/api/proxy/audio` voor CORS-vrij laden van externe audio
+- **API Keys**: Jamendo `d14314a3` in dj.html, Freesound in `.env`
 
 ## Let op
 - Audio bestanden staan in .gitignore
 - Web Audio API vereist user interaction voordat AudioContext start
 - AudioWorklet files moeten als aparte JS bestanden geladen worden
-- Port 8086 (geen conflict met 8888/8091/8090/8765/9090)
+- Port 8086 (geen conflict met andere projecten)
+- Freesound API key in `.env`
