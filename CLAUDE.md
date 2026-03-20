@@ -3,6 +3,7 @@
 ## Project
 Web-based muziekproductie platform met 5 pagina's.
 Locatie: `E:\scripts\webscraper\CBSbuurt\daw\`
+GitHub: AnneVersion/daw
 
 ## Starten
 ```bash
@@ -19,7 +20,7 @@ python serve.py  # Start Flask API + static files: http://localhost:8086
 |--------|-----|-------------|
 | `index.html` | `/` | DAW - Multi-track timeline, mixer, recording, export |
 | `dj.html` | `/dj.html` | DJ App - Twee decks, crossfader, effects, Jamendo/Freesound streaming |
-| `editor.html` | `/editor.html` | Audio Editor - Cut/copy/paste, effects, filters, export |
+| `editor.html` | `/editor.html` | Audio Editor - 31 effects, cut/copy/paste, spectrum, spectrogram, WAV export |
 | `contests.html` | `/contests.html` | Producer Contests - Battles, voting, leaderboard |
 | `live.html` | `/live.html` | Live Kanalen - Streaming channels, chat |
 
@@ -29,7 +30,7 @@ python serve.py  # Start Flask API + static files: http://localhost:8086
   - `TimelineRenderer` class - Canvas 2D rendering
   - `DAWController` class - Hoofd controller, events, state management
 - `dj.html` - DJ App met dual decks, crossfader, effecten, muziek streaming
-- `editor.html` - Audio editor met volledige bewerkingsmogelijkheden
+- `editor.html` - Audio editor met 31 effects, volledige bewerkingsmogelijkheden
 - `contests.html` - Producer battles met stemmen en leaderboard
 - `live.html` - Live streaming kanalen met chat
 - `serve.py` - Flask server (start API + static files)
@@ -46,10 +47,10 @@ PostgreSQL database `daw`, user `postgres`, pw `postgres`:
 - `projects` - DAW sessies (project_data als JSONB)
 
 ## Key Features (maart 2026)
-- **DAW**: Timeline, transport, mixer met VU meters, rotary knobs, EQ, master channel
-- **Mixer**: Drag & drop van library naar timeline met positie-gebaseerde plaatsing
-- **DJ App**: Twee decks, crossfader, effecten, 4 muziek API's (Jamendo, Freesound, Internet Archive, Free Music Archive), audio proxy voor CORS
-- **Audio Editor**: Cut/copy/paste, effecten, filters, export
+- **DAW**: Timeline, transport, mixer met VU meters, rotary knobs, 3-band EQ, master channel
+- **Mixer**: Drag & drop van library naar timeline met positie-gebaseerde plaatsing, ghost preview, grid snap
+- **DJ App**: Twee decks, crossfader, effecten, Jamendo/Freesound/Internet Archive muziek, audio proxy voor CORS
+- **Audio Editor**: 31 effects, cut/copy/paste, spectrum, spectrogram, WAV export
 - **Contests**: Producer battles, voting, leaderboard
 - **Live**: Streaming kanalen, chat
 - **Improvisatie-engine**: 18 toonladders, 12 progressies, muziektheorie (voice leading, motivic development, chord-scale theory, tension/resolution)
