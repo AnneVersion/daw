@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DJ - Digital Audio Workstation</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='none' stroke='%234a7fff' stroke-width='1.5'/><circle cx='16' cy='16' r='5' fill='%234a7fff' opacity='.6'/><circle cx='16' cy='16' r='10' fill='none' stroke='%239a4aff' stroke-width='.7' opacity='.5'/></svg>">
 <style>
 /* ============================================================
@@ -1275,6 +1276,7 @@ body {
             <button class="browser-tab" data-tab="archive" onclick="djApp.switchBrowserTab('archive')">Internet Archive</button>
             <button class="browser-tab" data-tab="fma" onclick="djApp.switchBrowserTab('fma')">Free Music Archive</button>
             <button class="browser-tab" data-tab="bestanden" onclick="djApp.switchBrowserTab('bestanden')">Bestanden</button>
+            <button class="browser-tab" data-tab="community" onclick="djApp.switchBrowserTab('community')">Community</button>
             <button class="browser-tab" data-tab="sampler" onclick="djApp.switchBrowserTab('sampler')">Sampler</button>
             <button class="browser-tab" data-tab="opnames" onclick="djApp.switchBrowserTab('opnames')">Opnames</button>
         </div>
@@ -1384,6 +1386,30 @@ body {
         </div>
 
         <!-- Opnames Tab -->
+        <!-- Community Samples Tab -->
+        <div class="browser-tab-content" id="tab-community">
+            <div class="browser-search-bar">
+                <input type="text" class="browser-search-input" id="community-search" placeholder="Zoek samples (drums, bass, vocals, dieren...)" onkeydown="if(event.key==='Enter') djApp.searchCommunity()">
+                <button class="browser-search-btn" onclick="djApp.searchCommunity()">Zoeken</button>
+                <button class="browser-search-btn" onclick="djApp.uploadCommunity()" style="background:#4caf50">&#x2B06; Upload</button>
+            </div>
+            <div style="display:flex;gap:4px;padding:4px 8px;flex-wrap:wrap">
+                <button class="genre-chip" onclick="djApp.searchCommunity('drums')">Drums</button>
+                <button class="genre-chip" onclick="djApp.searchCommunity('bass')">Bass</button>
+                <button class="genre-chip" onclick="djApp.searchCommunity('vocals')">Vocals</button>
+                <button class="genre-chip" onclick="djApp.searchCommunity('synth')">Synth</button>
+                <button class="genre-chip" onclick="djApp.searchCommunity('fx')">FX</button>
+                <button class="genre-chip" onclick="djApp.searchCommunity('natuur')">Natuur</button>
+                <button class="genre-chip" onclick="djApp.searchCommunity('dieren')">Dieren</button>
+                <button class="genre-chip" onclick="djApp.searchCommunity('afrikaans')">Afrikaans</button>
+                <button class="genre-chip" onclick="djApp.searchCommunity('midi')">MIDI</button>
+                <button class="genre-chip" onclick="djApp.searchCommunity('loops')">Loops</button>
+            </div>
+            <div class="results-grid" id="community-results">
+                <div class="browser-empty">Zoek of upload samples om te delen met de community</div>
+            </div>
+        </div>
+
         <!-- Sampler Tab -->
         <div class="browser-tab-content" id="tab-sampler">
             <div style="padding:12px;text-align:center">
@@ -3044,6 +3070,139 @@ class DJApp {
         } catch (err) {
             container.innerHTML = `<div class="browser-empty">Fout: ${err.message}</div>`;
         }
+    }
+
+    // ============================================================
+    // SUPABASE COMMUNITY SAMPLES
+    // Gedeelde sample bibliotheek voor iedereen
+    // ============================================================
+    _supabase = null;
+    SUPABASE_URL = '';  // TODO: vul in vanuit Supabase dashboard
+    SUPABASE_KEY = '';  // TODO: anon/public key
+
+    _initSupabase() {
+        if (this._supabase) return this._supabase;
+        if (!this.SUPABASE_URL || !this.SUPABASE_KEY) {
+            // Probeer uit localStorage (zodat je het 1x hoeft in te vullen)
+            this.SUPABASE_URL = localStorage.getItem('daw_supabase_url') || '';
+            this.SUPABASE_KEY = localStorage.getItem('daw_supabase_key') || '';
+        }
+        if (!this.SUPABASE_URL || !this.SUPABASE_KEY) {
+            const url = prompt('Supabase URL (uit je dashboard):');
+            const key = prompt('Supabase anon key:');
+            if (url && key) {
+                this.SUPABASE_URL = url;
+                this.SUPABASE_KEY = key;
+                localStorage.setItem('daw_supabase_url', url);
+                localStorage.setItem('daw_supabase_key', key);
+            } else return null;
+        }
+        if (typeof supabase !== 'undefined') {
+            this._supabase = supabase.createClient(this.SUPABASE_URL, this.SUPABASE_KEY);
+        }
+        return this._supabase;
+    }
+
+    async searchCommunity(tag) {
+        const sb = this._initSupabase();
+        const query = tag || document.getElementById('community-search')?.value?.trim() || '';
+        const container = document.getElementById('community-results');
+
+        if (!sb) {
+            container.innerHTML = '<div class="browser-empty">Supabase niet geconfigureerd. Klik op een categorie om credentials in te vullen.</div>';
+            return;
+        }
+
+        container.innerHTML = '<div class="browser-loading"><div class="spinner"></div><span>Samples zoeken...</span></div>';
+
+        try {
+            let q = sb.from('community_samples').select('*').order('created_at', { ascending: false }).limit(50);
+            if (query) q = q.or(`tags.cs.{${query}},name.ilike.%${query}%,category.ilike.%${query}%`);
+
+            const { data, error } = await q;
+            if (error) throw error;
+
+            if (!data || data.length === 0) {
+                container.innerHTML = `<div class="browser-empty">Geen samples gevonden${query ? ` voor "${query}"` : ''}. Upload de eerste!</div>`;
+                return;
+            }
+
+            let html = `<div style="padding:4px 8px;font-size:10px;color:var(--text-dim);border-bottom:1px solid var(--border)">${data.length} samples</div>`;
+            data.forEach((sample, i) => {
+                const audioUrl = `${this.SUPABASE_URL}/storage/v1/object/public/samples/${sample.file_path}`;
+                html += `<div class="result-row" style="display:grid;grid-template-columns:1fr 60px 60px 80px;padding:5px 8px;border-bottom:1px solid var(--border);font-size:11px;align-items:center">
+                    <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                        <span style="color:var(--text-bright)">${sample.name}</span>
+                        <span style="color:var(--text-dim);font-size:9px;margin-left:4px">${(sample.tags || []).join(', ')}</span>
+                    </div>
+                    <span style="color:var(--text-dim)">${sample.category || '-'}</span>
+                    <span style="color:var(--text-dim)">${sample.bpm || '-'} BPM</span>
+                    <div style="display:flex;gap:3px">
+                        <button class="bt-load-btn load-a" onclick="djApp.loadTrackFromUrl('A','${audioUrl}','${sample.name}')">A</button>
+                        <button class="bt-load-btn load-b" onclick="djApp.loadTrackFromUrl('B','${audioUrl}','${sample.name}')">B</button>
+                        <button style="font-size:9px;padding:2px 5px;background:var(--bg-panel);border:1px solid var(--border);color:var(--text-dim);border-radius:3px;cursor:pointer" onclick="new Audio('${audioUrl}').play()">&#x25B6;</button>
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        } catch (err) {
+            container.innerHTML = `<div class="browser-empty" style="color:#f44">Fout: ${err.message}</div>`;
+        }
+    }
+
+    async uploadCommunity() {
+        const sb = this._initSupabase();
+        if (!sb) return;
+
+        const input = document.createElement('input');
+        input.type = 'file'; input.accept = 'audio/*'; input.multiple = true;
+        input.onchange = async (e) => {
+            const files = Array.from(e.target.files);
+            if (!files.length) return;
+
+            for (const file of files) {
+                const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+                const tags = prompt(`Tags voor "${file.name}" (komma-gescheiden, bijv: drums,kick,808):`) || '';
+                const category = prompt(`Categorie (drums/bass/vocals/synth/fx/natuur/dieren/loops/midi/afrikaans):`) || 'overig';
+                const bpm = prompt(`BPM (optioneel, druk Enter om over te slaan):`) || null;
+
+                try {
+                    // Upload naar Supabase Storage
+                    const { error: uploadErr } = await sb.storage.from('samples').upload(fileName, file, {
+                        contentType: file.type,
+                        upsert: false
+                    });
+                    if (uploadErr) throw uploadErr;
+
+                    // Metadata opslaan
+                    const { error: insertErr } = await sb.from('community_samples').insert({
+                        name: file.name.replace(/\.[^/.]+$/, ''),
+                        file_path: fileName,
+                        category: category,
+                        tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+                        bpm: bpm ? parseInt(bpm) : null,
+                        size_bytes: file.size,
+                        format: file.name.split('.').pop().toLowerCase(),
+                        uploader: 'anonymous'
+                    });
+                    if (insertErr) throw insertErr;
+                } catch (err) {
+                    alert(`Upload fout voor ${file.name}: ${err.message}`);
+                }
+            }
+            // Refresh
+            this.searchCommunity();
+        };
+        input.click();
+    }
+
+    loadTrackFromUrl(deckId, url, name) {
+        this.loadTrackFromLibrary_url = url;
+        this.loadTrackFromLibrary_name = name;
+        // Gebruik bestaande loadTrack mechanisme
+        const idx = this.library.length;
+        this.library.push({ name, url, bpm: null, key: null, duration: 0 });
+        this.loadTrackFromLibrary(deckId, idx);
     }
 
     // ============================================================

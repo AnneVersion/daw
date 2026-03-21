@@ -64,6 +64,11 @@ PostgreSQL database `daw`, user `postgres`, pw `postgres`:
 - **DJ Rad van Fortuin**: random FX + EQ + genre selectie met spin animatie
 - **DJ Sampler**: upload sample, 8 pitch pads (C-C+), play via master
 - **DJ Opname**: record master output als .webm, pulserend rood tijdens opname
+- **DJ Scratch**: sleep over plaat om te scratchen (mouse + touch), -3x tot +3x rate
+- **DJ FX Presets**: opslaan/laden effect combinaties (localStorage), Reset FX knop
+- **Community Samples**: Supabase Storage + PostgreSQL, upload/download/zoek gedeelde samples
+- **Community SQL**: `sql/03_community_samples.sql` — tabel + RLS policies + storage bucket
+- **Supabase credentials**: worden gevraagd bij eerste gebruik, opgeslagen in localStorage
 - **API Keys**: Jamendo `d14314a3` in dj.html, Freesound in `.env`
 
 ## Audio Scanner (maart 2026)
