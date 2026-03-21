@@ -4442,11 +4442,22 @@ class InstrumentEngine {
                     <option value="altered">Altered</option>
                 </select>
 
+                <select id="improv-instrument" class="improv-select" title="Instrument voor improvisatie">
+                    <option value="lead">Lead Synth</option>
+                    <option value="piano">Piano</option>
+                    <option value="bass">Bass</option>
+                    <option value="guitar">Gitaar</option>
+                    <option value="strings">Strings</option>
+                    <option value="brass">Brass</option>
+                    <option value="choir">Koor</option>
+                    <option value="scat">Scat</option>
+                </select>
                 <button id="improv-start-btn" class="improv-btn" onclick="
                     const s=document.getElementById('improv-style').value;
                     const k=document.getElementById('improv-key').value;
                     const sc=document.getElementById('improv-scale').value;
-                    daw.instruments.startImprovisation(s,k,sc,parseInt(document.getElementById('bpm-input').value)||120)
+                    const inst=document.getElementById('improv-instrument').value;
+                    daw.instruments.startImprovisation(s,k,sc,parseInt(document.getElementById('bpm-input').value)||120,inst)
                 ">&#x25B6; Improviseer!</button>
                 <button id="improv-stop-btn" class="improv-btn stop" style="display:none" onclick="daw.instruments.stopImprovisation()">&#x23F9; Stop</button>
 
@@ -4953,8 +4964,21 @@ class InstrumentEngine {
     _improv = null;
     _improvTensionHistory = [];
 
-    startImprovisation(style = 'jazz', key = 'C', scale = 'pentatonic', bpm = 120) {
+    startImprovisation(style = 'jazz', key = 'C', scale = 'pentatonic', bpm = 120, instrument = 'lead') {
         this.stopImprovisation();
+
+        // Gain nodes aanmaken voor vocale/ensemble instrumenten
+        if (['choir','scat','strings','brass'].includes(instrument)) {
+            const ctx = this.audioEngine.ctx;
+            if (ctx) {
+                const inst = this._ensembleInstruments[instrument];
+                if (inst && !inst.gainNode) {
+                    inst.gainNode = ctx.createGain();
+                    inst.gainNode.connect(this.audioEngine.masterGain);
+                }
+                if (inst) { inst.gainNode.gain.value = inst.volume; inst.on = true; }
+            }
+        }
 
         const noteNames = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
         const rootIdx = noteNames.indexOf(key);
@@ -5007,8 +5031,15 @@ class InstrumentEngine {
             motifMidi = pick.midi;
         }
 
+        // Instrument-specifieke bereiken
+        const instrumentRanges = {
+            lead: [48, 84], piano: [48, 84], bass: [28, 55], guitar: [40, 76],
+            strings: [55, 84], brass: [48, 77], choir: [48, 72], scat: [55, 77]
+        };
+        const instRange = instrumentRanges[instrument] || [48, 84];
+
         this._improv = {
-            style, key, scale, bpm, rootIdx, config,
+            style, key, scale, bpm, rootIdx, config, instrument,
             scaleNotes, availableNotes, chordProgression,
             currentChordIdx: -1, // Will advance on first beat
             lastNoteMidi: 60 + rootIdx,
@@ -5151,8 +5182,17 @@ class InstrumentEngine {
                     const velocity = this._chooseVelocity(imp, tick16);
 
                     setTimeout(() => {
-                        this.playNote(note.name);
-                        setTimeout(() => this.stopNote(note.name), duration);
+                        const inst = imp.instrument || 'lead';
+                        if (inst === 'choir') {
+                            this._playFormantNote('choir', this._midiToFreq(note.midi), duration / 1000, velocity, Math.floor(Math.random() * 5));
+                        } else if (inst === 'scat') {
+                            this._playScatNote(this._midiToFreq(note.midi), duration / 1000, velocity, Math.floor(Math.random() * 8));
+                        } else if (['strings','brass'].includes(inst)) {
+                            this._ensPlayNote(inst, this._midiToFreq(note.midi), duration / 1000, velocity);
+                        } else {
+                            this.playNote(note.name);
+                            setTimeout(() => this.stopNote(note.name), duration);
+                        }
                     }, swingDelay);
 
                     // Update state
