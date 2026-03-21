@@ -109,9 +109,8 @@ body {
     overflow: hidden;
 }
 #browser-area {
-    flex: 0 0 auto;
-    max-height: 160px;
-    min-height: 120px;
+    flex: 1 1 auto;
+    min-height: 200px;
     border-top: 1px solid var(--border);
     background: var(--bg-dark);
     display: flex;
@@ -2710,9 +2709,16 @@ class DJApp {
                 audioBuffer = this.audioCache.get(url);
                 loadFill.style.width = '100%';
             } else {
-                // Fetch via proxy to avoid CORS issues
-                const proxyUrl = `/api/proxy/audio?url=${encodeURIComponent(url)}`;
-                const response = await fetch(proxyUrl);
+                // Fetch via proxy (localhost) of direct (GitHub Pages)
+                let response;
+                try {
+                    const proxyUrl = `/api/proxy/audio?url=${encodeURIComponent(url)}`;
+                    response = await fetch(proxyUrl);
+                    if (!response.ok) throw new Error('Proxy niet beschikbaar');
+                } catch(proxyErr) {
+                    // Fallback: direct laden (werkt voor Jamendo die CORS toestaat)
+                    response = await fetch(url);
+                }
                 const contentLength = response.headers.get('content-length');
                 const total = contentLength ? parseInt(contentLength) : 0;
                 const reader = response.body.getReader();
@@ -2956,10 +2962,10 @@ class DJApp {
     _hornGain = null;
 
     playHorn() {
-        if (!this.ctx) this._initAudio();
+        if (!this.audioCtx) this.initAudioContext();
         if (this._hornOsc) this.stopHorn();
 
-        const ctx = this.ctx;
+        const ctx = this.audioCtx;
         const gain = ctx.createGain();
         gain.connect(ctx.destination);
         gain.gain.setValueAtTime(0.6, ctx.currentTime);
@@ -3023,10 +3029,10 @@ class DJApp {
     _noiseGain = null;
 
     startNoise() {
-        if (!this.ctx) this._initAudio();
+        if (!this.audioCtx) this.initAudioContext();
         if (this._noiseNode) return;
 
-        const ctx = this.ctx;
+        const ctx = this.audioCtx;
         const bufferSize = ctx.sampleRate * 2;
         const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
         const data = buffer.getChannelData(0);
@@ -3065,7 +3071,7 @@ class DJApp {
     _masterFx = {};
 
     toggleMasterFx(fxName) {
-        if (!this.ctx) this._initAudio();
+        if (!this.audioCtx) this.initAudioContext();
         const btn = document.getElementById(`mfx-${fxName === 'bitcrush' ? 'crush' : (fxName === 'distort' ? 'dist' : fxName)}`);
         const isActive = this._masterFx[fxName]?.active;
 
@@ -3078,7 +3084,7 @@ class DJApp {
             if (btn) { btn.style.borderColor = 'var(--border)'; btn.style.color = 'var(--text-dim)'; btn.style.background = 'var(--bg-darkest)'; }
         } else {
             // Activate
-            const ctx = this.ctx;
+            const ctx = this.audioCtx;
             this._masterFx[fxName] = { active: true, nodes: [] };
 
             if (fxName === 'phaser') {
