@@ -73,7 +73,15 @@ PostgreSQL database `daw`, user `postgres`, pw `postgres`:
 - **Voice leading**: stepwise motion, avoid augmented intervals, chord tone emphasis, leading tone resolution, tritone resolution, phrase arc, register management
 - **Tension/resolution**: 4-fase arc (intro→development→climax→outro)
 - **Motief development**: repeat, transpose, inversion, augmentation, diminution, sequence
-- **9 ensemble instrumenten**: drums, bass, guitar, piano, lead, strings, brass, choir (koor), scat
+- **17 ensemble instrumenten** in 6 categorieën:
+  - Ritme: drums, bongo's, congas, shaker/tamboerijn
+  - Bas: e-bass, contrabas
+  - Harmonie: gitaar, piano, orgel, vibrafoon
+  - Melodie: lead synth, fluit, saxofoon
+  - Strijkers & Blazers: strings, brass
+  - Vocaal: koor (formant), scat
+- **MIDI export**: opnemen tijdens improvisatie → download .mid bestand
+- **Audio opname**: MediaRecorder → download .webm bestand
 - **Formant synthese**: vocale klanken via bandpass filters (F1/F2/F3 per klinker: A/O/E/I/U)
 - **Scat vocals**: bebop scat improvisatie met syllaben (ba/da/dee/bop/doo/bee/bi/sha), voice leading, call & response
 - **Per instrument**: on/off, solo, mute, volume

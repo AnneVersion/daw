@@ -4443,14 +4443,29 @@ class InstrumentEngine {
                 </select>
 
                 <select id="improv-instrument" class="improv-select" title="Instrument voor improvisatie">
-                    <option value="lead">Lead Synth</option>
-                    <option value="piano">Piano</option>
-                    <option value="bass">Bass</option>
-                    <option value="guitar">Gitaar</option>
-                    <option value="strings">Strings</option>
-                    <option value="brass">Brass</option>
-                    <option value="choir">Koor</option>
-                    <option value="scat">Scat</option>
+                    <optgroup label="Melodie">
+                        <option value="lead">Lead Synth</option>
+                        <option value="flute">Fluit</option>
+                        <option value="sax">Saxofoon</option>
+                    </optgroup>
+                    <optgroup label="Harmonie">
+                        <option value="piano">Piano</option>
+                        <option value="guitar">Gitaar</option>
+                        <option value="organ">Orgel</option>
+                        <option value="vibes">Vibrafoon</option>
+                    </optgroup>
+                    <optgroup label="Bas">
+                        <option value="bass">E-Bass</option>
+                        <option value="upright">Contrabas</option>
+                    </optgroup>
+                    <optgroup label="Strijkers &amp; Blazers">
+                        <option value="strings">Strings</option>
+                        <option value="brass">Brass</option>
+                    </optgroup>
+                    <optgroup label="Vocaal">
+                        <option value="choir">Koor</option>
+                        <option value="scat">Scat</option>
+                    </optgroup>
                 </select>
                 <button id="improv-start-btn" class="improv-btn" onclick="
                     const s=document.getElementById('improv-style').value;
@@ -4460,6 +4475,8 @@ class InstrumentEngine {
                     daw.instruments.startImprovisation(s,k,sc,parseInt(document.getElementById('bpm-input').value)||120,inst)
                 ">&#x25B6; Improviseer!</button>
                 <button id="improv-stop-btn" class="improv-btn stop" style="display:none" onclick="daw.instruments.stopImprovisation()">&#x23F9; Stop</button>
+                <button id="improv-midi-btn" class="improv-btn" style="display:none;background:#2a5a2a" onclick="daw.instruments.exportImprovMidi()">&#x1F3B5; MIDI</button>
+                <button id="improv-wav-btn" class="improv-btn" style="display:none;background:#5a2a2a" onclick="daw.instruments.exportImprovAudio()">&#x1F3A4; WAV</button>
 
                 <button class="tap-tempo-btn" onclick="daw.instruments.tapTempo()">Tap Tempo</button>
             </div>
@@ -4506,13 +4523,27 @@ class InstrumentEngine {
 
         // Ensemble Improvisation Panel
         const ensInstruments = [
+            // Ritme
             { id: 'drums', icon: '\u{1F941}', name: 'Drums', defaultOn: true },
-            { id: 'bass', icon: '\u{1F3B8}', name: 'Bass', defaultOn: true },
+            { id: 'bongos', icon: '\u{1FA98}', name: 'Bongo\'s', defaultOn: false },
+            { id: 'congas', icon: '\u{1FA98}', name: 'Congas', defaultOn: false },
+            { id: 'shaker', icon: '\u{1F3B6}', name: 'Shaker/Tamb.', defaultOn: false },
+            // Bas
+            { id: 'bass', icon: '\u{1F3B8}', name: 'E-Bass', defaultOn: true },
+            { id: 'upright', icon: '\u{1F3BB}', name: 'Contrabas', defaultOn: false },
+            // Harmonie
             { id: 'guitar', icon: '\u{1F3B8}', name: 'Gitaar', defaultOn: true },
             { id: 'piano', icon: '\u{1F3B9}', name: 'Piano', defaultOn: true },
+            { id: 'organ', icon: '\u{1F3B9}', name: 'Orgel', defaultOn: false },
+            { id: 'vibes', icon: '\u{1F3B6}', name: 'Vibrafoon', defaultOn: false },
+            // Melodie
             { id: 'lead', icon: '\u{1F3B5}', name: 'Lead Synth', defaultOn: false },
+            { id: 'flute', icon: '\u{1FA88}', name: 'Fluit', defaultOn: false },
+            { id: 'sax', icon: '\u{1F3B7}', name: 'Saxofoon', defaultOn: false },
+            // Strijkers & Blazers
             { id: 'strings', icon: '\u{1F3BB}', name: 'Strings', defaultOn: false },
             { id: 'brass', icon: '\u{1F3BA}', name: 'Brass', defaultOn: false },
+            // Vocaal
             { id: 'choir', icon: '\u{1F3A4}', name: 'Koor', defaultOn: false },
             { id: 'scat', icon: '\u{1F5E3}', name: 'Scat', defaultOn: false },
         ];
@@ -4968,7 +4999,7 @@ class InstrumentEngine {
         this.stopImprovisation();
 
         // Gain nodes aanmaken voor vocale/ensemble instrumenten
-        if (['choir','scat','strings','brass'].includes(instrument)) {
+        if (['choir','scat','strings','brass','bongos','congas','shaker','upright','organ','vibes','flute','sax'].includes(instrument)) {
             const ctx = this.audioEngine.ctx;
             if (ctx) {
                 const inst = this._ensembleInstruments[instrument];
@@ -5034,7 +5065,10 @@ class InstrumentEngine {
         // Instrument-specifieke bereiken
         const instrumentRanges = {
             lead: [48, 84], piano: [48, 84], bass: [28, 55], guitar: [40, 76],
-            strings: [55, 84], brass: [48, 77], choir: [48, 72], scat: [55, 77]
+            strings: [55, 84], brass: [48, 77], choir: [48, 72], scat: [55, 77],
+            upright: [28, 50], organ: [36, 72], vibes: [60, 84],
+            flute: [67, 91], sax: [49, 80], bongos: [60, 80], congas: [48, 65],
+            shaker: [70, 90]
         };
         const instRange = instrumentRanges[instrument] || [48, 84];
 
@@ -5065,6 +5099,13 @@ class InstrumentEngine {
             targetTension: 0.3,
             overallArc: 'intro', // intro, development, climax, outro
             arcBeatCounter: 0,
+            // MIDI recording
+            midiEvents: [],
+            startTime: Date.now(),
+            // Audio recording
+            audioRecording: false,
+            mediaRecorder: null,
+            audioChunks: [],
             // Approach notes queue
             approachQueue: [],
             // Intensity (user control)
@@ -5181,13 +5222,26 @@ class InstrumentEngine {
                     // Velocity based on beat position and tension
                     const velocity = this._chooseVelocity(imp, tick16);
 
+                    // Log MIDI event
+                    imp.midiEvents.push({
+                        time: Date.now() - imp.startTime + swingDelay,
+                        midi: note.midi,
+                        velocity: Math.round(velocity * 127),
+                        duration: Math.round(duration),
+                        chord: imp.chordProgression[imp.currentChordIdx]?.name || ''
+                    });
+
                     setTimeout(() => {
                         const inst = imp.instrument || 'lead';
                         if (inst === 'choir') {
                             this._playFormantNote('choir', this._midiToFreq(note.midi), duration / 1000, velocity, Math.floor(Math.random() * 5));
                         } else if (inst === 'scat') {
                             this._playScatNote(this._midiToFreq(note.midi), duration / 1000, velocity, Math.floor(Math.random() * 8));
-                        } else if (['strings','brass'].includes(inst)) {
+                        } else if (inst === 'bongos' || inst === 'congas') {
+                            this._playPercSynth(inst, this._midiToFreq(note.midi), 0.1, velocity);
+                        } else if (inst === 'shaker') {
+                            this._playPercSynth(inst, 5000 + Math.random() * 3000, 0.03, velocity);
+                        } else if (['strings','brass','upright','organ','vibes','flute','sax'].includes(inst)) {
                             this._ensPlayNote(inst, this._midiToFreq(note.midi), duration / 1000, velocity);
                         } else {
                             this.playNote(note.name);
@@ -5659,8 +5713,14 @@ class InstrumentEngine {
         if (panel) panel.classList.toggle('improv-active', active);
         const startBtn = document.getElementById('improv-start-btn');
         const stopBtn = document.getElementById('improv-stop-btn');
+        const midiBtn = document.getElementById('improv-midi-btn');
+        const wavBtn = document.getElementById('improv-wav-btn');
         if (startBtn) startBtn.style.display = active ? 'none' : 'inline-block';
         if (stopBtn) stopBtn.style.display = active ? 'inline-block' : 'none';
+        // Toon export knoppen als er opgenomen noten zijn
+        const hasNotes = this._improv?.midiEvents?.length > 0 || this._lastImprovMidi?.length > 0;
+        if (midiBtn) midiBtn.style.display = (!active && hasNotes) ? 'inline-block' : (active ? 'inline-block' : 'none');
+        if (wavBtn) wavBtn.style.display = active ? 'inline-block' : 'none';
     }
 
     // --- Tap tempo ---
@@ -5692,13 +5752,27 @@ class InstrumentEngine {
     _ensemble = null;
     _ensembleTimer = null;
     _ensembleInstruments = {
+        // --- Ritme ---
         drums:   { on: true, solo: false, muted: false, volume: 0.7, gainNode: null },
+        bongos:  { on: false, solo: false, muted: false, volume: 0.7, gainNode: null },
+        congas:  { on: false, solo: false, muted: false, volume: 0.7, gainNode: null },
+        shaker:  { on: false, solo: false, muted: false, volume: 0.7, gainNode: null },
+        // --- Bas ---
         bass:    { on: true, solo: false, muted: false, volume: 0.7, gainNode: null },
+        upright: { on: false, solo: false, muted: false, volume: 0.7, gainNode: null },
+        // --- Harmonie ---
         guitar:  { on: true, solo: false, muted: false, volume: 0.7, gainNode: null },
         piano:   { on: true, solo: false, muted: false, volume: 0.7, gainNode: null },
+        organ:   { on: false, solo: false, muted: false, volume: 0.7, gainNode: null },
+        vibes:   { on: false, solo: false, muted: false, volume: 0.7, gainNode: null },
+        // --- Melodie ---
         lead:    { on: false, solo: false, muted: false, volume: 0.7, gainNode: null },
+        flute:   { on: false, solo: false, muted: false, volume: 0.7, gainNode: null },
+        sax:     { on: false, solo: false, muted: false, volume: 0.7, gainNode: null },
+        // --- Strijkers & Blazers ---
         strings: { on: false, solo: false, muted: false, volume: 0.7, gainNode: null },
         brass:   { on: false, solo: false, muted: false, volume: 0.7, gainNode: null },
+        // --- Vocaal ---
         choir:   { on: false, solo: false, muted: false, volume: 0.7, gainNode: null },
         scat:    { on: false, solo: false, muted: false, volume: 0.7, gainNode: null },
     };
@@ -5943,6 +6017,18 @@ class InstrumentEngine {
 
             // --- BRASS ---
             this._ensembleBrassTick(ens, beat16InBar, chord);
+
+            // --- PERCUSSIE ---
+            this._ensembleBongosTick(ens, beat16InBar);
+            this._ensembleCongasTick(ens, beat16InBar);
+            this._ensembleShakerTick(ens, beat16InBar);
+
+            // --- EXTRA INSTRUMENTEN ---
+            this._ensembleUprightTick(ens, beat16InBar, chord);
+            this._ensembleOrganTick(ens, beat16InBar, chord);
+            this._ensembleVibesTok(ens, beat16InBar, chord);
+            this._ensembleFluteTick(ens, beat16InBar, chord);
+            this._ensembleSaxTick(ens, beat16InBar, chord);
 
             // --- CHOIR ---
             this._ensembleChoirTick(ens, beat16InBar, chord);
@@ -6905,6 +6991,188 @@ class InstrumentEngine {
     }
 
     // ============================================================
+    // PERCUSSIE INSTRUMENTEN - Bongo's, Congas, Shaker
+    // Synthese: noise bursts + bandpass filters voor toonhoogte
+    // ============================================================
+    _playPercSynth(instrumentId, freq, decay, vel) {
+        const ctx = this.audioEngine.ctx;
+        if (!ctx) return;
+        const inst = this._ensembleInstruments[instrumentId];
+        if (!inst || !inst.gainNode) return;
+
+        const now = ctx.currentTime;
+        // Noise burst via oscillator
+        const osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        const env = ctx.createGain();
+        env.gain.setValueAtTime(vel, now);
+        env.gain.exponentialRampToValueAtTime(0.001, now + decay);
+        const bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass'; bp.frequency.value = freq; bp.Q.value = 3;
+        osc.connect(bp); bp.connect(env); env.connect(inst.gainNode);
+        osc.start(now); osc.stop(now + decay + 0.01);
+    }
+
+    _ensembleBongosTick(ens, beat16) {
+        if (!this._ensembleInstruments.bongos.on) return;
+        const vel = 0.3 + ens.intensity * 0.3;
+        // Bongo patroon: hoog (800Hz) en laag (500Hz), Latijns ritme
+        const pattern = [1,0,0,1, 0,1,0,0, 1,0,1,0, 0,1,0,1]; // tresillo-achtig
+        if (pattern[beat16] && Math.random() < 0.7) {
+            const freq = beat16 % 8 < 4 ? 800 : 500; // afwisselend hoog/laag
+            this._playPercSynth('bongos', freq, 0.08, vel);
+        }
+        // Ghost notes
+        if (!pattern[beat16] && Math.random() < 0.12 * ens.intensity) {
+            this._playPercSynth('bongos', 650, 0.04, vel * 0.3);
+        }
+    }
+
+    _ensembleCongasTick(ens, beat16) {
+        if (!this._ensembleInstruments.congas.on) return;
+        const vel = 0.25 + ens.intensity * 0.3;
+        // Conga: dieper (200-400Hz), langere decay
+        const patterns = {
+            funk:    [1,0,0,0, 1,0,1,0, 0,0,1,0, 1,0,0,1],
+            jazz:    [0,0,1,0, 0,1,0,0, 1,0,0,1, 0,0,1,0],
+            default: [1,0,0,1, 0,0,1,0, 0,1,0,0, 1,0,0,0],
+        };
+        const pat = patterns[ens.style] || patterns.default;
+        if (pat[beat16] && Math.random() < 0.65) {
+            const tones = [250, 320, 400]; // bajo, tono, slap
+            this._playPercSynth('congas', tones[Math.floor(Math.random() * 3)], 0.12, vel);
+        }
+    }
+
+    _ensembleShakerTick(ens, beat16) {
+        if (!this._ensembleInstruments.shaker.on) return;
+        // Shaker: elke 8e noot, soms 16e
+        const vel = 0.15 + ens.intensity * 0.15;
+        if (beat16 % 2 === 0 || (ens.intensity > 0.6 && Math.random() < 0.4)) {
+            // Noise-achtig: hoge freq oscillator
+            const ctx = this.audioEngine.ctx;
+            if (!ctx) return;
+            const inst = this._ensembleInstruments.shaker;
+            if (!inst.gainNode) return;
+            const osc = ctx.createOscillator();
+            osc.type = 'sawtooth';
+            osc.frequency.value = 5000 + Math.random() * 3000;
+            const hp = ctx.createBiquadFilter();
+            hp.type = 'highpass'; hp.frequency.value = 4000;
+            const env = ctx.createGain();
+            const now = ctx.currentTime;
+            env.gain.setValueAtTime(vel, now);
+            env.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+            osc.connect(hp); hp.connect(env); env.connect(inst.gainNode);
+            osc.start(now); osc.stop(now + 0.04);
+        }
+    }
+
+    // ============================================================
+    // EXTRA MELODISCHE INSTRUMENTEN
+    // Gebruiken _improviseMelody() + _ensPlayNote() met eigen timbre
+    // ============================================================
+    _ensembleUprightTick(ens, beat16, chord) {
+        // Contrabas: zelfde logica als bass maar met andere klank (via _ensPlayNote)
+        if (!this._ensembleInstruments.upright.on) return;
+        // Redirect naar bass logica maar met 'upright' gain node
+        if (!ens._uprightState) ens._uprightState = { lastMidi: 36 + ens.rootIdx, walkStep: 0 };
+        // Walking bass in laag register
+        const isBeat = beat16 % 4 === 0;
+        if (!isBeat) return;
+        const note = this._improviseMelody(ens, chord, ens._uprightState.lastMidi, [28, 50], 'upright');
+        if (note) {
+            const dur = (60 / ens.bpm) * 0.8;
+            this._ensPlayNote('upright', this._midiToFreq(note.midi), dur, 0.4 + ens.intensity * 0.2);
+            ens._uprightState.lastMidi = note.midi;
+        }
+    }
+
+    _ensembleOrganTick(ens, beat16, chord) {
+        // Hammond-achtig orgel: sustained chords
+        if (!this._ensembleInstruments.organ.on) return;
+        if (beat16 !== 0) return;
+        const ticksPerChord = ens.beatsPerChord * 4;
+        if (ens.tick16 % ticksPerChord !== 0) return;
+        if (!ens._organLastChord) ens._organLastChord = -1;
+        if (ens._organLastChord === ens.currentChordIdx) return;
+        ens._organLastChord = ens.currentChordIdx;
+
+        const voicing = this._getChordVoicing(chord, 52);
+        const dur = (60 / ens.bpm) * ens.beatsPerChord * 0.95;
+        const vel = 0.2 + ens.intensity * 0.2;
+        voicing.forEach(midi => {
+            this._ensPlayNote('organ', this._midiToFreq(midi), dur, vel);
+        });
+    }
+
+    _ensembleVibesTok(ens, beat16, chord) {
+        // Vibrafoon: melodische improv in hoog register
+        if (!this._ensembleInstruments.vibes.on) return;
+        if (!ens._vibesState) ens._vibesState = { lastMidi: 65 + ens.rootIdx, pPos: 0, pLen: 3 + Math.floor(Math.random() * 4), rest: false, rTicks: 0 };
+        const st = ens._vibesState;
+        if (st.rest) { st.rTicks--; if (st.rTicks <= 0) { st.rest = false; st.pPos = 0; } return; }
+
+        const isEighth = beat16 % 2 === 0;
+        if (!isEighth || Math.random() > 0.5 * ens.intensity) return;
+
+        const note = this._improviseMelody(ens, chord, st.lastMidi, [60, 84], 'vibes');
+        if (note) {
+            const dur = (60 / ens.bpm) / 2 * 1.5;
+            this._ensPlayNote('vibes', this._midiToFreq(note.midi), dur, 0.25 + ens.tension * 0.2);
+            st.lastMidi = note.midi;
+            st.pPos++;
+            if (st.pPos >= st.pLen) { st.rest = true; st.rTicks = 8 + Math.floor(Math.random() * 8); st.pPos = 0; st.pLen = 3 + Math.floor(Math.random() * 4); }
+        }
+    }
+
+    _ensembleFluteTick(ens, beat16, chord) {
+        // Fluit: hoog register, legato, minder dichtheid
+        if (!this._ensembleInstruments.flute.on) return;
+        if (!ens._fluteState) ens._fluteState = { lastMidi: 72 + ens.rootIdx, pPos: 0, pLen: 3 + Math.floor(Math.random() * 3), rest: false, rTicks: 0 };
+        const st = ens._fluteState;
+        if (st.rest) { st.rTicks--; if (st.rTicks <= 0) { st.rest = false; st.pPos = 0; } return; }
+
+        // Fluit speelt spaarzaam, veel legato
+        const isBeat = beat16 % 4 === 0;
+        if (!isBeat || Math.random() > 0.45 * ens.intensity) return;
+
+        const note = this._improviseMelody(ens, chord, st.lastMidi, [67, 91], 'flute');
+        if (note) {
+            const dur = (60 / ens.bpm) * (1 + Math.random());
+            this._ensPlayNote('flute', this._midiToFreq(note.midi), dur, 0.2 + ens.tension * 0.2);
+            st.lastMidi = note.midi;
+            st.pPos++;
+            if (st.pPos >= st.pLen) { st.rest = true; st.rTicks = 12 + Math.floor(Math.random() * 12); st.pPos = 0; }
+        }
+    }
+
+    _ensembleSaxTick(ens, beat16, chord) {
+        // Saxofoon: tenor bereik, bebop stijl
+        if (!this._ensembleInstruments.sax.on) return;
+        if (!ens._saxState) ens._saxState = { lastMidi: 58 + ens.rootIdx, pPos: 0, pLen: 4 + Math.floor(Math.random() * 5), rest: false, rTicks: 0 };
+        const st = ens._saxState;
+        if (st.rest) { st.rTicks--; if (st.rTicks <= 0) { st.rest = false; st.pPos = 0; } return; }
+
+        const config = ens.config;
+        const isEighth = beat16 % 2 === 0;
+        const density = ens.intensity * (config.density || 0.5);
+        // Call & response met lead
+        const crBonus = (ens.leadResting && ens.leadRestTicks > 1) ? 1.6 : 0.9;
+        if (!(isEighth && Math.random() < density * 0.6 * crBonus)) return;
+
+        const note = this._improviseMelody(ens, chord, st.lastMidi, [49, 80], 'sax');
+        if (note) {
+            const dur = (60 / ens.bpm) / 2 * (1 + ens.tension);
+            this._ensPlayNote('sax', this._midiToFreq(note.midi), dur, 0.3 + ens.tension * 0.3);
+            st.lastMidi = note.midi;
+            st.pPos++;
+            if (st.pPos >= st.pLen) { st.rest = true; st.rTicks = 6 + Math.floor(Math.random() * 10); st.pPos = 0; st.pLen = 4 + Math.floor(Math.random() * 5); }
+        }
+    }
+
+    // ============================================================
     // FORMANT VOCALS - Koor pads (aaah, oooh, eee)
     // Formant frequencies voor Nederlandse/Italiaanse klinkers:
     //   A: F1=800, F2=1150  (open "aah")
@@ -7140,7 +7408,159 @@ class InstrumentEngine {
         }
     }
 
+    // ============================================================
+    // MIDI EXPORT - Standard MIDI File (SMF) Type 0
+    // ============================================================
+    _lastImprovMidi = null;
+
+    exportImprovMidi() {
+        const events = this._lastImprovMidi || this._improv?.midiEvents;
+        if (!events || events.length === 0) { alert('Geen noten opgenomen'); return; }
+
+        const bpm = this._improv?.bpm || 120;
+        const ticksPerBeat = 480;
+        const msPerTick = 60000 / (bpm * ticksPerBeat);
+
+        // Build MIDI file bytes
+        const bytes = [];
+        const writeBytes = (arr) => arr.forEach(b => bytes.push(b));
+        const writeVarLen = (val) => {
+            const buf = [];
+            buf.push(val & 0x7F);
+            val >>= 7;
+            while (val > 0) { buf.push((val & 0x7F) | 0x80); val >>= 7; }
+            buf.reverse().forEach(b => bytes.push(b));
+        };
+        const write16 = (v) => { bytes.push((v >> 8) & 0xFF, v & 0xFF); };
+        const write32 = (v) => { bytes.push((v >> 24) & 0xFF, (v >> 16) & 0xFF, (v >> 8) & 0xFF, v & 0xFF); };
+
+        // Header: MThd
+        writeBytes([0x4D, 0x54, 0x68, 0x64]); // "MThd"
+        write32(6);        // header length
+        write16(0);        // format 0
+        write16(1);        // 1 track
+        write16(ticksPerBeat);
+
+        // Track: MTrk
+        writeBytes([0x4D, 0x54, 0x72, 0x6B]); // "MTrk"
+        const trackLenIdx = bytes.length;
+        write32(0); // placeholder
+
+        // Tempo event
+        const uspqn = Math.round(60000000 / bpm);
+        writeVarLen(0); // delta time 0
+        writeBytes([0xFF, 0x51, 0x03]);
+        bytes.push((uspqn >> 16) & 0xFF, (uspqn >> 8) & 0xFF, uspqn & 0xFF);
+
+        // Track name
+        writeVarLen(0);
+        writeBytes([0xFF, 0x03]);
+        const name = 'DAW Improvisatie';
+        writeVarLen(name.length);
+        for (let i = 0; i < name.length; i++) bytes.push(name.charCodeAt(i));
+
+        // Sort events by time
+        const sorted = [...events].sort((a, b) => a.time - b.time);
+
+        // Build note on/off events
+        const midiEvents = [];
+        sorted.forEach(e => {
+            const tickOn = Math.round(e.time / msPerTick);
+            const tickOff = tickOn + Math.round(e.duration / msPerTick);
+            midiEvents.push({ tick: tickOn, type: 'on', midi: e.midi, vel: e.velocity });
+            midiEvents.push({ tick: tickOff, type: 'off', midi: e.midi, vel: 0 });
+        });
+        midiEvents.sort((a, b) => a.tick - b.tick || (a.type === 'off' ? -1 : 1));
+
+        let lastTick = 0;
+        midiEvents.forEach(ev => {
+            const delta = Math.max(0, ev.tick - lastTick);
+            writeVarLen(delta);
+            bytes.push(ev.type === 'on' ? 0x90 : 0x80); // channel 0
+            bytes.push(ev.midi & 0x7F);
+            bytes.push(ev.vel & 0x7F);
+            lastTick = ev.tick;
+        });
+
+        // End of track
+        writeVarLen(0);
+        writeBytes([0xFF, 0x2F, 0x00]);
+
+        // Write track length
+        const trackLen = bytes.length - trackLenIdx - 4;
+        bytes[trackLenIdx] = (trackLen >> 24) & 0xFF;
+        bytes[trackLenIdx + 1] = (trackLen >> 16) & 0xFF;
+        bytes[trackLenIdx + 2] = (trackLen >> 8) & 0xFF;
+        bytes[trackLenIdx + 3] = trackLen & 0xFF;
+
+        // Download
+        const blob = new Blob([new Uint8Array(bytes)], { type: 'audio/midi' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const style = this._improv?.style || 'improv';
+        const key = this._improv?.key || 'C';
+        a.href = url;
+        a.download = `improvisatie_${style}_${key}_${new Date().toISOString().slice(0,10)}.mid`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast(`MIDI geëxporteerd: ${events.length} noten`, 'success');
+    }
+
+    // ============================================================
+    // AUDIO EXPORT - Opnemen via MediaRecorder
+    // ============================================================
+    exportImprovAudio() {
+        const ctx = this.audioEngine.ctx;
+        if (!ctx) return;
+
+        if (this._improvAudioRecording) {
+            // Stop opname
+            this._improvMediaRecorder.stop();
+            this._improvAudioRecording = false;
+            const btn = document.getElementById('improv-wav-btn');
+            if (btn) { btn.textContent = '🎤 WAV'; btn.style.background = '#5a2a2a'; }
+            return;
+        }
+
+        // Start opname
+        const dest = ctx.createMediaStreamDestination();
+        this.audioEngine.masterGain.connect(dest);
+
+        const chunks = [];
+        const mr = new MediaRecorder(dest.stream, { mimeType: 'audio/webm' });
+        mr.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+        mr.onstop = () => {
+            this.audioEngine.masterGain.disconnect(dest);
+            const blob = new Blob(chunks, { type: 'audio/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const style = this._improv?.style || 'improv';
+            const key = this._improv?.key || 'C';
+            a.href = url;
+            a.download = `improvisatie_${style}_${key}_${new Date().toISOString().slice(0,10)}.webm`;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast(`Audio opname opgeslagen`, 'success');
+        };
+        mr.start();
+        this._improvMediaRecorder = mr;
+        this._improvAudioRecording = true;
+
+        const btn = document.getElementById('improv-wav-btn');
+        if (btn) { btn.textContent = '⏹ Stop opname'; btn.style.background = '#8a2a2a'; }
+        toast('Audio opname gestart — klik nogmaals om te stoppen', 'info');
+    }
+
     stopImprovisation() {
+        // Bewaar MIDI events voor export na stop
+        if (this._improv?.midiEvents?.length > 0) {
+            this._lastImprovMidi = [...this._improv.midiEvents];
+        }
+        // Stop audio opname als die loopt
+        if (this._improvAudioRecording && this._improvMediaRecorder) {
+            this._improvMediaRecorder.stop();
+            this._improvAudioRecording = false;
+        }
         if (this._improvTimer) {
             clearInterval(this._improvTimer);
             this._improvTimer = null;
