@@ -56,7 +56,10 @@ PostgreSQL database `daw`, user `postgres`, pw `postgres`:
 - **Improvisatie-engine**: 18 toonladders, 12 progressies, muziektheorie (voice leading, motivic development, chord-scale theory, tension/resolution)
 - **Ensemble Improvisatie**: 7 instrumenten (drums, bass, gitaar, piano, lead, strings, brass) spelen samen met solo/mute per instrument
 - **Library**: Metadata filters (BPM, toonsoort, formaat, duur), categorie chips, sorteren
-- **Audio Proxy**: `/api/proxy/audio` voor CORS-vrij laden van externe audio
+- **Audio Proxy**: `/api/proxy/audio` voor CORS-vrij laden van externe audio (localhost), fallback naar directe URL (GitHub Pages)
+- **DJ SFX**: Toeter (5 types: airhorn/foghorn/sirene/laser/buzzer), witte ruis, master FX knoppen (phaser/flanger/crush/dist)
+- **DJ FX per deck**: Echo, Reverb, Flanger, Filter, Phaser, Bitcrusher, Distortion
+- **Track laden op GitHub Pages**: proxy fallback → directe URL (Jamendo/Archive werken, Freesound niet wegens CORS)
 - **API Keys**: Jamendo `d14314a3` in dj.html, Freesound in `.env`
 
 ## Audio Scanner (maart 2026)
