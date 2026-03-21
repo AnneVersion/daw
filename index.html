@@ -724,6 +724,141 @@ body {
     display: none;
 }
 
+/* ---- Track FX Panel ---- */
+.mixer-fx-btn {
+    width: 100%;
+    background: #1a1a2a;
+    border: 1px solid #2a2a3e;
+    color: var(--text-dim);
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 0;
+    cursor: pointer;
+    border-radius: 2px;
+    letter-spacing: 0.5px;
+    transition: color 0.15s, border-color 0.15s;
+}
+.mixer-fx-btn:hover, .mixer-fx-btn.fx-active {
+    color: var(--accent);
+    border-color: var(--accent-dim);
+}
+.track-fx-panel {
+    display: none;
+    position: fixed;
+    bottom: 290px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-panel);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    padding: 14px 18px;
+    z-index: 200;
+    min-width: 400px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.track-fx-panel.visible { display: block; }
+.track-fx-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+.track-fx-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-bright);
+}
+.track-fx-close {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 16px;
+    cursor: pointer;
+}
+.track-fx-close:hover { color: var(--text-bright); }
+.fx-section {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+.fx-group {
+    flex: 1;
+    min-width: 160px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+}
+.fx-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.fx-group-title {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.fx-toggle {
+    width: 28px; height: 14px;
+    border-radius: 7px;
+    background: #333;
+    cursor: pointer;
+    position: relative;
+    border: none;
+}
+.fx-toggle::after {
+    content: '';
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    position: absolute;
+    top: 2px; left: 2px;
+    transition: transform 0.15s, background 0.15s;
+}
+.fx-toggle.on { background: var(--accent-dim); }
+.fx-toggle.on::after {
+    transform: translateX(14px);
+    background: var(--accent);
+}
+.fx-param {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+.fx-param label {
+    font-size: 10px;
+    color: var(--text-dim);
+}
+.fx-param input[type="range"] {
+    width: 80px;
+    height: 4px;
+    -webkit-appearance: none;
+    background: #2a2a3e;
+    border-radius: 2px;
+    outline: none;
+}
+.fx-param input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+}
+.fx-param .fx-val {
+    font-size: 9px;
+    color: var(--text-dim);
+    min-width: 32px;
+    text-align: right;
+    font-family: monospace;
+}
+
 /* Library panel */
 #library {
     display: none;
@@ -2060,6 +2195,47 @@ body {
         </div>
         <div id="bottom-content">
             <div id="mixer"></div>
+            <div id="track-fx-panel" class="track-fx-panel">
+                <div class="track-fx-header">
+                    <span class="track-fx-title" id="fx-panel-title">Track FX</span>
+                    <button class="track-fx-close" onclick="daw.closeFxPanel()">&times;</button>
+                </div>
+                <div class="fx-section">
+                    <div class="fx-group">
+                        <div class="fx-group-header">
+                            <span class="fx-group-title">EQ</span>
+                            <button class="fx-toggle on" data-fx-toggle="eq" onclick="daw.toggleFxEnabled(this, 'eq')"></button>
+                        </div>
+                        <div class="fx-param"><label>Low</label><input type="range" min="-12" max="12" step="0.5" value="0" data-fx="eq-low" oninput="daw.handleFxParam(this)"><span class="fx-val">0 dB</span></div>
+                        <div class="fx-param"><label>Mid</label><input type="range" min="-12" max="12" step="0.5" value="0" data-fx="eq-mid" oninput="daw.handleFxParam(this)"><span class="fx-val">0 dB</span></div>
+                        <div class="fx-param"><label>High</label><input type="range" min="-12" max="12" step="0.5" value="0" data-fx="eq-high" oninput="daw.handleFxParam(this)"><span class="fx-val">0 dB</span></div>
+                    </div>
+                    <div class="fx-group">
+                        <div class="fx-group-header">
+                            <span class="fx-group-title">Compressor</span>
+                            <button class="fx-toggle" data-fx-toggle="compressor" onclick="daw.toggleFxEnabled(this, 'compressor')"></button>
+                        </div>
+                        <div class="fx-param"><label>Threshold</label><input type="range" min="-60" max="0" step="1" value="-24" data-fx="comp-threshold" oninput="daw.handleFxParam(this)"><span class="fx-val">-24 dB</span></div>
+                        <div class="fx-param"><label>Ratio</label><input type="range" min="1" max="20" step="0.5" value="4" data-fx="comp-ratio" oninput="daw.handleFxParam(this)"><span class="fx-val">4:1</span></div>
+                    </div>
+                    <div class="fx-group">
+                        <div class="fx-group-header">
+                            <span class="fx-group-title">Reverb</span>
+                            <button class="fx-toggle" data-fx-toggle="reverb" onclick="daw.toggleFxEnabled(this, 'reverb')"></button>
+                        </div>
+                        <div class="fx-param"><label>Mix</label><input type="range" min="0" max="1" step="0.01" value="0" data-fx="reverb-wet" oninput="daw.handleFxParam(this)"><span class="fx-val">0%</span></div>
+                    </div>
+                    <div class="fx-group">
+                        <div class="fx-group-header">
+                            <span class="fx-group-title">Delay</span>
+                            <button class="fx-toggle" data-fx-toggle="delay" onclick="daw.toggleFxEnabled(this, 'delay')"></button>
+                        </div>
+                        <div class="fx-param"><label>Time</label><input type="range" min="0.05" max="1" step="0.01" value="0.375" data-fx="delay-time" oninput="daw.handleFxParam(this)"><span class="fx-val">375ms</span></div>
+                        <div class="fx-param"><label>Feedback</label><input type="range" min="0" max="0.9" step="0.01" value="0" data-fx="delay-feedback" oninput="daw.handleFxParam(this)"><span class="fx-val">0%</span></div>
+                        <div class="fx-param"><label>Mix</label><input type="range" min="0" max="1" step="0.01" value="0" data-fx="delay-wet" oninput="daw.handleFxParam(this)"><span class="fx-val">0%</span></div>
+                    </div>
+                </div>
+            </div>
             <div id="instruments">
                 <div id="instrument-toolbar">
                     <select id="instrument-select">
@@ -2467,24 +2643,111 @@ class AudioEngine {
     }
 
     createTrackNodes(trackId) {
-        const gain = this.ctx.createGain();
-        const pan = this.ctx.createStereoPanner();
-        const analyser = this.ctx.createAnalyser();
+        const ctx = this.ctx;
+        const gain = ctx.createGain();
+        const pan = ctx.createStereoPanner();
+        const analyser = ctx.createAnalyser();
         analyser.fftSize = 256;
 
+        // ── Per-track effects chain ──
+        // EQ: 3-band (low shelf, mid peak, high shelf)
+        const eqLow = ctx.createBiquadFilter();
+        eqLow.type = 'lowshelf'; eqLow.frequency.value = 320; eqLow.gain.value = 0;
+        const eqMid = ctx.createBiquadFilter();
+        eqMid.type = 'peaking'; eqMid.frequency.value = 1000; eqMid.Q.value = 1; eqMid.gain.value = 0;
+        const eqHigh = ctx.createBiquadFilter();
+        eqHigh.type = 'highshelf'; eqHigh.frequency.value = 3200; eqHigh.gain.value = 0;
+
+        // Compressor
+        const compressor = ctx.createDynamicsCompressor();
+        compressor.threshold.value = -24; compressor.knee.value = 30;
+        compressor.ratio.value = 4; compressor.attack.value = 0.003; compressor.release.value = 0.25;
+
+        // Reverb (convolution with generated impulse)
+        const reverbDry = ctx.createGain(); reverbDry.gain.value = 1;
+        const reverbWet = ctx.createGain(); reverbWet.gain.value = 0;
+        const reverbConv = ctx.createConvolver();
+        const reverbLen = ctx.sampleRate * 1.5;
+        const reverbBuf = ctx.createBuffer(2, reverbLen, ctx.sampleRate);
+        for (let ch = 0; ch < 2; ch++) {
+            const d = reverbBuf.getChannelData(ch);
+            for (let i = 0; i < reverbLen; i++) {
+                d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / reverbLen, 2.5);
+            }
+        }
+        reverbConv.buffer = reverbBuf;
+        const reverbMerge = ctx.createGain();
+
+        // Delay (stereo ping-pong style)
+        const delayNode = ctx.createDelay(2.0);
+        delayNode.delayTime.value = 0.375; // dotted eighth at 120bpm
+        const delayFeedback = ctx.createGain(); delayFeedback.gain.value = 0;
+        const delayWet = ctx.createGain(); delayWet.gain.value = 0;
+        const delayDry = ctx.createGain(); delayDry.gain.value = 1;
+        const delayMerge = ctx.createGain();
+
+        // Chain: gain → pan → EQ → compressor → reverb → delay → analyser → master
         gain.connect(pan);
-        pan.connect(analyser);
+        pan.connect(eqLow);
+        eqLow.connect(eqMid);
+        eqMid.connect(eqHigh);
+        eqHigh.connect(compressor);
+
+        // Reverb: dry + wet parallel
+        compressor.connect(reverbDry);
+        compressor.connect(reverbConv);
+        reverbConv.connect(reverbWet);
+        reverbDry.connect(reverbMerge);
+        reverbWet.connect(reverbMerge);
+
+        // Delay: dry + wet parallel with feedback
+        reverbMerge.connect(delayDry);
+        reverbMerge.connect(delayNode);
+        delayNode.connect(delayFeedback);
+        delayFeedback.connect(delayNode);
+        delayNode.connect(delayWet);
+        delayDry.connect(delayMerge);
+        delayWet.connect(delayMerge);
+
+        delayMerge.connect(analyser);
         analyser.connect(this.masterGain);
 
         let meter = null;
         if (this.meterWorkletReady) {
-            meter = new AudioWorkletNode(this.ctx, 'meter-processor');
-            pan.connect(meter);
-            meter.connect(this.ctx.createGain()); // Dummy output, meter is passthrough
+            meter = new AudioWorkletNode(ctx, 'meter-processor');
+            delayMerge.connect(meter);
+            meter.connect(ctx.createGain());
         }
 
-        this.trackNodes.set(trackId, { gain, pan, analyser, meter });
-        return { gain, pan, analyser, meter };
+        const fx = {
+            eq: { low: eqLow, mid: eqMid, high: eqHigh },
+            compressor,
+            reverb: { dry: reverbDry, wet: reverbWet, conv: reverbConv, merge: reverbMerge },
+            delay: { node: delayNode, feedback: delayFeedback, wet: delayWet, dry: delayDry, merge: delayMerge },
+            enabled: { eq: true, compressor: false, reverb: false, delay: false }
+        };
+
+        this.trackNodes.set(trackId, { gain, pan, analyser, meter, fx });
+        return { gain, pan, analyser, meter, fx };
+    }
+
+    setTrackFx(trackId, fxType, param, value) {
+        const nodes = this.trackNodes.get(trackId);
+        if (!nodes || !nodes.fx) return;
+        const fx = nodes.fx;
+        switch(fxType) {
+            case 'eq-low': fx.eq.low.gain.value = value; break;
+            case 'eq-mid': fx.eq.mid.gain.value = value; break;
+            case 'eq-high': fx.eq.high.gain.value = value; break;
+            case 'comp-threshold': fx.compressor.threshold.value = value; break;
+            case 'comp-ratio': fx.compressor.ratio.value = value; break;
+            case 'comp-attack': fx.compressor.attack.value = value; break;
+            case 'comp-release': fx.compressor.release.value = value; break;
+            case 'reverb-wet': fx.reverb.wet.gain.value = value; fx.reverb.dry.gain.value = 1 - value; break;
+            case 'delay-time': fx.delay.node.delayTime.value = value; break;
+            case 'delay-feedback': fx.delay.feedback.gain.value = value; break;
+            case 'delay-wet': fx.delay.wet.gain.value = value; fx.delay.dry.gain.value = 1 - value; break;
+        }
     }
 
     removeTrackNodes(trackId) {
@@ -2494,6 +2757,14 @@ class AudioEngine {
             nodes.pan.disconnect();
             nodes.analyser.disconnect();
             if (nodes.meter) nodes.meter.disconnect();
+            if (nodes.fx) {
+                nodes.fx.eq.low.disconnect(); nodes.fx.eq.mid.disconnect(); nodes.fx.eq.high.disconnect();
+                nodes.fx.compressor.disconnect();
+                nodes.fx.reverb.dry.disconnect(); nodes.fx.reverb.wet.disconnect();
+                nodes.fx.reverb.conv.disconnect(); nodes.fx.reverb.merge.disconnect();
+                nodes.fx.delay.node.disconnect(); nodes.fx.delay.feedback.disconnect();
+                nodes.fx.delay.wet.disconnect(); nodes.fx.delay.dry.disconnect(); nodes.fx.delay.merge.disconnect();
+            }
             this.trackNodes.delete(trackId);
         }
     }
@@ -6820,6 +7091,77 @@ class DAWController {
         }
     }
 
+    // ── Track FX Panel ──
+    _fxPanelTrackId = null;
+
+    toggleFxPanel(trackId) {
+        const panel = document.getElementById('track-fx-panel');
+        if (this._fxPanelTrackId === trackId && panel.classList.contains('visible')) {
+            this.closeFxPanel();
+            return;
+        }
+        this._fxPanelTrackId = trackId;
+        const track = state.tracks.find(t => t.id === trackId);
+        document.getElementById('fx-panel-title').textContent = `FX: ${track ? track.name : trackId}`;
+        panel.classList.add('visible');
+
+        // Sync UI with current FX state
+        const nodes = this.engine.trackNodes.get(trackId);
+        if (nodes && nodes.fx) {
+            const fx = nodes.fx;
+            panel.querySelector('[data-fx="eq-low"]').value = fx.eq.low.gain.value;
+            panel.querySelector('[data-fx="eq-mid"]').value = fx.eq.mid.gain.value;
+            panel.querySelector('[data-fx="eq-high"]').value = fx.eq.high.gain.value;
+            panel.querySelector('[data-fx="comp-threshold"]').value = fx.compressor.threshold.value;
+            panel.querySelector('[data-fx="comp-ratio"]').value = fx.compressor.ratio.value;
+            panel.querySelector('[data-fx="reverb-wet"]').value = fx.reverb.wet.gain.value;
+            panel.querySelector('[data-fx="delay-time"]').value = fx.delay.node.delayTime.value;
+            panel.querySelector('[data-fx="delay-feedback"]').value = fx.delay.feedback.gain.value;
+            panel.querySelector('[data-fx="delay-wet"]').value = fx.delay.wet.gain.value;
+            // Update value displays
+            panel.querySelectorAll('.fx-param input').forEach(inp => this._updateFxDisplay(inp));
+            // Sync toggles
+            panel.querySelectorAll('[data-fx-toggle]').forEach(btn => {
+                const type = btn.dataset.fxToggle;
+                btn.classList.toggle('on', fx.enabled[type]);
+            });
+        }
+    }
+
+    closeFxPanel() {
+        document.getElementById('track-fx-panel').classList.remove('visible');
+        this._fxPanelTrackId = null;
+    }
+
+    handleFxParam(input) {
+        if (!this._fxPanelTrackId) return;
+        const fxType = input.dataset.fx;
+        const value = parseFloat(input.value);
+        this.engine.setTrackFx(this._fxPanelTrackId, fxType, null, value);
+        this._updateFxDisplay(input);
+    }
+
+    _updateFxDisplay(input) {
+        const val = parseFloat(input.value);
+        const display = input.parentElement.querySelector('.fx-val');
+        if (!display) return;
+        const fx = input.dataset.fx;
+        if (fx.startsWith('eq-')) display.textContent = `${val > 0 ? '+' : ''}${val} dB`;
+        else if (fx === 'comp-threshold') display.textContent = `${val} dB`;
+        else if (fx === 'comp-ratio') display.textContent = `${val}:1`;
+        else if (fx === 'delay-time') display.textContent = `${Math.round(val * 1000)}ms`;
+        else if (fx.includes('feedback') || fx.includes('wet')) display.textContent = `${Math.round(val * 100)}%`;
+    }
+
+    toggleFxEnabled(btn, fxType) {
+        if (!this._fxPanelTrackId) return;
+        btn.classList.toggle('on');
+        const nodes = this.engine.trackNodes.get(this._fxPanelTrackId);
+        if (nodes && nodes.fx) {
+            nodes.fx.enabled[fxType] = btn.classList.contains('on');
+        }
+    }
+
     // File handling
     async handleFileUpload(files) {
         for (const file of files) {
@@ -6965,6 +7307,7 @@ class DAWController {
                         </div>
                         <div class="mixer-fader-value" data-fader-val="${track.id}">${volDb} dB</div>
                     </div>
+                    <button class="mixer-fx-btn" onclick="daw.toggleFxPanel('${track.id}')" title="Track Effects">FX</button>
                     <div class="mixer-buttons">
                         <button class="mixer-btn ${track.mute ? 'mute-active' : ''}"
                                 onclick="daw.toggleMute('${track.id}')">M</button>
