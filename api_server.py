@@ -353,10 +353,15 @@ def scan_audio():
                   '.wv', '.8svx', '.cda', '.ac3', '.dts', '.pcm', '.w64', '.rf64'}
     results = []
     start = time.time()
+    timeout = 120  # 2 minuten max, geen limiet op aantal
 
     for search_dir in search_dirs:
+        if (time.time() - start) > timeout:
+            break
         try:
             for root, dirs, files in os.walk(search_dir):
+                if (time.time() - start) > timeout:
+                    break
                 dirs[:] = [d for d in dirs if not d.startswith('.') and d not in (
                     'node_modules', '__pycache__', '.git', 'ProgramData',
                     'Program Files', 'Program Files (x86)', 'Windows', '$Recycle.Bin',
