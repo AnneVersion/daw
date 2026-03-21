@@ -4502,6 +4502,8 @@ class InstrumentEngine {
             { id: 'lead', icon: '\u{1F3B5}', name: 'Lead Synth', defaultOn: false },
             { id: 'strings', icon: '\u{1F3BB}', name: 'Strings', defaultOn: false },
             { id: 'brass', icon: '\u{1F3BA}', name: 'Brass', defaultOn: false },
+            { id: 'choir', icon: '\u{1F3A4}', name: 'Koor', defaultOn: false },
+            { id: 'scat', icon: '\u{1F5E3}', name: 'Scat', defaultOn: false },
         ];
         let ensHtml = `<div class="ensemble-panel" id="ensemble-panel">
             <div class="ensemble-title">
@@ -5657,6 +5659,8 @@ class InstrumentEngine {
         lead:    { on: false, solo: false, muted: false, volume: 0.7, gainNode: null },
         strings: { on: false, solo: false, muted: false, volume: 0.7, gainNode: null },
         brass:   { on: false, solo: false, muted: false, volume: 0.7, gainNode: null },
+        choir:   { on: false, solo: false, muted: false, volume: 0.7, gainNode: null },
+        scat:    { on: false, solo: false, muted: false, volume: 0.7, gainNode: null },
     };
 
     ensembleToggle(id) {
@@ -5812,6 +5816,15 @@ class InstrumentEngine {
             brassPhraseLen: 3 + Math.floor(Math.random() * 4),
             brassResting: false,
             brassRestTicks: 0,
+            // Choir state
+            choirLastChordIdx: -1,
+            choirVowelIdx: 0,
+            // Scat state
+            scatLastMidi: 65 + rootIdx,
+            scatPhrasePos: 0,
+            scatPhraseLen: 3 + Math.floor(Math.random() * 5),
+            scatResting: false,
+            scatRestTicks: 0,
         };
 
         // Update chord display
@@ -5890,6 +5903,12 @@ class InstrumentEngine {
 
             // --- BRASS ---
             this._ensembleBrassTick(ens, beat16InBar, chord);
+
+            // --- CHOIR ---
+            this._ensembleChoirTick(ens, beat16InBar, chord);
+
+            // --- SCAT ---
+            this._ensembleScatTick(ens, beat16InBar, chord);
 
             ens.tick16++;
         }, sixteenthMs);
@@ -6843,6 +6862,242 @@ class InstrumentEngine {
             voicing.push(sevMidi);
         }
         return voicing;
+    }
+
+    // ============================================================
+    // FORMANT VOCALS - Koor pads (aaah, oooh, eee)
+    // Formant frequencies voor Nederlandse/Italiaanse klinkers:
+    //   A: F1=800, F2=1150  (open "aah")
+    //   O: F1=500, F2=700   (rond "ooh")
+    //   E: F1=400, F2=2000  (helder "eeh")
+    //   I: F1=300, F2=2300  (scherp "ieh")
+    //   U: F1=350, F2=600   (donker "oeh")
+    // ============================================================
+    _vowelFormants = [
+        { name: 'A', f1: 800, f2: 1150, f3: 2800 },
+        { name: 'O', f1: 500, f2: 700,  f3: 2500 },
+        { name: 'E', f1: 400, f2: 2000, f3: 2800 },
+        { name: 'I', f1: 300, f2: 2300, f3: 3000 },
+        { name: 'U', f1: 350, f2: 600,  f3: 2400 },
+    ];
+
+    _playFormantNote(instrumentId, freq, duration, velocity, vowelIdx) {
+        const ctx = this.audioEngine.ctx;
+        if (!ctx) return;
+        const inst = this._ensembleInstruments[instrumentId];
+        if (!inst || !inst.gainNode) return;
+
+        const vowel = this._vowelFormants[vowelIdx % this._vowelFormants.length];
+        const now = ctx.currentTime;
+        const end = now + duration;
+
+        // Grondtoon: sawtooth (rijke boventonen voor formant filtering)
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.value = freq;
+
+        // Tweede oscillator: licht gedetuned voor warmte
+        const osc2 = ctx.createOscillator();
+        osc2.type = 'sawtooth';
+        osc2.frequency.value = freq * 1.003;
+
+        // Formant filters (3 bandpass filters = vocale tract simulatie)
+        const f1 = ctx.createBiquadFilter();
+        f1.type = 'bandpass'; f1.frequency.value = vowel.f1; f1.Q.value = 8;
+        const f2 = ctx.createBiquadFilter();
+        f2.type = 'bandpass'; f2.frequency.value = vowel.f2; f2.Q.value = 10;
+        const f3 = ctx.createBiquadFilter();
+        f3.type = 'bandpass'; f3.frequency.value = vowel.f3; f3.Q.value = 12;
+
+        // Mix de formanten
+        const formantMix = ctx.createGain();
+        formantMix.gain.value = 0;
+
+        // Envelope: langzame attack (koorzang)
+        const attackTime = Math.min(duration * 0.3, 0.4);
+        const releaseTime = Math.min(duration * 0.2, 0.3);
+        formantMix.gain.setValueAtTime(0, now);
+        formantMix.gain.linearRampToValueAtTime(velocity * 0.4, now + attackTime);
+        formantMix.gain.linearRampToValueAtTime(velocity * 0.35, end - releaseTime);
+        formantMix.gain.linearRampToValueAtTime(0, end);
+
+        // Routing: osc → filters → mix → gainNode
+        const merger = ctx.createGain();
+        merger.gain.value = 0.5;
+        osc.connect(f1); osc.connect(f2); osc.connect(f3);
+        osc2.connect(f1); osc2.connect(f2); osc2.connect(f3);
+        f1.connect(merger); f2.connect(merger); f3.connect(merger);
+        merger.connect(formantMix);
+        formantMix.connect(inst.gainNode);
+
+        osc.start(now); osc2.start(now);
+        osc.stop(end + 0.05); osc2.stop(end + 0.05);
+    }
+
+    // ---- CHOIR: koorzang pads op akkoordwissels ----
+    _ensembleChoirTick(ens, beat16, chord) {
+        if (!this._ensembleInstruments.choir.on) return;
+
+        const ticksPerChord = ens.beatsPerChord * 4;
+        if (beat16 !== 0 || ens.tick16 % ticksPerChord !== 0) return;
+        if (ens.choirLastChordIdx === ens.currentChordIdx) return;
+        ens.choirLastChordIdx = ens.currentChordIdx;
+
+        // Wissel klinker per akkoord (A→O→E→A→U cyclus)
+        const vowelCycle = [0, 1, 2, 0, 4]; // A, O, E, A, U
+        ens.choirVowelIdx = (ens.choirVowelIdx + 1) % vowelCycle.length;
+        const vowel = vowelCycle[ens.choirVowelIdx];
+
+        const voicing = this._getChordVoicing(chord, 55); // Sopraan/alt register
+        const duration = (60 / ens.bpm) * ens.beatsPerChord * 0.85;
+        const vel = 0.2 + ens.intensity * 0.25;
+
+        voicing.forEach((midi, i) => {
+            // Elke stem een iets andere klinker voor menselijk effect
+            const stemVowel = (vowel + i) % this._vowelFormants.length;
+            this._playFormantNote('choir', this._midiToFreq(midi), duration, vel, stemVowel);
+        });
+    }
+
+    // ============================================================
+    // SCAT VOCALS - Bebop/jazz scat improvisatie
+    // Korte syllaben: "ba", "da", "dee", "bop", "doo", "bee"
+    // Gemodelleerd als korte formant bursts met voice leading
+    // ============================================================
+    _scatSyllables = [
+        { vowel: 0, attack: 0.02, name: 'ba' },   // A - open
+        { vowel: 0, attack: 0.01, name: 'da' },   // A - tongstoot
+        { vowel: 2, attack: 0.02, name: 'dee' },  // E - helder
+        { vowel: 1, attack: 0.03, name: 'bop' },  // O - rond
+        { vowel: 4, attack: 0.02, name: 'doo' },  // U - donker
+        { vowel: 2, attack: 0.01, name: 'bee' },  // E - kort
+        { vowel: 3, attack: 0.01, name: 'bi' },   // I - scherp
+        { vowel: 0, attack: 0.02, name: 'sha' },  // A - sibilant
+    ];
+
+    _playScatNote(freq, duration, velocity, syllable) {
+        const ctx = this.audioEngine.ctx;
+        if (!ctx) return;
+        const inst = this._ensembleInstruments.scat;
+        if (!inst || !inst.gainNode) return;
+
+        const syl = this._scatSyllables[syllable % this._scatSyllables.length];
+        const vowel = this._vowelFormants[syl.vowel];
+        const now = ctx.currentTime;
+        const end = now + duration;
+
+        // Grondtoon: mix van sawtooth + noise voor menselijk karakter
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.value = freq;
+        // Lichte vibrato
+        const vibLfo = ctx.createOscillator();
+        vibLfo.frequency.value = 5 + Math.random() * 2;
+        const vibGain = ctx.createGain();
+        vibGain.gain.value = freq * 0.008;
+        vibLfo.connect(vibGain);
+        vibGain.connect(osc.frequency);
+        vibLfo.start(now);
+
+        // Formant filters
+        const f1 = ctx.createBiquadFilter();
+        f1.type = 'bandpass'; f1.frequency.value = vowel.f1; f1.Q.value = 6;
+        const f2 = ctx.createBiquadFilter();
+        f2.type = 'bandpass'; f2.frequency.value = vowel.f2; f2.Q.value = 8;
+
+        const formantMix = ctx.createGain();
+        formantMix.gain.value = 0;
+
+        // Snelle attack (scat = percussief)
+        const attackTime = syl.attack;
+        const releaseTime = Math.min(duration * 0.3, 0.08);
+        formantMix.gain.setValueAtTime(0, now);
+        formantMix.gain.linearRampToValueAtTime(velocity * 0.5, now + attackTime);
+        formantMix.gain.setValueAtTime(velocity * 0.45, end - releaseTime);
+        formantMix.gain.linearRampToValueAtTime(0, end);
+
+        osc.connect(f1); osc.connect(f2);
+        const merger = ctx.createGain();
+        merger.gain.value = 0.7;
+        f1.connect(merger); f2.connect(merger);
+        merger.connect(formantMix);
+        formantMix.connect(inst.gainNode);
+
+        osc.start(now);
+        osc.stop(end + 0.05);
+        vibLfo.stop(end + 0.05);
+    }
+
+    // ---- SCAT: bebop improvisatie met voice leading ----
+    _ensembleScatTick(ens, beat16, chord) {
+        if (!this._ensembleInstruments.scat.on) return;
+        const sixteenthDur = (60 / ens.bpm) / 4;
+
+        if (!ens.scatLastMidi) ens.scatLastMidi = 65 + ens.rootIdx;
+
+        // Phrasing: scat zingt in korte bursts met pauzes
+        if (ens.scatResting) {
+            ens.scatRestTicks = (ens.scatRestTicks || 0) - 1;
+            if (ens.scatRestTicks <= 0) {
+                ens.scatResting = false;
+                ens.scatPhrasePos = 0;
+                ens.scatPhraseLen = 3 + Math.floor(Math.random() * 6);
+            }
+            return;
+        }
+
+        // Ritme: scat is syncopisch, veel achtsten en zestienden
+        const config = ens.config;
+        const isBeat = beat16 % 4 === 0;
+        const isEighth = beat16 % 2 === 0;
+        const density = ens.intensity * (config.density || 0.5) * 0.8;
+        let shouldPlay = false;
+
+        // Call & response: scat antwoordt op lead of brass
+        const otherResting = (ens.leadResting && ens.leadRestTicks > 1) ||
+                            (ens.brassResting && ens.brassRestTicks > 1);
+        const crBonus = otherResting ? 1.8 : 0.8;
+
+        if (config.sixteenths || config.swing) shouldPlay = Math.random() < density * 0.6 * crBonus;
+        else if (isEighth) shouldPlay = Math.random() < density * 0.5 * crBonus;
+        else if (isBeat) shouldPlay = Math.random() < 0.4 * crBonus;
+
+        if (!shouldPlay) return;
+
+        // Voice leading noot selectie (zangbereik: MIDI 58-77, alt/tenor)
+        const note = this._improviseMelody(ens, chord, ens.scatLastMidi, [58, 77], 'scat');
+        if (!note) return;
+
+        // Kies syllable: patronen creëren (ba-da-bee-bop ritme)
+        const syllable = (() => {
+            const pos = ens.scatPhrasePos;
+            if (pos === 0) return [0, 1, 7][Math.floor(Math.random() * 3)]; // ba, da, sha
+            if (isBeat) return [3, 4][Math.floor(Math.random() * 2)];       // bop, doo
+            return [2, 5, 6][Math.floor(Math.random() * 3)];                // dee, bee, bi
+        })();
+
+        const durMultiplier = isBeat ? 2 : (isEighth ? 1.5 : 1);
+        const duration = sixteenthDur * durMultiplier;
+        const vel = 0.25 + ens.tension * 0.3;
+
+        const swingDelay = (beat16 % 2 === 1 && ens.swingAmount > 0)
+            ? sixteenthDur * ens.swingAmount * 1000 : 0;
+
+        if (swingDelay > 0) {
+            setTimeout(() => this._playScatNote(this._midiToFreq(note.midi), duration, vel, syllable), swingDelay);
+        } else {
+            this._playScatNote(this._midiToFreq(note.midi), duration, vel, syllable);
+        }
+
+        ens.scatLastMidi = note.midi;
+        ens.scatPhrasePos++;
+
+        if (ens.scatPhrasePos >= ens.scatPhraseLen) {
+            ens.scatResting = true;
+            ens.scatRestTicks = 6 + Math.floor(Math.random() * 10);
+            ens.scatPhrasePos = 0;
+            ens.scatPhraseLen = 3 + Math.floor(Math.random() * 6);
+        }
     }
 
     stopImprovisation() {
