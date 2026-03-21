@@ -352,24 +352,17 @@ def scan_audio():
                   '.dss', '.dvf', '.msv', '.nmf', '.oga', '.mogg', '.raw', '.vox', '.tta',
                   '.wv', '.8svx', '.cda', '.ac3', '.dts', '.pcm', '.w64', '.rf64'}
     results = []
-    max_results = 500
     start = time.time()
-    timeout = 60  # max 60 seconden zoeken
 
     for search_dir in search_dirs:
-        if len(results) >= max_results or (time.time() - start) > timeout:
-            break
         try:
             for root, dirs, files in os.walk(search_dir):
-                # Skip alleen systeem/rommel mappen
                 dirs[:] = [d for d in dirs if not d.startswith('.') and d not in (
                     'node_modules', '__pycache__', '.git', 'ProgramData',
                     'Program Files', 'Program Files (x86)', 'Windows', '$Recycle.Bin',
                     'System Volume Information', 'Recovery', '$WinREAgent',
                     'MSOCache', 'PerfLogs', 'Intel'
                 )]
-                if (time.time() - start) > timeout or len(results) >= max_results:
-                    break
                 for f in files:
                     ext = os.path.splitext(f)[1].lower()
                     if ext in audio_exts:
@@ -389,18 +382,14 @@ def scan_audio():
                             })
                         except (PermissionError, OSError):
                             pass
-                        if len(results) >= max_results:
-                            break
         except (PermissionError, OSError):
             continue
 
-    # Sorteer op datum (nieuwste eerst)
     results.sort(key=lambda x: x.get('modified', ''), reverse=True)
 
     return jsonify({
         'results': results,
         'count': len(results),
-        'truncated': len(results) >= max_results,
         'scan_time': round(time.time() - start, 1)
     })
 
