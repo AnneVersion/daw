@@ -237,6 +237,7 @@ body {
     animation: spin 1.8s linear infinite;
 }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
 .deck[data-deck="A"] .platter { box-shadow: 0 0 20px var(--glow-a), inset 0 0 30px rgba(0,0,0,0.5); }
 .deck[data-deck="B"] .platter { box-shadow: 0 0 20px var(--glow-b), inset 0 0 30px rgba(0,0,0,0.5); }
@@ -1156,12 +1157,15 @@ body {
                 <button class="mixer-fx-btn" id="mfx-crush" onclick="djApp.toggleMasterFx('bitcrush')" style="font-size:8px;padding:2px 5px;border-radius:3px;border:1px solid var(--border);background:var(--bg-darkest);color:var(--text-dim);cursor:pointer">Crush</button>
                 <button class="mixer-fx-btn" id="mfx-dist" onclick="djApp.toggleMasterFx('distort')" style="font-size:8px;padding:2px 5px;border-radius:3px;border:1px solid var(--border);background:var(--bg-darkest);color:var(--text-dim);cursor:pointer">Dist</button>
             </div>
-            <div style="display:flex;gap:4px;justify-content:center;padding:2px 0">
+            <div style="display:flex;gap:4px;justify-content:center;padding:2px 0;align-items:center;flex-wrap:wrap">
+                <button id="dj-rec-btn" onclick="djApp.toggleRecording()"
+                    style="font-size:16px;padding:3px 8px;border-radius:50%;border:2px solid #f44336;background:var(--bg-darkest);color:#f44336;cursor:pointer;font-weight:700;user-select:none;width:32px;height:32px;display:flex;align-items:center;justify-content:center" title="Opnemen">&#x23FA;</button>
                 <button id="sfx-horn" onmousedown="djApp.playHorn()" onmouseup="djApp.stopHorn()" ontouchstart="djApp.playHorn()" ontouchend="djApp.stopHorn()"
                     style="font-size:14px;padding:4px 10px;border-radius:6px;border:2px solid #ff9800;background:linear-gradient(135deg,#ff9800,#f44336);color:#fff;cursor:pointer;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,0.5);user-select:none">&#x1F4E2;</button>
                 <button id="sfx-noise" onmousedown="djApp.startNoise()" onmouseup="djApp.stopNoise()" ontouchstart="djApp.startNoise()" ontouchend="djApp.stopNoise()"
                     style="font-size:14px;padding:4px 10px;border-radius:6px;border:2px solid #9e9e9e;background:linear-gradient(135deg,#616161,#9e9e9e);color:#fff;cursor:pointer;font-weight:700;user-select:none">&#x26A1;</button>
-                <select id="horn-type" onchange="djApp.hornType=this.value" style="font-size:8px;padding:2px;background:var(--bg-darkest);border:1px solid var(--border);color:var(--text-dim);border-radius:3px;width:60px">
+                <button onclick="djApp.resetAllFx()" style="font-size:8px;padding:3px 6px;border-radius:3px;border:1px solid var(--border);background:var(--bg-darkest);color:var(--text-dim);cursor:pointer" title="Reset alle effecten">Reset FX</button>
+                <select id="horn-type" onchange="djApp.hornType=this.value" style="font-size:8px;padding:2px;background:var(--bg-darkest);border:1px solid var(--border);color:var(--text-dim);border-radius:3px;width:55px">
                     <option value="airhorn">Airhorn</option>
                     <option value="foghorn">Foghorn</option>
                     <option value="siren">Sirene</option>
@@ -2952,6 +2956,75 @@ class DJApp {
         const url = `/api/local-audio?path=${encodeURIComponent(filepath)}`;
         const deckId = this.decks.A.source ? 'B' : 'A';
         this.loadTrack(deckId, url, name);
+    }
+
+    // ============================================================
+    // OPNAME - Record master output
+    // ============================================================
+    _recording = false;
+    _mediaRecorder = null;
+    _recordChunks = [];
+
+    toggleRecording() {
+        if (!this.audioCtx) this.initAudioContext();
+        const btn = document.getElementById('dj-rec-btn');
+
+        if (this._recording) {
+            // Stop opname
+            this._mediaRecorder.stop();
+            this._recording = false;
+            if (btn) { btn.style.background = 'var(--bg-darkest)'; btn.style.animation = ''; }
+        } else {
+            // Start opname
+            const dest = this.audioCtx.createMediaStreamDestination();
+            this.masterGain.connect(dest);
+
+            this._recordChunks = [];
+            const mr = new MediaRecorder(dest.stream, { mimeType: 'audio/webm' });
+            mr.ondataavailable = (e) => { if (e.data.size > 0) this._recordChunks.push(e.data); };
+            mr.onstop = () => {
+                this.masterGain.disconnect(dest);
+                const blob = new Blob(this._recordChunks, { type: 'audio/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `dj-mix-${new Date().toISOString().slice(0,16).replace(':','-')}.webm`;
+                a.click();
+                URL.revokeObjectURL(url);
+            };
+            mr.start();
+            this._mediaRecorder = mr;
+            this._recording = true;
+            if (btn) { btn.style.background = '#f44336'; btn.style.animation = 'pulse 1s infinite'; }
+        }
+    }
+
+    // ============================================================
+    // RESET ALL FX
+    // ============================================================
+    resetAllFx() {
+        // Reset master FX
+        for (const [name, fx] of Object.entries(this._masterFx)) {
+            if (fx.active) this.toggleMasterFx(name);
+        }
+        // Reset deck FX
+        ['A', 'B'].forEach(deckId => {
+            const deck = this.decks[deckId];
+            if (deck.fx) {
+                for (const [fxName, fxState] of Object.entries(deck.fx)) {
+                    if (fxState.active) this.toggleFx(deckId, fxName);
+                }
+            }
+        });
+        // Reset EQ sliders
+        ['a', 'b'].forEach(d => {
+            ['hi', 'mid', 'lo'].forEach(band => {
+                const el = document.getElementById(`eq-${band}-${d}`);
+                if (el) { el.value = 0; el.dispatchEvent(new Event('input')); }
+            });
+            const filterEl = document.getElementById(`filter-${d}`);
+            if (filterEl) { filterEl.value = 50; filterEl.dispatchEvent(new Event('input')); }
+        });
     }
 
     // ============================================================
