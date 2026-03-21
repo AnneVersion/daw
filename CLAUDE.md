@@ -60,6 +60,10 @@ PostgreSQL database `daw`, user `postgres`, pw `postgres`:
 - **DJ SFX**: Toeter (5 types: airhorn/foghorn/sirene/laser/buzzer), witte ruis, master FX knoppen (phaser/flanger/crush/dist)
 - **DJ FX per deck**: Echo, Reverb, Flanger, Filter, Phaser, Bitcrusher, Distortion
 - **Track laden op GitHub Pages**: proxy fallback → directe URL (Jamendo/Archive werken, Freesound niet wegens CORS)
+- **DJ FX Presets**: opslaan/laden van effect combinaties (localStorage)
+- **DJ Rad van Fortuin**: random FX + EQ + genre selectie met spin animatie
+- **DJ Sampler**: upload sample, 8 pitch pads (C-C+), play via master
+- **DJ Opname**: record master output als .webm, pulserend rood tijdens opname
 - **API Keys**: Jamendo `d14314a3` in dj.html, Freesound in `.env`
 
 ## Audio Scanner (maart 2026)

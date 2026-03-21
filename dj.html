@@ -1150,8 +1150,17 @@ body {
                 <div class="crossfader-labels"><span>A</span><span>B</span></div>
                 <input type="range" id="crossfader" min="0" max="1" step="0.01" value="0.5">
             </div>
-            <!-- Master FX + SFX knoppen -->
-            <div style="display:flex;gap:3px;flex-wrap:wrap;padding:4px 0;justify-content:center">
+            <!-- FX Presets + Rad van Fortuin -->
+            <div style="display:flex;gap:3px;padding:2px 4px;justify-content:center;align-items:center;flex-wrap:wrap">
+                <select id="fx-preset-select" style="font-size:8px;padding:2px 4px;background:var(--bg-darkest);border:1px solid var(--border);color:var(--text-dim);border-radius:3px;flex:1;max-width:90px">
+                    <option value="">FX Presets</option>
+                    <option value="__save__">+ Opslaan...</option>
+                </select>
+                <button onclick="djApp.loadFxPreset()" style="font-size:8px;padding:2px 5px;border-radius:3px;border:1px solid var(--border);background:var(--bg-darkest);color:var(--text-dim);cursor:pointer">Laad</button>
+                <button onclick="djApp.spinDjWheel()" style="font-size:10px;padding:2px 6px;border-radius:3px;border:1px solid #ff9800;background:linear-gradient(135deg,#f44,#ff0,#0f0,#0ff);color:#fff;cursor:pointer;font-weight:700" title="Rad van Fortuin">&#x1F3B2;</button>
+            </div>
+            <!-- Master FX knoppen -->
+            <div style="display:flex;gap:3px;flex-wrap:wrap;padding:2px 0;justify-content:center">
                 <button class="mixer-fx-btn" id="mfx-phaser" onclick="djApp.toggleMasterFx('phaser')" style="font-size:8px;padding:2px 5px;border-radius:3px;border:1px solid var(--border);background:var(--bg-darkest);color:var(--text-dim);cursor:pointer">Phaser</button>
                 <button class="mixer-fx-btn" id="mfx-flanger" onclick="djApp.toggleMasterFx('flanger')" style="font-size:8px;padding:2px 5px;border-radius:3px;border:1px solid var(--border);background:var(--bg-darkest);color:var(--text-dim);cursor:pointer">Flanger</button>
                 <button class="mixer-fx-btn" id="mfx-crush" onclick="djApp.toggleMasterFx('bitcrush')" style="font-size:8px;padding:2px 5px;border-radius:3px;border:1px solid var(--border);background:var(--bg-darkest);color:var(--text-dim);cursor:pointer">Crush</button>
@@ -1266,6 +1275,7 @@ body {
             <button class="browser-tab" data-tab="archive" onclick="djApp.switchBrowserTab('archive')">Internet Archive</button>
             <button class="browser-tab" data-tab="fma" onclick="djApp.switchBrowserTab('fma')">Free Music Archive</button>
             <button class="browser-tab" data-tab="bestanden" onclick="djApp.switchBrowserTab('bestanden')">Bestanden</button>
+            <button class="browser-tab" data-tab="sampler" onclick="djApp.switchBrowserTab('sampler')">Sampler</button>
             <button class="browser-tab" data-tab="opnames" onclick="djApp.switchBrowserTab('opnames')">Opnames</button>
         </div>
 
@@ -1374,6 +1384,17 @@ body {
         </div>
 
         <!-- Opnames Tab -->
+        <!-- Sampler Tab -->
+        <div class="browser-tab-content" id="tab-sampler">
+            <div style="padding:12px;text-align:center">
+                <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:8px">Sampler</div>
+                <p style="font-size:11px;color:var(--text-dim);margin-bottom:10px">Laad een sample en speel het op elk pitchniveau. Houd de knoppen ingedrukt om te spelen.</p>
+                <button onclick="djApp.loadSamplerFile()" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:8px 20px;cursor:pointer;font-weight:700;font-size:12px;margin-bottom:8px">&#x1F4C2; Laad Sample</button>
+                <div id="sampler-info" style="font-size:10px;color:var(--text-dim);margin-bottom:8px">Geen sample geladen</div>
+                <div id="sampler-pads" style="display:grid;grid-template-columns:repeat(8,1fr);gap:4px;max-width:400px;margin:0 auto"></div>
+            </div>
+        </div>
+
         <div class="browser-tab-content" id="tab-opnames">
             <div class="browser-search-bar">
                 <input type="text" class="browser-search-input" id="opnames-search" placeholder="Zoek in opnames...">
@@ -1413,6 +1434,7 @@ class DJApp {
         this.initAudioContext();
         this.bindEvents();
         this.startAnimationLoop();
+        this._updatePresetSelect();
     }
 
     createDeckState() {
@@ -2952,10 +2974,201 @@ class DJApp {
         }
     }
 
+    // ============================================================
+    // DJ SAMPLER
+    // ============================================================
+    _samplerBuffer = null;
+    _samplerBaseNote = 60;
+    _samplerActiveSources = [];
+
+    async loadSamplerFile() {
+        if (!this.audioCtx) this.initAudioContext();
+        const input = document.createElement('input');
+        input.type = 'file'; input.accept = 'audio/*';
+        input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const buf = await file.arrayBuffer();
+            this._samplerBuffer = await this.audioCtx.decodeAudioData(buf);
+            document.getElementById('sampler-info').textContent = `Geladen: ${file.name} (${(this._samplerBuffer.duration).toFixed(1)}s)`;
+            this._buildSamplerPads();
+        };
+        input.click();
+    }
+
+    _buildSamplerPads() {
+        const container = document.getElementById('sampler-pads');
+        if (!container) return;
+        const notes = ['C','D','E','F','G','A','B','C+'];
+        const semitones = [0, 2, 4, 5, 7, 9, 11, 12];
+        container.innerHTML = '';
+        semitones.forEach((st, i) => {
+            const pad = document.createElement('button');
+            pad.textContent = notes[i];
+            pad.style.cssText = 'padding:12px 4px;border-radius:6px;border:1px solid var(--border);background:var(--bg-panel);color:var(--text);cursor:pointer;font-weight:700;font-size:11px;user-select:none;transition:background 0.1s';
+            pad.onmousedown = () => { pad.style.background = 'var(--accent)'; this._playSamplerPad(st); };
+            pad.onmouseup = () => { pad.style.background = 'var(--bg-panel)'; };
+            pad.onmouseleave = () => { pad.style.background = 'var(--bg-panel)'; };
+            container.appendChild(pad);
+        });
+    }
+
+    _playSamplerPad(semitones) {
+        if (!this._samplerBuffer || !this.audioCtx) return;
+        const src = this.audioCtx.createBufferSource();
+        src.buffer = this._samplerBuffer;
+        src.playbackRate.value = Math.pow(2, semitones / 12);
+        src.connect(this.masterGain);
+        src.start();
+        this._samplerActiveSources.push(src);
+        src.onended = () => {
+            this._samplerActiveSources = this._samplerActiveSources.filter(s => s !== src);
+        };
+    }
+
     loadLocalFile(filepath, name) {
         const url = `/api/local-audio?path=${encodeURIComponent(filepath)}`;
         const deckId = this.decks.A.source ? 'B' : 'A';
         this.loadTrack(deckId, url, name);
+    }
+
+    // ============================================================
+    // FX PRESETS - Opslaan en laden van effect combinaties
+    // ============================================================
+    _fxPresets = JSON.parse(localStorage.getItem('dj_fx_presets') || '{}');
+
+    saveFxPreset() {
+        const name = prompt('Naam voor deze preset:');
+        if (!name) return;
+
+        const preset = {
+            masterFx: {},
+            eq: {},
+            filters: {}
+        };
+        // Master FX state
+        for (const [fxName, fx] of Object.entries(this._masterFx)) {
+            preset.masterFx[fxName] = fx.active || false;
+        }
+        // EQ per deck
+        ['a', 'b'].forEach(d => {
+            preset.eq[d] = {};
+            ['hi', 'mid', 'lo'].forEach(band => {
+                const el = document.getElementById(`eq-${band}-${d}`);
+                preset.eq[d][band] = el ? parseFloat(el.value) : 0;
+            });
+            const filterEl = document.getElementById(`filter-${d}`);
+            preset.filters[d] = filterEl ? parseFloat(filterEl.value) : 50;
+        });
+
+        this._fxPresets[name] = preset;
+        localStorage.setItem('dj_fx_presets', JSON.stringify(this._fxPresets));
+        this._updatePresetSelect();
+    }
+
+    loadFxPreset() {
+        const sel = document.getElementById('fx-preset-select');
+        const name = sel?.value;
+        if (!name) return;
+        if (name === '__save__') { this.saveFxPreset(); sel.value = ''; return; }
+
+        const preset = this._fxPresets[name];
+        if (!preset) return;
+
+        // Reset eerst
+        this.resetAllFx();
+
+        // Laad master FX
+        if (preset.masterFx) {
+            for (const [fxName, active] of Object.entries(preset.masterFx)) {
+                if (active) this.toggleMasterFx(fxName);
+            }
+        }
+        // Laad EQ
+        if (preset.eq) {
+            ['a', 'b'].forEach(d => {
+                if (!preset.eq[d]) return;
+                ['hi', 'mid', 'lo'].forEach(band => {
+                    const el = document.getElementById(`eq-${band}-${d}`);
+                    if (el && preset.eq[d][band] !== undefined) {
+                        el.value = preset.eq[d][band];
+                        el.dispatchEvent(new Event('input'));
+                    }
+                });
+            });
+        }
+        // Laad filters
+        if (preset.filters) {
+            ['a', 'b'].forEach(d => {
+                const el = document.getElementById(`filter-${d}`);
+                if (el && preset.filters[d] !== undefined) {
+                    el.value = preset.filters[d];
+                    el.dispatchEvent(new Event('input'));
+                }
+            });
+        }
+    }
+
+    _updatePresetSelect() {
+        const sel = document.getElementById('fx-preset-select');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">FX Presets</option><option value="__save__">+ Opslaan...</option>';
+        for (const name of Object.keys(this._fxPresets)) {
+            const opt = document.createElement('option');
+            opt.value = name; opt.textContent = name;
+            sel.appendChild(opt);
+        }
+    }
+
+    // ============================================================
+    // RAD VAN FORTUIN (DJ) - Random FX + genre
+    // ============================================================
+    spinDjWheel() {
+        const fxOptions = ['phaser', 'flanger', 'bitcrush', 'distort'];
+        const genres = ['Electronic', 'Hip-Hop', 'Jazz', 'Pop', 'Rock', 'Ambient', 'Classical', 'Reggae', 'Latin', 'Blues', 'Funk', 'Soul'];
+
+        // Reset eerst
+        this.resetAllFx();
+
+        // Random 1-3 master FX
+        const numFx = 1 + Math.floor(Math.random() * 3);
+        const shuffled = [...fxOptions].sort(() => Math.random() - 0.5);
+        for (let i = 0; i < numFx; i++) {
+            this.toggleMasterFx(shuffled[i]);
+        }
+
+        // Random EQ boost/cut
+        ['a', 'b'].forEach(d => {
+            ['hi', 'mid', 'lo'].forEach(band => {
+                const el = document.getElementById(`eq-${band}-${d}`);
+                if (el) {
+                    el.value = -6 + Math.floor(Math.random() * 12);
+                    el.dispatchEvent(new Event('input'));
+                }
+            });
+        });
+
+        // Random filter positie
+        ['a', 'b'].forEach(d => {
+            const el = document.getElementById(`filter-${d}`);
+            if (el) {
+                el.value = 20 + Math.floor(Math.random() * 60);
+                el.dispatchEvent(new Event('input'));
+            }
+        });
+
+        // Klik random genre
+        const genre = genres[Math.floor(Math.random() * genres.length)];
+        const chips = document.querySelectorAll('.genre-chip');
+        chips.forEach(c => { if (c.textContent === genre) c.click(); });
+
+        // Visuele feedback
+        const btn = document.querySelector('[title="Rad van Fortuin"]');
+        if (btn) {
+            btn.style.transform = 'rotate(720deg)';
+            btn.style.transition = 'transform 1s ease-out';
+            setTimeout(() => { btn.style.transform = ''; btn.style.transition = ''; }, 1000);
+        }
     }
 
     // ============================================================
