@@ -324,6 +324,105 @@ def proxy_audio():
     except Exception as e:
         return jsonify({"error": str(e)}), 502
 
+# --- Lokale audio bestanden zoeken ---
+@app.route('/api/scan-audio')
+def scan_audio():
+    """Zoek audio bestanden op de computer."""
+    import time
+    q = request.args.get('q', '').lower()
+    scan_path = request.args.get('path', '')
+
+    # Standaard zoeklocaties
+    home = Path.home()
+    default_paths = [
+        home / 'Music',
+        home / 'Downloads',
+        home / 'Desktop',
+        home / 'Documents',
+        home / 'OneDrive' / 'Music',
+        home / 'OneDrive' / 'Documents',
+        Path('E:/'),
+    ]
+
+    if scan_path:
+        search_dirs = [Path(scan_path)]
+    else:
+        search_dirs = [p for p in default_paths if p.exists()]
+
+    audio_exts = {'.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.wma', '.aiff', '.opus', '.webm'}
+    results = []
+    max_results = 200
+    start = time.time()
+    timeout = 10  # max 10 seconden zoeken
+
+    for search_dir in search_dirs:
+        if len(results) >= max_results or (time.time() - start) > timeout:
+            break
+        try:
+            for root, dirs, files in os.walk(search_dir):
+                # Skip verborgen/systeem mappen
+                dirs[:] = [d for d in dirs if not d.startswith('.') and d not in (
+                    'node_modules', '__pycache__', '.git', 'AppData', 'ProgramData',
+                    'Program Files', 'Program Files (x86)', 'Windows', '$Recycle.Bin'
+                )]
+                if (time.time() - start) > timeout or len(results) >= max_results:
+                    break
+                for f in files:
+                    ext = os.path.splitext(f)[1].lower()
+                    if ext in audio_exts:
+                        if q and q not in f.lower() and q not in root.lower():
+                            continue
+                        filepath = os.path.join(root, f)
+                        try:
+                            stat = os.stat(filepath)
+                            size_mb = round(stat.st_size / (1024 * 1024), 1)
+                            results.append({
+                                'name': f,
+                                'path': filepath.replace('\\', '/'),
+                                'ext': ext[1:],
+                                'size_mb': size_mb,
+                                'modified': datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d'),
+                                'folder': root.replace('\\', '/')
+                            })
+                        except (PermissionError, OSError):
+                            pass
+                        if len(results) >= max_results:
+                            break
+        except (PermissionError, OSError):
+            continue
+
+    # Sorteer op datum (nieuwste eerst)
+    results.sort(key=lambda x: x.get('modified', ''), reverse=True)
+
+    return jsonify({
+        'results': results,
+        'count': len(results),
+        'truncated': len(results) >= max_results,
+        'scan_time': round(time.time() - start, 1)
+    })
+
+
+@app.route('/api/local-audio')
+def serve_local_audio():
+    """Serveer een lokaal audio bestand voor de browser."""
+    filepath = request.args.get('path', '')
+    if not filepath or not os.path.isfile(filepath):
+        return jsonify({"error": "Bestand niet gevonden"}), 404
+
+    audio_exts = {'.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.wma', '.aiff', '.opus', '.webm'}
+    ext = os.path.splitext(filepath)[1].lower()
+    if ext not in audio_exts:
+        return jsonify({"error": "Geen audio bestand"}), 400
+
+    mime_types = {
+        '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.flac': 'audio/flac',
+        '.ogg': 'audio/ogg', '.m4a': 'audio/mp4', '.aac': 'audio/aac',
+        '.wma': 'audio/x-ms-wma', '.aiff': 'audio/aiff', '.opus': 'audio/opus',
+        '.webm': 'audio/webm'
+    }
+    return send_file(filepath, mimetype=mime_types.get(ext, 'audio/mpeg'))
+
+
 # --- Start ---
 if __name__ == '__main__':
     print("DAW API Server: http://localhost:8086")

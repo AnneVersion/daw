@@ -1326,17 +1326,16 @@ body {
         <!-- Bestanden Tab -->
         <div class="browser-tab-content" id="tab-bestanden">
             <div class="browser-search-bar">
-                <input type="text" class="browser-search-input" id="search-input" placeholder="Zoek in lokale bestanden...">
+                <input type="text" class="browser-search-input" id="search-input" placeholder="Zoek audio op je computer..." onkeydown="if(event.key==='Enter') djApp.scanLocalAudio()">
+                <button class="browser-search-btn" onclick="djApp.scanLocalAudio()" title="Zoek audio bestanden op je computer">🔍 Scan</button>
                 <input type="file" id="file-input" accept="audio/*" multiple>
-                <button class="browser-search-btn" onclick="document.getElementById('file-input').click()">+ Bestanden</button>
+                <button class="browser-search-btn" onclick="document.getElementById('file-input').click()" title="Upload bestanden">+ Upload</button>
             </div>
-            <div class="file-drop-zone" id="file-drop-zone">
-                Sleep audiobestanden hierheen of klik op "+ Bestanden"
+            <div class="browser-header-row" style="display:grid; grid-template-columns: 1fr 50px 50px 70px 30px;">
+                <span>Bestand / Map</span><span>Type</span><span>MB</span><span>Datum</span><span></span>
             </div>
-            <div class="browser-header-row" style="display:grid; grid-template-columns: 1fr 70px 50px 60px 80px 80px;">
-                <span>Titel / Artiest</span><span>Artiest</span><span>BPM</span><span>Key</span><span>Duur</span><span></span>
-            </div>
-            <div class="browser-list" id="browser-list"></div>
+            <div class="results-grid" id="local-scan-results" style="max-height: calc(100% - 60px);"></div>
+            <div class="browser-list" id="browser-list" style="display:none"></div>
         </div>
 
         <!-- Opnames Tab -->
@@ -2863,6 +2862,59 @@ class DJApp {
             this.animFrame = requestAnimationFrame(loop);
         };
         loop();
+    }
+
+    // ---- Lokale audio scanner ----
+    async scanLocalAudio() {
+        const query = document.getElementById('search-input').value.trim();
+        const container = document.getElementById('local-scan-results');
+        container.innerHTML = '<div class="browser-loading"><div class="spinner"></div><span>Audio bestanden zoeken...</span></div>';
+
+        try {
+            const resp = await fetch(`/api/scan-audio?q=${encodeURIComponent(query)}`);
+            const data = await resp.json();
+
+            if (!data.results || data.results.length === 0) {
+                container.innerHTML = '<div class="browser-empty">Geen audio bestanden gevonden' + (query ? ` voor "${query}"` : '') + '</div>';
+                return;
+            }
+
+            let html = '';
+            for (const file of data.results) {
+                html += `<div class="result-row" style="display:grid; grid-template-columns: 1fr 50px 50px 70px 30px; align-items:center; padding:4px 8px; border-bottom:1px solid var(--border); cursor:pointer; font-size:11px;"
+                    draggable="true"
+                    data-audio-url="/api/local-audio?path=${encodeURIComponent(file.path)}"
+                    data-title="${file.name}"
+                    ondragstart="event.dataTransfer.setData('text/plain', '/api/local-audio?path=${encodeURIComponent(file.path)}'); event.dataTransfer.setData('title', '${file.name.replace(/'/g, "\\'")}')"
+                    title="${file.folder}">
+                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                        <span style="color:var(--text-bright)">${file.name}</span><br>
+                        <span style="color:var(--text-dim); font-size:9px">${file.folder}</span>
+                    </span>
+                    <span style="color:var(--text-dim); text-transform:uppercase">${file.ext}</span>
+                    <span style="color:var(--text-dim)">${file.size_mb}</span>
+                    <span style="color:var(--text-dim)">${file.modified}</span>
+                    <span>
+                        <button class="deck-btn" style="padding:2px 6px; font-size:10px" onclick="event.stopPropagation(); djApp.loadLocalFile('${file.path.replace(/'/g, "\\'")}', '${file.name.replace(/'/g, "\\'")}')">▶</button>
+                    </span>
+                </div>`;
+            }
+
+            const info = `<div style="padding:4px 8px; font-size:10px; color:var(--text-dim); border-bottom:1px solid var(--border);">
+                ${data.count} bestanden gevonden${data.truncated ? ' (max bereikt)' : ''} in ${data.scan_time}s — sleep naar deck om af te spelen
+            </div>`;
+            container.innerHTML = info + html;
+
+        } catch (err) {
+            container.innerHTML = `<div class="browser-empty">Fout: ${err.message}</div>`;
+        }
+    }
+
+    loadLocalFile(filepath, name) {
+        const url = `/api/local-audio?path=${encodeURIComponent(filepath)}`;
+        // Laad in het eerste beschikbare deck
+        const deckId = this.decks.A.source ? 'B' : 'A';
+        this.loadTrack(deckId, url, name);
     }
 }
 
