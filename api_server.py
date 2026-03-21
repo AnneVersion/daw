@@ -332,16 +332,14 @@ def scan_audio():
     q = request.args.get('q', '').lower()
     scan_path = request.args.get('path', '')
 
-    # Standaard zoeklocaties
+    # Standaard: scan alle schijven
     home = Path.home()
     default_paths = [
-        home / 'Music',
-        home / 'Downloads',
-        home / 'Desktop',
-        home / 'Documents',
-        home / 'OneDrive' / 'Music',
-        home / 'OneDrive' / 'Documents',
+        home,
+        Path('C:/Users'),
+        Path('D:/'),
         Path('E:/'),
+        Path('F:/'),
     ]
 
     if scan_path:
@@ -349,21 +347,26 @@ def scan_audio():
     else:
         search_dirs = [p for p in default_paths if p.exists()]
 
-    audio_exts = {'.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.wma', '.aiff', '.opus', '.webm'}
+    audio_exts = {'.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.wma', '.aiff', '.opus', '.webm',
+                  '.mid', '.midi', '.amr', '.ape', '.mka', '.ra', '.rm', '.snd', '.au', '.gsm',
+                  '.dss', '.dvf', '.msv', '.nmf', '.oga', '.mogg', '.raw', '.vox', '.tta',
+                  '.wv', '.8svx', '.cda', '.ac3', '.dts', '.pcm', '.w64', '.rf64'}
     results = []
-    max_results = 200
+    max_results = 500
     start = time.time()
-    timeout = 10  # max 10 seconden zoeken
+    timeout = 60  # max 60 seconden zoeken
 
     for search_dir in search_dirs:
         if len(results) >= max_results or (time.time() - start) > timeout:
             break
         try:
             for root, dirs, files in os.walk(search_dir):
-                # Skip verborgen/systeem mappen
+                # Skip alleen systeem/rommel mappen
                 dirs[:] = [d for d in dirs if not d.startswith('.') and d not in (
-                    'node_modules', '__pycache__', '.git', 'AppData', 'ProgramData',
-                    'Program Files', 'Program Files (x86)', 'Windows', '$Recycle.Bin'
+                    'node_modules', '__pycache__', '.git', 'ProgramData',
+                    'Program Files', 'Program Files (x86)', 'Windows', '$Recycle.Bin',
+                    'System Volume Information', 'Recovery', '$WinREAgent',
+                    'MSOCache', 'PerfLogs', 'Intel'
                 )]
                 if (time.time() - start) > timeout or len(results) >= max_results:
                     break
