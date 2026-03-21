@@ -4447,7 +4447,7 @@ class InstrumentEngine {
                     <option value="altered">Altered</option>
                 </select>
 
-                <select id="improv-instrument" class="improv-select" title="Instrument voor improvisatie">
+                <select id="improv-instrument" class="improv-select" title="Instrument voor improvisatie" onchange="daw.instruments.changeImprovInstrument(this.value)">
                     <optgroup label="Melodie">
                         <option value="lead">Lead Synth</option>
                         <option value="flute">Fluit</option>
@@ -7417,6 +7417,50 @@ class InstrumentEngine {
             ens.scatRestTicks = 6 + Math.floor(Math.random() * 10);
             ens.scatPhrasePos = 0;
             ens.scatPhraseLen = 3 + Math.floor(Math.random() * 6);
+        }
+    }
+
+    // ---- Live instrument wisselen tijdens improvisatie ----
+    changeImprovInstrument(instrument) {
+        // Map improv instrument naar SoundFont naam
+        const soundFontMap = {
+            lead: 'synth_lead_2_sawtooth',
+            piano: 'acoustic_grand_piano',
+            bass: 'electric_bass_finger',
+            guitar: 'acoustic_guitar_nylon',
+            organ: 'church_organ',
+            vibes: 'marimba',
+            flute: 'flute',
+            sax: 'tenor_sax',
+            upright: 'contrabass',
+            strings: 'string_ensemble_1',
+            brass: 'trumpet',
+            choir: 'choir_aahs',
+            scat: 'voice_oohs',
+        };
+
+        // Laad SoundFont voor instrumenten die playNote() gebruiken
+        const sfName = soundFontMap[instrument];
+        if (sfName && !['choir','scat','bongos','congas','shaker'].includes(instrument)) {
+            this.loadInstrument(sfName);
+            // Update instrument selector in Instrumenten tab
+            const sel = document.getElementById('instrument-select');
+            if (sel) sel.value = sfName;
+        }
+
+        // Update lopende improvisatie
+        if (this._improv) {
+            this._improv.instrument = instrument;
+            // Gain nodes aanmaken als nodig
+            const ctx = this.audioEngine.ctx;
+            if (ctx) {
+                const inst = this._ensembleInstruments[instrument];
+                if (inst && !inst.gainNode) {
+                    inst.gainNode = ctx.createGain();
+                    inst.gainNode.connect(this.audioEngine.masterGain);
+                }
+                if (inst) { inst.gainNode.gain.value = inst.volume; inst.on = true; }
+            }
         }
     }
 
