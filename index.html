@@ -2435,6 +2435,7 @@ body {
             <div id="library">
                 <div id="library-search">
                     <input type="text" placeholder="Zoek geluiden..." id="library-query">
+                    <button onclick="daw.scanLocalAudio()" style="background:var(--accent);color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap" title="Zoek audio bestanden op je computer">🔍 Scan PC</button>
                     <select id="library-category" class="header-input" style="width:auto">
                         <option value="">Alle categorieën</option>
                     </select>
@@ -2490,6 +2491,19 @@ body {
         </div>
     </div>
 </div>
+<!-- Scan Panel -->
+<div id="scan-panel" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:650px;max-height:70vh;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.5);z-index:1000;display:none;flex-direction:column">
+<div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+<span class="material-icons" style="color:var(--accent);font-size:18px">search</span>
+<input type="text" id="studio-scan-query" placeholder="Zoek audio op je computer..." style="flex:1;background:var(--bg-darkest);border:1px solid var(--border);border-radius:4px;padding:6px 10px;color:var(--text);font-size:12px;outline:none" onkeydown="if(event.key==='Enter') daw.scanLocalAudioExec()">
+<button onclick="daw.scanLocalAudioExec()" style="background:var(--accent);color:#fff;border:none;border-radius:4px;padding:6px 14px;cursor:pointer;font-size:11px;font-weight:600">Scan</button>
+<button onclick="document.getElementById('scan-panel').style.display='none';document.getElementById('scan-backdrop').style.display='none'" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:18px">&times;</button>
+</div>
+<div id="studio-scan-results" style="flex:1;overflow-y:auto;padding:4px 0;max-height:55vh">
+<div style="padding:20px;text-align:center;color:var(--text-dim);font-size:12px">Klik Scan om alle audio bestanden te vinden</div>
+</div>
+</div>
+<div id="scan-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:999" onclick="document.getElementById('scan-panel').style.display='none';this.style.display='none'"></div>
 
 <!-- Toast container -->
 <div id="toast-container"></div>
@@ -5786,8 +5800,18 @@ class InstrumentEngine {
             pianoLastCompTick: -99,
             // Strings state
             stringsLastChordIdx: -1,
+            stringsLastMidi: 67 + rootIdx,
+            stringsPhrasePos: 0,
+            stringsPhraseLen: 2 + Math.floor(Math.random() * 3),
+            stringsResting: false,
+            stringsRestTicks: 0,
             // Brass state
             brassLastHitTick: -99,
+            brassLastMidi: 60 + rootIdx,
+            brassPhrasePos: 0,
+            brassPhraseLen: 3 + Math.floor(Math.random() * 4),
+            brassResting: false,
+            brassRestTicks: 0,
         };
 
         // Update chord display
@@ -6561,41 +6585,8 @@ class InstrumentEngine {
 
         if (!shouldPlay) return;
 
-        const available = ens.availableNotes;
-        const lastMidi = ens.leadLastMidi;
-        const weighted = available.map(note => {
-            let weight = 1;
-            const pc = note.midi % 12;
-            const distance = Math.abs(note.midi - lastMidi);
-            const isChordTone = chord.tones.includes(pc);
-            const isStrongBeat = beat16 % 4 === 0;
-
-            if (distance === 0) weight *= 0.2;
-            else if (distance <= 2) weight *= 5;
-            else if (distance <= 4) weight *= 3;
-            else if (distance <= 7) weight *= 1.5;
-            else if (distance <= 12) weight *= 0.4;
-            else weight *= 0.1;
-
-            if (isStrongBeat && isChordTone) weight *= 4;
-            else if (isChordTone) weight *= 2;
-
-            const phraseProgress = ens.leadPhrasePos / ens.leadPhraseLength;
-            if (phraseProgress < 0.4 && note.midi > lastMidi) weight *= 1.5;
-            if (phraseProgress > 0.6 && note.midi < lastMidi) weight *= 1.5;
-            if (ens.leadPhrasePos >= ens.leadPhraseLength - 2 && isChordTone) weight *= 3;
-            if (ens.overallArc === 'climax' && note.octave >= 5) weight *= 1.8;
-
-            return { note, weight: Math.max(0.01, weight) };
-        });
-
-        const totalWeight = weighted.reduce((s, w) => s + w.weight, 0);
-        let r = Math.random() * totalWeight;
-        let chosenNote = weighted[0]?.note;
-        for (const { note, weight } of weighted) {
-            r -= weight;
-            if (r <= 0) { chosenNote = note; break; }
-        }
+        // Gebruik generieke voice leading engine
+        const chosenNote = this._improviseMelody(ens, chord, ens.leadLastMidi, [48, 84], 'lead');
 
         if (chosenNote) {
             const durMultiplier = ens.tension > 0.7 ? 1.5 : (ens.tension < 0.3 ? 4 : 2.5);
@@ -6619,64 +6610,218 @@ class InstrumentEngine {
         }
     }
 
-    // ---- STRINGS pad ----
+    // ---- STRINGS: improviserend met voice leading ----
     _ensembleStringsTick(ens, beat16, chord) {
         if (!this._ensembleInstruments.strings.on) return;
-        if (beat16 !== 0) return;
-        const ticksPerChord = ens.beatsPerChord * 4;
-        if (ens.tick16 % ticksPerChord !== 0) return;
-        if (ens.stringsLastChordIdx === ens.currentChordIdx) return;
-        ens.stringsLastChordIdx = ens.currentChordIdx;
 
-        const voicing = this._getChordVoicing(chord, 55);
-        const duration = (60 / ens.bpm) * ens.beatsPerChord * 0.9;
-        const vel = 0.2 + ens.intensity * 0.2;
-
-        voicing.forEach(midi => {
-            this._ensPlayNote('strings', this._midiToFreq(midi), duration, vel);
-        });
-    }
-
-    // ---- BRASS stabs and fills ----
-    _ensembleBrassTick(ens, beat16, chord) {
-        if (!this._ensembleInstruments.brass.on) return;
-        const style = ens.style;
+        // Strings: langzame melodische lijnen in hoog register (MIDI 60-79)
+        // Dichtheid laag (pad-achtig), maar met voice leading
         const sixteenthDur = (60 / ens.bpm) / 4;
-        const vel = 0.3 + ens.intensity * 0.3;
 
-        switch (style) {
-            case 'jazz': case 'jazz2': case 'jazz3': {
-                if (beat16 === 0 && ens.tick16 % 32 === 0 && Math.random() < 0.3) {
-                    const voicing = this._getChordVoicing(chord, 60);
-                    voicing.slice(0, 2).forEach(midi => {
-                        this._ensPlayNote('brass', this._midiToFreq(midi), sixteenthDur * 3, vel * 0.6);
-                    });
-                    ens.brassLastHitTick = ens.tick16;
-                }
-                break;
+        // Pad: voicings op akkoordwissels
+        const ticksPerChord = ens.beatsPerChord * 4;
+        if (beat16 === 0 && ens.tick16 % ticksPerChord === 0 && ens.stringsLastChordIdx !== ens.currentChordIdx) {
+            ens.stringsLastChordIdx = ens.currentChordIdx;
+            const voicing = this._getChordVoicing(chord, 55);
+            const duration = (60 / ens.bpm) * ens.beatsPerChord * 0.9;
+            const vel = 0.2 + ens.intensity * 0.15;
+            voicing.forEach(midi => {
+                this._ensPlayNote('strings', this._midiToFreq(midi), duration, vel);
+            });
+        }
+
+        // Melodische lijn: langzame voice-leading noten bovenop de pad
+        if (ens.tension > 0.4 || ens.overallArc === 'climax') {
+            if (!ens.stringsLastMidi) ens.stringsLastMidi = 67 + (ens.rootIdx % 12);
+            if (!ens.stringsPhrasePos) ens.stringsPhrasePos = 0;
+            if (!ens.stringsPhraseLen) ens.stringsPhraseLen = 2 + Math.floor(Math.random() * 3);
+            if (ens.stringsResting) {
+                ens.stringsRestTicks = (ens.stringsRestTicks || 0) - 1;
+                if (ens.stringsRestTicks <= 0) ens.stringsResting = false;
+                return;
             }
-            case 'funk': {
-                if ((beat16 === 2 || beat16 === 10) && Math.random() < 0.35 * ens.intensity) {
-                    const voicing = this._getChordVoicing(chord, 60);
-                    voicing.slice(0, 3).forEach(midi => {
-                        this._ensPlayNote('brass', this._midiToFreq(midi), sixteenthDur * 1, vel * 0.7);
-                    });
-                }
-                break;
-            }
-            case 'pop': case 'neosoul': case 'gospel': {
-                if (beat16 === 0 && ens.tick16 % 64 === 48 && Math.random() < 0.4) {
-                    const note = chord.root + 60 + [0, 4, 7][Math.floor(Math.random() * 3)];
-                    this._ensPlayNote('brass', this._midiToFreq(note), sixteenthDur * 4, vel * 0.5);
-                }
-                break;
-            }
-            default: {
-                if (beat16 === 0 && ens.tick16 % 64 === 0 && Math.random() < 0.2) {
-                    this._ensPlayNote('brass', this._midiToFreq(chord.root + 60), sixteenthDur * 3, vel * 0.4);
+
+            // Speel alleen op halve noten of hele noten
+            const shouldPlay = beat16 % 8 === 0 && Math.random() < 0.5 * ens.intensity;
+            if (!shouldPlay) return;
+
+            const note = this._improviseMelody(ens, chord, ens.stringsLastMidi, [60, 79], 'strings');
+            if (note) {
+                const duration = sixteenthDur * (6 + Math.floor(Math.random() * 6));
+                const vel = 0.15 + ens.tension * 0.2;
+                this._ensPlayNote('strings', this._midiToFreq(note.midi), duration, vel);
+                ens.stringsLastMidi = note.midi;
+                ens.stringsPhrasePos++;
+                if (ens.stringsPhrasePos >= ens.stringsPhraseLen) {
+                    ens.stringsResting = true;
+                    ens.stringsRestTicks = 8 + Math.floor(Math.random() * 16);
+                    ens.stringsPhrasePos = 0;
+                    ens.stringsPhraseLen = 2 + Math.floor(Math.random() * 3);
                 }
             }
         }
+    }
+
+    // ---- BRASS: improviserend met voice leading + stabs ----
+    _ensembleBrassTick(ens, beat16, chord) {
+        if (!this._ensembleInstruments.brass.on) return;
+        const sixteenthDur = (60 / ens.bpm) / 4;
+        const vel = 0.3 + ens.intensity * 0.3;
+
+        if (!ens.brassLastMidi) ens.brassLastMidi = 60 + (ens.rootIdx % 12);
+        if (!ens.brassPhrasePos) ens.brassPhrasePos = 0;
+        if (!ens.brassPhraseLen) ens.brassPhraseLen = 3 + Math.floor(Math.random() * 4);
+        if (ens.brassResting) {
+            ens.brassRestTicks = (ens.brassRestTicks || 0) - 1;
+            if (ens.brassRestTicks <= 0) ens.brassResting = false;
+            return;
+        }
+
+        // Call & response: brass antwoordt op lead
+        const leadJustPlayed = ens.leadResting && ens.leadRestTicks > 2;
+        const callResponseBonus = leadJustPlayed ? 2.0 : 1.0;
+
+        // Stabs op sterke tellen + fills
+        const isBeat = beat16 % 4 === 0;
+        const isOffbeat = beat16 % 4 === 2;
+        let shouldPlay = false;
+
+        if (ens.style === 'funk') {
+            shouldPlay = (isOffbeat && Math.random() < 0.35 * ens.intensity * callResponseBonus);
+        } else if (['jazz','jazz2','jazz3'].includes(ens.style)) {
+            // Jazz: spaarzame fills, soms akkoordstabs
+            if (isBeat && ens.tick16 % 32 === 0 && Math.random() < 0.25 * callResponseBonus) {
+                const voicing = this._getChordVoicing(chord, 60);
+                voicing.slice(0, 2).forEach(midi => {
+                    this._ensPlayNote('brass', this._midiToFreq(midi), sixteenthDur * 3, vel * 0.5);
+                });
+                ens.brassLastHitTick = ens.tick16;
+                return;
+            }
+            shouldPlay = (Math.random() < 0.1 * ens.tension * callResponseBonus);
+        } else {
+            shouldPlay = (isBeat && Math.random() < 0.15 * ens.intensity * callResponseBonus);
+        }
+
+        if (!shouldPlay) return;
+
+        // Improviserende melodische brass lijn
+        const note = this._improviseMelody(ens, chord, ens.brassLastMidi, [55, 74], 'brass');
+        if (note) {
+            const duration = sixteenthDur * (2 + Math.floor(Math.random() * 3));
+            const swingDelay = (beat16 % 2 === 1 && ens.swingAmount > 0)
+                ? sixteenthDur * ens.swingAmount * 1000 : 0;
+            if (swingDelay > 0) {
+                setTimeout(() => this._ensPlayNote('brass', this._midiToFreq(note.midi), duration, vel * 0.7), swingDelay);
+            } else {
+                this._ensPlayNote('brass', this._midiToFreq(note.midi), duration, vel * 0.7);
+            }
+            ens.brassLastMidi = note.midi;
+            ens.brassPhrasePos++;
+            if (ens.brassPhrasePos >= ens.brassPhraseLen) {
+                ens.brassResting = true;
+                ens.brassRestTicks = 6 + Math.floor(Math.random() * 12);
+                ens.brassPhrasePos = 0;
+                ens.brassPhraseLen = 3 + Math.floor(Math.random() * 4);
+            }
+        }
+    }
+
+    // ============================================================
+    // GENERIEKE IMPROVISATIE MELODY - Voice Leading Engine
+    // Gebruikt door lead, strings, brass (en toekomstige instrumenten)
+    // Wiskunde: gewogen nootkeuze op basis van:
+    //   1. Stepwise motion (afstand tot vorige noot)
+    //   2. Chord-tone targeting (akkoordtonen op sterke tellen)
+    //   3. Phrase arc (stijgend begin, dalend einde)
+    //   4. Register management (per instrument eigen bereik)
+    //   5. Inter-instrument awareness (vermijd unisono, call & response)
+    //   6. Tension-driven (meer chromatiek bij hoge spanning)
+    // ============================================================
+    _improviseMelody(ens, chord, lastMidi, midiRange, instrumentId) {
+        const [minMidi, maxMidi] = midiRange;
+        const scaleNotes = ens.scaleNotes;
+        const rootIdx = ens.rootIdx;
+
+        // Bouw beschikbare noten in het bereik
+        const available = [];
+        for (let midi = minMidi; midi <= maxMidi; midi++) {
+            const interval = ((midi - rootIdx) % 12 + 12) % 12;
+            if (scaleNotes.includes(interval)) {
+                available.push({ midi, interval });
+            }
+            // Bij hoge tension: ook chromatische passing tones
+            if (ens.tension > 0.7 && !scaleNotes.includes(interval) && Math.random() < 0.15) {
+                available.push({ midi, interval, chromatic: true });
+            }
+        }
+        if (available.length === 0) return null;
+
+        // Gewogen selectie
+        const weighted = available.map(note => {
+            let weight = 1;
+            const pc = note.midi % 12;
+            const distance = Math.abs(note.midi - lastMidi);
+            const isChordTone = chord.tones.includes(pc);
+            const isRoot = pc === chord.root;
+
+            // 1. Stepwise motion (halve/hele toon = sterk)
+            if (distance === 0) weight *= 0.15;
+            else if (distance === 1) weight *= 5;    // halve toon
+            else if (distance === 2) weight *= 6;    // hele toon
+            else if (distance <= 4) weight *= 3;     // terts
+            else if (distance <= 7) weight *= 1.5;   // kwart/kwint
+            else if (distance <= 12) weight *= 0.3;  // octaaf
+            else weight *= 0.05;                     // > octaaf
+
+            // 2. Chord tones op sterke tellen
+            const beat = ens.tick16 % 16;
+            if (beat % 4 === 0 && isChordTone) weight *= 4;
+            else if (isChordTone) weight *= 2;
+            if (note.chromatic) weight *= 0.3; // chromatische passing tones zacht
+
+            // 3. Vermijd augmented intervallen (tritoon)
+            if (distance === 6) weight *= 0.25;
+
+            // 4. Leading tone resolution
+            const lastPc = lastMidi % 12;
+            const scaleDegreeLast = ((lastPc - rootIdx) % 12 + 12) % 12;
+            if (scaleDegreeLast === 11 && isRoot) weight *= 8;  // leidtoon → grondtoon
+            if (scaleDegreeLast === 5 && ((pc - rootIdx + 12) % 12) === 4) weight *= 4; // 4→3
+
+            // 5. Register management: trek naar midden van bereik
+            const rangeMid = (minMidi + maxMidi) / 2;
+            const distFromMid = Math.abs(note.midi - rangeMid);
+            if (distFromMid > (maxMidi - minMidi) * 0.4) weight *= 0.5;
+
+            // 6. Inter-instrument awareness
+            // Vermijd unisono met lead
+            if (instrumentId !== 'lead' && ens.leadLastMidi) {
+                if (Math.abs(note.midi - ens.leadLastMidi) <= 1) weight *= 0.2;
+                // Complementair register: als lead hoog, speel lager
+                if (ens.leadLastMidi > 72 && note.midi < rangeMid) weight *= 1.5;
+                if (ens.leadLastMidi < 60 && note.midi > rangeMid) weight *= 1.5;
+            }
+            // Vermijd unisono met brass (als we strings zijn)
+            if (instrumentId === 'strings' && ens.brassLastMidi) {
+                if (Math.abs(note.midi - ens.brassLastMidi) <= 2) weight *= 0.3;
+            }
+
+            // 7. Tension-driven: bij hoge spanning meer sprongen
+            if (ens.tension > 0.7 && distance >= 5) weight *= 1.5;
+            if (ens.tension < 0.3 && distance <= 2) weight *= 2;
+
+            return { note, weight: Math.max(0.01, weight) };
+        });
+
+        // Gewogen random selectie
+        const totalWeight = weighted.reduce((s, w) => s + w.weight, 0);
+        let r = Math.random() * totalWeight;
+        for (const { note, weight } of weighted) {
+            r -= weight;
+            if (r <= 0) return note;
+        }
+        return weighted[0]?.note || null;
     }
 
     // Helper: get chord voicing as array of MIDI notes
@@ -8804,6 +8949,48 @@ class DAWController {
         } catch (e) {
             statusEl.textContent = `Fout: ${e.message}`;
             console.error('Sound match fout:', e);
+        }
+    }
+
+    // ---- Lokale audio scanner ----
+    scanLocalAudio() {
+        document.getElementById('scan-panel').style.display = 'flex';
+        document.getElementById('scan-backdrop').style.display = 'block';
+        this.scanLocalAudioExec();
+    }
+
+    async scanLocalAudioExec() {
+        const q = document.getElementById('studio-scan-query').value.trim();
+        const container = document.getElementById('studio-scan-results');
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-dim)"><div style="width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.6s linear infinite;margin:0 auto 8px"></div>Audio bestanden zoeken...</div>';
+
+        try {
+            const resp = await fetch(`/api/scan-audio?q=${encodeURIComponent(q)}`);
+            const data = await resp.json();
+
+            if (!data.results || data.results.length === 0) {
+                container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-dim)">Geen audio bestanden gevonden</div>';
+                return;
+            }
+
+            let html = `<div style="padding:4px 10px;font-size:10px;color:var(--text-dim);border-bottom:1px solid var(--border)">${data.count} bestanden in ${data.scan_time}s — klik om naar timeline te slepen</div>`;
+            for (const file of data.results) {
+                html += `<div class="scan-row" style="display:grid;grid-template-columns:1fr 40px 45px 70px;align-items:center;padding:5px 10px;border-bottom:1px solid var(--border);cursor:grab;font-size:11px;transition:background 0.1s"
+                    draggable="true"
+                    ondragstart="event.dataTransfer.setData('audio-url', '/api/local-audio?path=${encodeURIComponent(file.path)}'); event.dataTransfer.setData('audio-name', '${file.name.replace(/'/g, "\\'")}'); event.dataTransfer.effectAllowed='copy'"
+                    onmouseenter="this.style.background='var(--bg-hover)'" onmouseleave="this.style.background=''">
+                    <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${file.folder}/${file.name}">
+                        <span style="color:var(--text-bright)">${file.name}</span><br>
+                        <span style="color:var(--text-dim);font-size:9px">${file.folder}</span>
+                    </span>
+                    <span style="color:var(--text-dim);text-transform:uppercase;font-size:9px">${file.ext}</span>
+                    <span style="color:var(--text-dim);font-size:10px">${file.size_mb}MB</span>
+                    <span style="color:var(--text-dim);font-size:10px">${file.modified}</span>
+                </div>`;
+            }
+            container.innerHTML = html;
+        } catch (err) {
+            container.innerHTML = `<div style="padding:20px;text-align:center;color:#f44">${err.message}</div>`;
         }
     }
 }

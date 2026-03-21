@@ -59,9 +59,28 @@ PostgreSQL database `daw`, user `postgres`, pw `postgres`:
 - **Audio Proxy**: `/api/proxy/audio` voor CORS-vrij laden van externe audio
 - **API Keys**: Jamendo `d14314a3` in dj.html, Freesound in `.env`
 
+## Audio Scanner (maart 2026)
+- `/api/scan-audio` - Scant alle schijven (C:/Users, D:/, E:/, F:/) voor audio bestanden
+- `/api/local-audio?path=...` - Serveert lokale audio bestanden naar browser
+- 34 audio formaten ondersteund (mp3, wav, flac, midi, aac, etc.)
+- Geen limiet op resultaten, 2 minuten timeout
+- Beschikbaar op: Studio (Scan PC knop in library), DJ (BESTANDEN tab), Editor (Scan PC in toolbar)
+
+## Improvisatie Engine (index.html regels 4875-6700)
+- **18 toonladders**: major, minor, dorian, mixolydian, pentatonic, blues, phrygian, lydian, locrian, harmonic_minor, melodic_minor, whole_tone, diminished, bebop, hungarian, japanese, minor_pent, altered
+- **12 progressies**: pop, jazz, jazz2, jazz3, blues, funk, sad, spanish, rock, neosoul, gospel, bossa
+- **Chord-Scale mapping**: welke toonladders passen bij welk akkoordtype
+- **Voice leading**: stepwise motion, avoid augmented intervals, chord tone emphasis, leading tone resolution, tritone resolution, phrase arc, register management
+- **Tension/resolution**: 4-fase arc (intro→development→climax→outro)
+- **Motief development**: repeat, transpose, inversion, augmentation, diminution, sequence
+- **7 ensemble instrumenten**: drums, bass, guitar, piano, lead, strings, brass
+- **Per instrument**: on/off, solo, mute, volume
+- **Style-specific**: swing, triplets, syncopation, density, ghost notes per stijl
+
 ## Let op
 - Audio bestanden staan in .gitignore
 - Web Audio API vereist user interaction voordat AudioContext start
 - AudioWorklet files moeten als aparte JS bestanden geladen worden
 - Port 8086 (geen conflict met andere projecten)
 - Freesound API key in `.env`
+- NOOIT de improvisatie wiskunde (voice leading, chord-scale theory, tension arc) verwijderen of versimpelen
