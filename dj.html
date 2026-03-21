@@ -1669,6 +1669,78 @@ class DJApp {
             if (e.key === 'Enter') this.searchArchive();
         });
 
+        // Scratch: platter drag
+        ['A', 'B'].forEach(deckId => {
+            const platter = document.getElementById(`platter-${deckId.toLowerCase()}`);
+            if (!platter) return;
+            platter.style.cursor = 'grab';
+
+            let scratching = false;
+            let lastY = 0;
+            let lastTime = 0;
+
+            const startScratch = (e) => {
+                e.preventDefault();
+                const deck = this.decks[deckId];
+                if (!deck.source) return;
+                scratching = true;
+                platter.style.cursor = 'grabbing';
+                lastY = e.clientY || e.touches?.[0]?.clientY || 0;
+                lastTime = performance.now();
+                // Pauzeer normale playback
+                deck._preScratchRate = deck.source.playbackRate.value;
+                deck.source.playbackRate.value = 0.001; // bijna stil
+                platter.classList.remove('spinning');
+            };
+
+            const moveScratch = (e) => {
+                if (!scratching) return;
+                e.preventDefault();
+                const deck = this.decks[deckId];
+                if (!deck.source) return;
+
+                const currentY = e.clientY || e.touches?.[0]?.clientY || 0;
+                const now = performance.now();
+                const deltaY = lastY - currentY; // omhoog = positief
+                const deltaTime = Math.max(1, now - lastTime);
+
+                // Snelheid: pixels per ms → playbackRate
+                const speed = deltaY / deltaTime;
+                const rate = Math.max(-3, Math.min(3, speed * 8));
+
+                deck.source.playbackRate.value = rate === 0 ? 0.001 : rate;
+
+                // Draai platter visueel
+                const rotation = parseFloat(platter.dataset.rotation || '0') + deltaY * 2;
+                platter.dataset.rotation = rotation;
+                platter.style.transform = `rotate(${rotation}deg)`;
+
+                lastY = currentY;
+                lastTime = now;
+            };
+
+            const stopScratch = () => {
+                if (!scratching) return;
+                scratching = false;
+                platter.style.cursor = 'grab';
+                const deck = this.decks[deckId];
+                if (deck.source && deck._preScratchRate) {
+                    // Herstel normale snelheid
+                    deck.source.playbackRate.value = deck._preScratchRate;
+                    if (deck.isPlaying) platter.classList.add('spinning');
+                }
+            };
+
+            // Mouse events
+            platter.addEventListener('mousedown', startScratch);
+            window.addEventListener('mousemove', moveScratch);
+            window.addEventListener('mouseup', stopScratch);
+            // Touch events
+            platter.addEventListener('touchstart', startScratch, { passive: false });
+            window.addEventListener('touchmove', moveScratch, { passive: false });
+            window.addEventListener('touchend', stopScratch);
+        });
+
         // FMA search on Enter
         document.getElementById('fma-search').addEventListener('keydown', (e) => {
             if (e.key === 'Enter') this.searchFMA();
