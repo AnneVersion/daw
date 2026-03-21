@@ -80,6 +80,8 @@ PostgreSQL database `daw`, user `postgres`, pw `postgres`:
   - Melodie: lead synth, fluit, saxofoon
   - Strijkers & Blazers: strings, brass
   - Vocaal: koor (formant), scat
+- **Unified panel**: Solo + Ensemble samengevoegd — vink instrumenten aan, druk play
+- **Sampler**: upload eigen sample, pitch per toets via playbackRate, improvisatie
 - **MIDI export**: opnemen tijdens improvisatie → download .mid bestand
 - **Audio opname**: MediaRecorder → download .webm bestand
 - **Formant synthese**: vocale klanken via bandpass filters (F1/F2/F3 per klinker: A/O/E/I/U)
