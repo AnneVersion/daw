@@ -2189,6 +2189,7 @@ body {
         <div id="bottom-tabs">
             <button class="bottom-tab active" data-panel="mixer">Mixer</button>
             <button class="bottom-tab" data-panel="instruments">Instrumenten</button>
+            <button class="bottom-tab" data-panel="improvisation">Improvisatie</button>
             <button class="bottom-tab" data-panel="synth">Synth</button>
             <button class="bottom-tab" data-panel="sound-match">Sound Match</button>
             <button class="bottom-tab" data-panel="library">Library</button>
@@ -2305,6 +2306,10 @@ body {
                 <div id="piano-keyboard"></div>
                 <div id="drum-pads"></div>
                 <div id="guitar-fretboard"></div>
+            </div>
+            <!-- Improvisatie Panel (eigen tab) -->
+            <div id="improvisation" style="display:none;padding:8px;overflow-y:auto">
+                <div id="improv-tab-content"></div>
             </div>
             <!-- Synth Panel -->
             <div id="synth-panel">
@@ -4519,7 +4524,11 @@ class InstrumentEngine {
                 <canvas id="improv-tension-canvas" class="improv-tension-canvas" width="400" height="40"></canvas>
             </div>
         </div>`;
-        patternsHtml += improvHtml;
+        // Improv gaat naar eigen tab, niet in gitaar panel
+        const improvTabEl = document.getElementById('improv-tab-content');
+        if (improvTabEl && !improvTabEl.innerHTML.includes('improv-panel')) {
+            improvTabEl.innerHTML = improvHtml;
+        }
 
         // Ensemble Improvisation Panel
         const ensInstruments = [
@@ -4641,7 +4650,10 @@ class InstrumentEngine {
                 <span id="ens-status-text">Gestopt</span>
             </div>
         </div>`;
-        patternsHtml += ensHtml;
+        // Ensemble gaat naar eigen tab
+        if (improvTabEl) {
+            improvTabEl.innerHTML += ensHtml;
+        }
 
         // Fretboard
         let neckHtml = '<div id="guitar-neck">';
@@ -8529,6 +8541,12 @@ class DAWController {
                 const panel = tab.dataset.panel;
                 document.getElementById('mixer').style.display = panel === 'mixer' ? 'flex' : 'none';
                 document.getElementById('instruments').classList.toggle('active', panel === 'instruments');
+                const improvPanel = document.getElementById('improvisation');
+                improvPanel.style.display = panel === 'improvisation' ? 'block' : 'none';
+                // Build improv content on first open
+                if (panel === 'improvisation' && !document.getElementById('improv-tab-content')?.querySelector('.improv-panel')) {
+                    daw.instruments._renderGuitarFretboard();
+                }
                 document.getElementById('synth-panel').classList.toggle('active', panel === 'synth');
                 document.getElementById('sound-match').classList.toggle('active', panel === 'sound-match');
                 document.getElementById('library').classList.toggle('active', panel === 'library');
