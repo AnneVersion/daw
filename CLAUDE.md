@@ -84,6 +84,8 @@ PostgreSQL database `daw`, user `postgres`, pw `postgres`:
 - **Sampler**: upload eigen sample, pitch per toets via playbackRate, improvisatie
 - **MIDI export**: opnemen tijdens improvisatie → download .mid bestand
 - **Audio opname**: MediaRecorder → download .webm bestand
+- **Rad van Fortuin**: random stijl/toonsoort/toonladder/instrumenten, geanimeerd wiel, auto-start
+- **Mixer FX**: EQ, Compressor, Reverb, Delay, Filter (LP/HP/BP/Notch), Distortion, Bitcrusher, Phaser, Flanger
 - **Formant synthese**: vocale klanken via bandpass filters (F1/F2/F3 per klinker: A/O/E/I/U)
 - **Scat vocals**: bebop scat improvisatie met syllaben (ba/da/dee/bop/doo/bee/bi/sha), voice leading, call & response
 - **Per instrument**: on/off, solo, mute, volume

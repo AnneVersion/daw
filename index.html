@@ -2235,6 +2235,47 @@ body {
                         <div class="fx-param"><label>Feedback</label><input type="range" min="0" max="0.9" step="0.01" value="0" data-fx="delay-feedback" oninput="daw.handleFxParam(this)"><span class="fx-val">0%</span></div>
                         <div class="fx-param"><label>Mix</label><input type="range" min="0" max="1" step="0.01" value="0" data-fx="delay-wet" oninput="daw.handleFxParam(this)"><span class="fx-val">0%</span></div>
                     </div>
+                    <div class="fx-group">
+                        <div class="fx-group-header">
+                            <span class="fx-group-title">Filter</span>
+                            <button class="fx-toggle" data-fx-toggle="filter" onclick="daw.toggleFxEnabled(this, 'filter')"></button>
+                        </div>
+                        <div class="fx-param"><label>Type</label><select data-fx="filter-type" onchange="daw.handleFxParam(this)" style="background:var(--bg-dark);border:1px solid var(--border);color:var(--text);font-size:10px;border-radius:3px;padding:2px"><option value="lowpass">Low Pass</option><option value="highpass">High Pass</option><option value="bandpass">Band Pass</option><option value="notch">Notch</option></select></div>
+                        <div class="fx-param"><label>Freq</label><input type="range" min="20" max="20000" step="1" value="1000" data-fx="filter-freq" oninput="daw.handleFxParam(this)"><span class="fx-val">1000 Hz</span></div>
+                        <div class="fx-param"><label>Resonance</label><input type="range" min="0.1" max="30" step="0.1" value="1" data-fx="filter-q" oninput="daw.handleFxParam(this)"><span class="fx-val">1.0</span></div>
+                    </div>
+                    <div class="fx-group">
+                        <div class="fx-group-header">
+                            <span class="fx-group-title" style="color:#f44">Distortion</span>
+                            <button class="fx-toggle" data-fx-toggle="distortion" onclick="daw.toggleFxEnabled(this, 'distortion')"></button>
+                        </div>
+                        <div class="fx-param"><label>Drive</label><input type="range" min="0" max="100" step="1" value="0" data-fx="dist-drive" oninput="daw.handleFxParam(this)"><span class="fx-val">0</span></div>
+                    </div>
+                    <div class="fx-group">
+                        <div class="fx-group-header">
+                            <span class="fx-group-title" style="color:#a0f">Bitcrusher</span>
+                            <button class="fx-toggle" data-fx-toggle="bitcrusher" onclick="daw.toggleFxEnabled(this, 'bitcrusher')"></button>
+                        </div>
+                        <div class="fx-param"><label>Bits</label><input type="range" min="1" max="16" step="1" value="16" data-fx="crush-bits" oninput="daw.handleFxParam(this)"><span class="fx-val">16</span></div>
+                        <div class="fx-param"><label>Rate</label><input type="range" min="500" max="44100" step="100" value="44100" data-fx="crush-rate" oninput="daw.handleFxParam(this)"><span class="fx-val">44100</span></div>
+                    </div>
+                    <div class="fx-group">
+                        <div class="fx-group-header">
+                            <span class="fx-group-title" style="color:#0ff">Phaser</span>
+                            <button class="fx-toggle" data-fx-toggle="phaser" onclick="daw.toggleFxEnabled(this, 'phaser')"></button>
+                        </div>
+                        <div class="fx-param"><label>Rate</label><input type="range" min="0.1" max="10" step="0.1" value="1" data-fx="phaser-rate" oninput="daw.handleFxParam(this)"><span class="fx-val">1 Hz</span></div>
+                        <div class="fx-param"><label>Depth</label><input type="range" min="0" max="100" step="1" value="50" data-fx="phaser-depth" oninput="daw.handleFxParam(this)"><span class="fx-val">50%</span></div>
+                    </div>
+                    <div class="fx-group">
+                        <div class="fx-group-header">
+                            <span class="fx-group-title" style="color:#ff0">Flanger</span>
+                            <button class="fx-toggle" data-fx-toggle="flanger" onclick="daw.toggleFxEnabled(this, 'flanger')"></button>
+                        </div>
+                        <div class="fx-param"><label>Rate</label><input type="range" min="0.05" max="5" step="0.05" value="0.5" data-fx="flanger-rate" oninput="daw.handleFxParam(this)"><span class="fx-val">0.5 Hz</span></div>
+                        <div class="fx-param"><label>Depth</label><input type="range" min="0" max="10" step="0.1" value="2" data-fx="flanger-depth" oninput="daw.handleFxParam(this)"><span class="fx-val">2 ms</span></div>
+                        <div class="fx-param"><label>Feedback</label><input type="range" min="0" max="0.95" step="0.05" value="0.5" data-fx="flanger-feedback" oninput="daw.handleFxParam(this)"><span class="fx-val">50%</span></div>
+                    </div>
                 </div>
             </div>
             <div id="instruments">
@@ -2310,6 +2351,13 @@ body {
             <!-- Improvisatie Panel (eigen tab) -->
             <div id="improvisation" style="display:none;padding:8px;overflow-y:auto">
                 <div id="improv-tab-content"></div>
+                <!-- Rad van Fortuin -->
+                <div style="margin-top:12px;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
+                    <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:8px">\u{1F3A1} Rad van Fortuin</div>
+                    <canvas id="wheel-canvas" width="280" height="280" style="cursor:pointer;margin:0 auto;display:block" onclick="daw.instruments.spinWheel()"></canvas>
+                    <div id="wheel-result" style="margin-top:8px;font-size:11px;color:var(--text-dim);min-height:20px"></div>
+                    <button onclick="daw.instruments.spinWheel()" style="margin-top:6px;background:linear-gradient(135deg,#f44,#ff0,#0f0,#0ff,#44f,#f0f);color:#fff;border:none;border-radius:20px;padding:6px 20px;cursor:pointer;font-weight:700;font-size:12px;text-shadow:0 1px 2px rgba(0,0,0,0.5)">&#x1F3B2; Draai!</button>
+                </div>
             </div>
             <!-- Synth Panel -->
             <div id="synth-panel">
@@ -7391,6 +7439,178 @@ class InstrumentEngine {
         }
     }
 
+    // ============================================================
+    // RAD VAN FORTUIN - Random improvisatie generator
+    // ============================================================
+    _wheelSpinning = false;
+    _wheelAngle = 0;
+
+    spinWheel() {
+        if (this._wheelSpinning) return;
+        this._wheelSpinning = true;
+        this.stopEnsemble();
+
+        const styles = ['jazz','jazz2','blues','funk','pop','rock','sad','spanish','neosoul','gospel','bossa'];
+        const keys = ['C','D','E','F','G','A','Bb','Eb','Ab'];
+        const scales = ['pentatonic','blues','dorian','mixolydian','minor','major','phrygian','bebop'];
+        const allInstruments = Object.keys(this._ensembleInstruments);
+
+        // Random selectie
+        const chosenStyle = styles[Math.floor(Math.random() * styles.length)];
+        const chosenKey = keys[Math.floor(Math.random() * keys.length)];
+        const chosenScale = scales[Math.floor(Math.random() * scales.length)];
+        // Random 3-6 instrumenten
+        const numInst = 3 + Math.floor(Math.random() * 4);
+        const shuffled = [...allInstruments].sort(() => Math.random() - 0.5);
+        // Altijd drums erbij
+        const chosenInstruments = ['drums', ...shuffled.filter(i => i !== 'drums').slice(0, numInst - 1)];
+
+        // Animatie
+        const canvas = document.getElementById('wheel-canvas');
+        if (!canvas) { this._wheelSpinning = false; return; }
+        const ctx2d = canvas.getContext('2d');
+        const cx = canvas.width / 2, cy = canvas.height / 2, r = 120;
+        const segments = [`${chosenStyle}`, `${chosenKey}`, `${chosenScale}`, `${chosenInstruments.length} inst.`,
+            'GO!', chosenStyle, chosenKey, chosenScale];
+        const colors = ['#f44336','#ff9800','#ffeb3b','#4caf50','#2196f3','#9c27b0','#e91e63','#00bcd4'];
+
+        const totalSpin = 720 + Math.random() * 1440; // 2-6 rotaties
+        const duration = 3000;
+        const startTime = performance.now();
+        const startAngle = this._wheelAngle;
+
+        const animate = (now) => {
+            const elapsed = now - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            // Easing: cubic ease-out
+            const eased = 1 - Math.pow(1 - progress, 3);
+            const angle = startAngle + totalSpin * eased;
+            this._wheelAngle = angle;
+
+            // Teken wiel
+            ctx2d.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i < segments.length; i++) {
+                const startA = (i / segments.length) * Math.PI * 2 + (angle * Math.PI / 180);
+                const endA = ((i + 1) / segments.length) * Math.PI * 2 + (angle * Math.PI / 180);
+                ctx2d.beginPath();
+                ctx2d.moveTo(cx, cy);
+                ctx2d.arc(cx, cy, r, startA, endA);
+                ctx2d.fillStyle = colors[i % colors.length];
+                ctx2d.fill();
+                ctx2d.strokeStyle = '#1a1a2e';
+                ctx2d.lineWidth = 2;
+                ctx2d.stroke();
+                // Tekst
+                const textAngle = (startA + endA) / 2;
+                const tx = cx + Math.cos(textAngle) * r * 0.65;
+                const ty = cy + Math.sin(textAngle) * r * 0.65;
+                ctx2d.save();
+                ctx2d.translate(tx, ty);
+                ctx2d.rotate(textAngle + Math.PI / 2);
+                ctx2d.fillStyle = '#fff';
+                ctx2d.font = 'bold 10px Verdana';
+                ctx2d.textAlign = 'center';
+                ctx2d.fillText(segments[i], 0, 0);
+                ctx2d.restore();
+            }
+            // Pijl bovenaan
+            ctx2d.beginPath();
+            ctx2d.moveTo(cx - 10, cy - r - 10);
+            ctx2d.lineTo(cx + 10, cy - r - 10);
+            ctx2d.lineTo(cx, cy - r + 5);
+            ctx2d.fillStyle = '#fff';
+            ctx2d.fill();
+            // Center cirkel
+            ctx2d.beginPath();
+            ctx2d.arc(cx, cy, 18, 0, Math.PI * 2);
+            ctx2d.fillStyle = '#1a1a2e';
+            ctx2d.fill();
+            ctx2d.fillStyle = '#fff';
+            ctx2d.font = 'bold 10px Verdana';
+            ctx2d.textAlign = 'center';
+            ctx2d.fillText('\u{1F3B2}', cx, cy + 4);
+
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                this._wheelSpinning = false;
+                // Toon resultaat
+                const resultEl = document.getElementById('wheel-result');
+                if (resultEl) {
+                    resultEl.innerHTML = `<strong>${chosenStyle.toUpperCase()}</strong> in <strong>${chosenKey} ${chosenScale}</strong><br>
+                        ${chosenInstruments.map(i => this._ensembleInstruments[i] ? i : '').filter(Boolean).join(' + ')}`;
+                }
+                // Stel in en start
+                const styleEl = document.getElementById('ens-style');
+                const keyEl = document.getElementById('ens-key');
+                const scaleEl = document.getElementById('ens-scale');
+                if (styleEl) styleEl.value = chosenStyle;
+                if (keyEl) keyEl.value = chosenKey;
+                if (scaleEl) scaleEl.value = chosenScale;
+                // Zet instrumenten aan/uit
+                for (const [id, inst] of Object.entries(this._ensembleInstruments)) {
+                    const shouldBeOn = chosenInstruments.includes(id);
+                    if (inst.on !== shouldBeOn) {
+                        inst.on = shouldBeOn;
+                        const btn = document.getElementById(`ens-on-${id}`);
+                        const row = document.getElementById(`ens-row-${id}`);
+                        if (btn) { btn.classList.toggle('active-check', shouldBeOn); btn.textContent = shouldBeOn ? '\u2713' : ''; }
+                        if (row) row.classList.toggle('ens-active', shouldBeOn);
+                    }
+                }
+                // Auto-start na 500ms
+                setTimeout(() => this.startEnsemble(), 500);
+            }
+        };
+        requestAnimationFrame(animate);
+    }
+
+    initWheel() {
+        const canvas = document.getElementById('wheel-canvas');
+        if (!canvas) return;
+        const ctx2d = canvas.getContext('2d');
+        const cx = canvas.width / 2, cy = canvas.height / 2, r = 120;
+        const labels = ['Jazz','Blues','Funk','Pop','Rock','Bossa','Gospel','Neo-Soul'];
+        const colors = ['#f44336','#ff9800','#ffeb3b','#4caf50','#2196f3','#9c27b0','#e91e63','#00bcd4'];
+
+        for (let i = 0; i < labels.length; i++) {
+            const startA = (i / labels.length) * Math.PI * 2 - Math.PI / 2;
+            const endA = ((i + 1) / labels.length) * Math.PI * 2 - Math.PI / 2;
+            ctx2d.beginPath();
+            ctx2d.moveTo(cx, cy);
+            ctx2d.arc(cx, cy, r, startA, endA);
+            ctx2d.fillStyle = colors[i];
+            ctx2d.fill();
+            ctx2d.strokeStyle = '#1a1a2e';
+            ctx2d.lineWidth = 2;
+            ctx2d.stroke();
+            const textAngle = (startA + endA) / 2;
+            ctx2d.save();
+            ctx2d.translate(cx + Math.cos(textAngle) * r * 0.65, cy + Math.sin(textAngle) * r * 0.65);
+            ctx2d.rotate(textAngle + Math.PI / 2);
+            ctx2d.fillStyle = '#fff';
+            ctx2d.font = 'bold 11px Verdana';
+            ctx2d.textAlign = 'center';
+            ctx2d.fillText(labels[i], 0, 0);
+            ctx2d.restore();
+        }
+        ctx2d.beginPath();
+        ctx2d.arc(cx, cy, 18, 0, Math.PI * 2);
+        ctx2d.fillStyle = '#1a1a2e';
+        ctx2d.fill();
+        ctx2d.fillStyle = '#fff';
+        ctx2d.font = 'bold 10px Verdana';
+        ctx2d.textAlign = 'center';
+        ctx2d.fillText('\u{1F3B2}', cx, cy + 4);
+        // Pijl
+        ctx2d.beginPath();
+        ctx2d.moveTo(cx - 10, cy - r - 10);
+        ctx2d.lineTo(cx + 10, cy - r - 10);
+        ctx2d.lineTo(cx, cy - r + 5);
+        ctx2d.fillStyle = '#fff';
+        ctx2d.fill();
+    }
+
     // ---- Live instrument wisselen tijdens improvisatie ----
     changeImprovInstrument(instrument) {
         // Map improv instrument naar SoundFont naam
@@ -8559,8 +8779,11 @@ class DAWController {
                 const improvPanel = document.getElementById('improvisation');
                 improvPanel.style.display = panel === 'improvisation' ? 'block' : 'none';
                 // Build improv content on first open
-                if (panel === 'improvisation' && !document.getElementById('improv-tab-content')?.querySelector('.improv-panel')) {
-                    daw.instruments._renderGuitarFretboard();
+                if (panel === 'improvisation') {
+                    if (!document.getElementById('improv-tab-content')?.querySelector('.improv-panel')) {
+                        daw.instruments._renderGuitarFretboard();
+                    }
+                    daw.instruments.initWheel();
                 }
                 document.getElementById('synth-panel').classList.toggle('active', panel === 'synth');
                 document.getElementById('sound-match').classList.toggle('active', panel === 'sound-match');
