@@ -790,6 +790,75 @@ select:focus { border-color: var(--accent); }
             </div>
         </div>
 
+        <!-- Song Generator -->
+        <div>
+            <div class="section-header">Song Generator</div>
+            <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px">Tekst (couplet en refrein gescheiden door lege regel)</div>
+            <textarea id="song-text" rows="4" placeholder="Couplet 1:
+Ik loop door de straten
+De zon schijnt op mijn gezicht
+
+Refrein:
+Dit is mijn liedje
+Voor jou geschreven"
+                style="width:100%;background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px;font-size:12px;outline:none;resize:vertical;font-family:inherit"></textarea>
+            <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center">
+                <select id="song-style" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 8px;font-size:11px">
+                    <option value="pop">Pop</option>
+                    <option value="ballad">Ballad</option>
+                    <option value="reggae">Reggae</option>
+                    <option value="hiphop">Hip-Hop</option>
+                    <option value="jazz">Jazz</option>
+                    <option value="rock">Rock</option>
+                    <option value="bossa">Bossa Nova</option>
+                    <option value="funk">Funk</option>
+                </select>
+                <select id="song-key" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 8px;font-size:11px">
+                    <option value="C">C</option>
+                    <option value="Db">Db</option>
+                    <option value="D">D</option>
+                    <option value="Eb">Eb</option>
+                    <option value="E">E</option>
+                    <option value="F">F</option>
+                    <option value="Gb">Gb</option>
+                    <option value="G">G</option>
+                    <option value="Ab">Ab</option>
+                    <option value="A">A</option>
+                    <option value="Bb">Bb</option>
+                    <option value="B">B</option>
+                </select>
+                <select id="song-scale" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 8px;font-size:11px">
+                    <option value="major">Major</option>
+                    <option value="minor">Minor</option>
+                    <option value="dorian">Dorian</option>
+                    <option value="mixolydian">Mixolydian</option>
+                    <option value="pentatonic">Pentatonic</option>
+                    <option value="blues">Blues</option>
+                </select>
+                <select id="song-tempo" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 8px;font-size:11px">
+                    <option value="80">Slow (80 BPM)</option>
+                    <option value="100">Medium (100)</option>
+                    <option value="120" selected>Normal (120)</option>
+                    <option value="140">Fast (140)</option>
+                </select>
+                <button onclick="sampler.generateSong()" class="action-btn primary" style="font-size:11px">
+                    <span class="material-icons" style="font-size:14px">auto_awesome</span> Genereer Liedje
+                </button>
+                <button onclick="sampler.stopSong()" class="action-btn" style="font-size:11px">
+                    <span class="material-icons" style="font-size:14px">stop</span> Stop
+                </button>
+            </div>
+            <div id="song-progress" style="display:none;margin-top:8px">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <div id="song-progress-bar" style="flex:1;height:6px;background:var(--bg-darkest);border-radius:3px;overflow:hidden">
+                        <div id="song-progress-fill" style="width:0%;height:100%;background:var(--accent);transition:width 0.3s"></div>
+                    </div>
+                    <span id="song-progress-text" style="font-size:10px;color:var(--text-dim)">0%</span>
+                </div>
+                <div id="song-current-line" style="font-size:12px;color:var(--orange);margin-top:4px;font-style:italic"></div>
+            </div>
+        </div>
+
         <!-- Volume / Pan / Pitch -->
         <div>
             <div class="control-row">
@@ -5138,6 +5207,357 @@ class SamplerApp {
 
         toast('Zang met browser stem gestart!', 'success');
         singNext();
+    }
+
+    // ---- SONG GENERATOR ----
+    _songTimers = [];
+    _songPlaying = false;
+
+    _splitSyllables(word) {
+        // Simple Dutch/English syllable splitter
+        const w = word.toLowerCase().replace(/[^a-zàáâãäåèéêëìíîïòóôõöùúûüýÿ]/g, '');
+        if (w.length <= 2) return [w];
+        const vowels = 'aeiouyàáâãäåèéêëìíîïòóôõöùúûüýÿ';
+        const syllables = [];
+        let current = '';
+        let prevVowel = false;
+        for (let i = 0; i < w.length; i++) {
+            const ch = w[i];
+            const isVowel = vowels.includes(ch);
+            if (isVowel) {
+                if (prevVowel) {
+                    // Diphthong: keep together (ie, oe, ui, ei, au, ou, eu, aa, ee, oo, uu)
+                    current += ch;
+                } else {
+                    if (current.length > 0 && syllables.length > 0) {
+                        // Start new syllable: move last consonant(s) to new syllable
+                        // but keep at least one char in previous syllable
+                        let split = current.length;
+                        while (split > 1 && !vowels.includes(current[split - 1])) split--;
+                        if (split > 0 && split < current.length) {
+                            syllables[syllables.length - 1] += current.substring(0, split);
+                            current = current.substring(split) + ch;
+                        } else {
+                            current += ch;
+                        }
+                    } else {
+                        current += ch;
+                    }
+                }
+                prevVowel = true;
+            } else {
+                current += ch;
+                prevVowel = false;
+            }
+        }
+        if (current.length > 0) {
+            if (syllables.length > 0 && !vowels.includes(current[0]) && current.length <= 2) {
+                syllables[syllables.length - 1] += current;
+            } else {
+                syllables.push(current);
+            }
+        }
+        // Merge very short syllables
+        const merged = [];
+        for (const s of syllables) {
+            if (merged.length > 0 && (s.length <= 1 || merged[merged.length - 1].length <= 1)) {
+                merged[merged.length - 1] += s;
+            } else {
+                merged.push(s);
+            }
+        }
+        return merged.length > 0 ? merged : [word];
+    }
+
+    _songDrumPatterns = {
+        pop:    { kick: [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], snare: [0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0], hat: [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0] },
+        ballad: { kick: [1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0], snare: [0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0], hat: [1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1] },
+        reggae: { kick: [0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0], snare: [0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0], hat: [0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1] },
+        hiphop: { kick: [1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0], snare: [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hat: [1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1] },
+        jazz:   { kick: [1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0], snare: [0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0], hat: [1,0,1,1,0,1,1,0,1,1,0,1,1,0,1,0] },
+        rock:   { kick: [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0], snare: [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hat: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1] },
+        bossa:  { kick: [1,0,0,1,0,0,1,0,0,0,1,0,0,1,0,0], snare: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], hat: [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0] },
+        funk:   { kick: [1,0,0,1,0,0,1,0,0,0,1,0,0,1,0,0], snare: [0,0,0,0,1,0,0,1,0,0,0,0,1,0,0,0], hat: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1] },
+    };
+
+    generateSong() {
+        const textEl = document.getElementById('song-text');
+        const text = textEl?.value?.trim();
+        if (!text) { toast('Typ tekst voor het liedje', 'error'); return; }
+
+        this.initAudio();
+        this._loadSpeechVoices();
+
+        // Stop any previous song
+        this.stopSong();
+
+        const style = document.getElementById('song-style')?.value || 'pop';
+        const key = document.getElementById('song-key')?.value || 'C';
+        const scaleName = document.getElementById('song-scale')?.value || 'major';
+        const tempo = parseInt(document.getElementById('song-tempo')?.value) || 120;
+        const scale = this._melScales[scaleName] || this._melScales.major;
+        const noteNames = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+        const rootMidi = noteNames.indexOf(key) + 60; // Middle C octave
+
+        // Parse sections: split by double newline
+        const rawSections = text.split(/\n\s*\n/).filter(s => s.trim().length > 0);
+        const sections = rawSections.map((sec, i) => {
+            const lines = sec.split('\n').filter(l => l.trim().length > 0);
+            // Detect section type from label or position
+            const firstLine = lines[0].trim().toLowerCase();
+            let type = 'verse';
+            let startLine = 0;
+            if (firstLine.startsWith('refrein') || firstLine.startsWith('chorus') || firstLine.startsWith('hook')) {
+                type = 'chorus';
+                startLine = 1;
+            } else if (firstLine.startsWith('couplet') || firstLine.startsWith('verse')) {
+                type = 'verse';
+                startLine = 1;
+            } else if (firstLine.startsWith('bridge') || firstLine.startsWith('brug')) {
+                type = 'verse'; // treat bridge like verse melodically
+                startLine = 1;
+            } else {
+                // Alternate: even indices = verse, odd = chorus
+                type = i % 2 === 0 ? 'verse' : 'chorus';
+            }
+            const contentLines = lines.slice(startLine);
+            // Split all words into syllables
+            const syllables = [];
+            const lineBreaks = []; // indices where new lines start
+            for (const line of contentLines) {
+                lineBreaks.push(syllables.length);
+                const words = line.trim().split(/\s+/).filter(w => w.length > 0);
+                for (const word of words) {
+                    const syls = this._splitSyllables(word);
+                    syls.forEach((s, si) => {
+                        syllables.push({ text: s, word: word, isWordStart: si === 0 });
+                    });
+                }
+            }
+            return { type, lines: contentLines, syllables, lineBreaks, label: lines[0].trim() };
+        });
+
+        if (sections.length === 0 || sections.every(s => s.syllables.length === 0)) {
+            toast('Geen tekst gevonden', 'error');
+            return;
+        }
+
+        // Generate melodies: one for verse, one for chorus
+        const generateMelody = (syllableCount, isChorus) => {
+            const melody = [];
+            let pos = isChorus ? 4 : 0; // Chorus starts higher
+            for (let i = 0; i < syllableCount; i++) {
+                const scaleIdx = ((pos % scale.length) + scale.length) % scale.length;
+                const octaveOffset = Math.floor(pos / scale.length) * 12;
+                const semitones = scale[scaleIdx] + octaveOffset;
+                const transposition = isChorus ? 4 : 0; // Chorus transposed up a 3rd
+                const midi = rootMidi + semitones + transposition;
+                melody.push(midi);
+                // Stepwise motion mostly, jumps at phrase boundaries
+                const r = Math.random();
+                if (r < 0.55) pos += Math.random() < 0.5 ? 1 : -1;
+                else if (r < 0.8) pos += Math.floor(Math.random() * 3) - 1;
+                else pos += Math.floor(Math.random() * 5) - 2;
+                pos = Math.max(-3, Math.min(isChorus ? 10 : 7, pos));
+            }
+            return melody;
+        };
+
+        // Cache melodies per section type so same type reuses same melody
+        const verseMelody = generateMelody(Math.max(...sections.filter(s => s.type === 'verse').map(s => s.syllables.length), 1), false);
+        const chorusMelody = generateMelody(Math.max(...sections.filter(s => s.type === 'chorus').map(s => s.syllables.length), 1), true);
+
+        // Voice setup
+        const voices = speechSynthesis?.getVoices() || [];
+        const selIdx = document.getElementById('speech-voice-select')?.value;
+        const voice = selIdx !== '' && selIdx !== undefined ? voices[+selIdx] : voices.find(v => v.lang.startsWith('nl')) || voices[0];
+
+        // Timing
+        const beatMs = 60000 / tempo;
+        const sixteenthMs = beatMs / 4;
+        const barsPerSection = 4;
+        const beatsPerBar = 4;
+        const sectionDurationMs = barsPerSection * beatsPerBar * beatMs;
+        const breakMs = beatMs * 2; // 2-beat instrumental break between sections
+
+        // Drum pattern
+        const drumPattern = this._songDrumPatterns[style] || this._songDrumPatterns.pop;
+
+        // Find drum pads (if loaded)
+        const kickPad = this.pads.findIndex(p => p.buffer && p.name.toLowerCase().match(/kick|bd|bass.?d/));
+        const snarePad = this.pads.findIndex(p => p.buffer && p.name.toLowerCase().match(/snare|sn|sd|clap/));
+        const hatPad = this.pads.findIndex(p => p.buffer && p.name.toLowerCase().match(/hat|hh|hi.?h/));
+
+        // Total syllables for progress
+        const totalSyllables = sections.reduce((sum, s) => sum + s.syllables.length, 0);
+        let playedSyllables = 0;
+
+        // Show progress
+        const progressEl = document.getElementById('song-progress');
+        const progressFill = document.getElementById('song-progress-fill');
+        const progressText = document.getElementById('song-progress-text');
+        const currentLineEl = document.getElementById('song-current-line');
+        if (progressEl) progressEl.style.display = 'block';
+        if (progressFill) progressFill.style.width = '0%';
+        if (progressText) progressText.textContent = '0%';
+        if (currentLineEl) currentLineEl.textContent = '';
+
+        // Reset note display
+        const noteHistory = document.getElementById('note-history');
+        if (noteHistory) noteHistory.innerHTML = '';
+
+        this._songPlaying = true;
+        this._songTimers = [];
+
+        // Auto-record
+        if (!this.isRecording) {
+            this.toggleRecord();
+            this._autoRecording = true;
+        }
+
+        // Schedule drums for a section
+        const scheduleDrums = (startTime, durationMs) => {
+            const steps = Math.floor(durationMs / sixteenthMs);
+            for (let step = 0; step < steps; step++) {
+                const patternStep = step % 16;
+                const t = startTime + step * sixteenthMs;
+                if (drumPattern.kick[patternStep] && kickPad >= 0) {
+                    this._songTimers.push(setTimeout(() => {
+                        if (this._songPlaying) this.triggerPad(kickPad, 0.8);
+                    }, t));
+                }
+                if (drumPattern.snare[patternStep] && snarePad >= 0) {
+                    this._songTimers.push(setTimeout(() => {
+                        if (this._songPlaying) this.triggerPad(snarePad, 0.7);
+                    }, t));
+                }
+                if (drumPattern.hat[patternStep] && hatPad >= 0) {
+                    this._songTimers.push(setTimeout(() => {
+                        if (this._songPlaying) this.triggerPad(hatPad, 0.4);
+                    }, t));
+                }
+            }
+        };
+
+        // Schedule the song
+        let currentTime = 200; // Small initial delay
+
+        for (let si = 0; si < sections.length; si++) {
+            const section = sections[si];
+            const melody = section.type === 'chorus' ? chorusMelody : verseMelody;
+            const sectionStart = currentTime;
+
+            // Schedule drums for this section
+            scheduleDrums(sectionStart, sectionDurationMs);
+
+            // Show section label
+            this._songTimers.push(setTimeout(() => {
+                if (!this._songPlaying) return;
+                if (currentLineEl) currentLineEl.textContent = section.label || (section.type === 'chorus' ? 'Refrein' : 'Couplet');
+            }, sectionStart));
+
+            // Calculate timing per syllable: spread syllables evenly across bars
+            const syllableCount = section.syllables.length;
+            if (syllableCount === 0) { currentTime += sectionDurationMs + breakMs; continue; }
+            const syllableMs = sectionDurationMs / syllableCount;
+
+            // Track which line we're on for display
+            let currentLineIdx = 0;
+
+            for (let i = 0; i < syllableCount; i++) {
+                const syl = section.syllables[i];
+                const midi = melody[i % melody.length];
+                const t = sectionStart + i * syllableMs;
+
+                // Check if we crossed a line boundary
+                const nextLineIdx = section.lineBreaks.findIndex((lb, idx) => idx > currentLineIdx && i >= lb);
+
+                ((syllable, midiNote, time, lineIdx, secLines, secLineBreaks) => {
+                    this._songTimers.push(setTimeout(() => {
+                        if (!this._songPlaying) return;
+
+                        // Show current line
+                        let displayLineIdx = 0;
+                        for (let li = secLineBreaks.length - 1; li >= 0; li--) {
+                            if (playedSyllables >= 0 && i >= secLineBreaks[li]) {
+                                displayLineIdx = li;
+                                break;
+                            }
+                        }
+                        if (currentLineEl && secLines[displayLineIdx]) {
+                            currentLineEl.textContent = secLines[displayLineIdx];
+                        }
+
+                        // Show note
+                        this._showNote(midiNote, syllable.text);
+
+                        // Sing with Speech API
+                        if (window.speechSynthesis && voice) {
+                            const semitones = midiNote - rootMidi;
+                            const pitchBase = 0.9;
+                            const pitchOffset = (semitones / 12) * 0.5;
+                            const pitch = Math.max(0.3, Math.min(2.0, pitchBase + pitchOffset));
+
+                            speechSynthesis.cancel();
+                            const utter = new SpeechSynthesisUtterance(syllable.isWordStart ? syllable.word : syllable.text);
+                            utter.voice = voice;
+                            utter.pitch = pitch;
+                            utter.rate = 0.7 + (tempo / 300);
+                            utter.volume = 0.85;
+                            speechSynthesis.speak(utter);
+                        }
+
+                        // Update progress
+                        playedSyllables++;
+                        const pct = Math.round((playedSyllables / totalSyllables) * 100);
+                        if (progressFill) progressFill.style.width = pct + '%';
+                        if (progressText) progressText.textContent = pct + '%';
+                    }, time));
+                })(syl, midi, t, currentLineIdx, section.lines, section.lineBreaks);
+            }
+
+            currentTime += sectionDurationMs + breakMs;
+        }
+
+        // End of song
+        this._songTimers.push(setTimeout(() => {
+            if (!this._songPlaying) return;
+            this._songPlaying = false;
+            if (currentLineEl) currentLineEl.textContent = 'Liedje klaar!';
+            if (progressFill) progressFill.style.width = '100%';
+            if (progressText) progressText.textContent = '100%';
+
+            // Stop recording and save
+            if (this._autoRecording && this.isRecording) {
+                this.toggleRecord();
+                this._autoRecording = false;
+                toast('Liedje opname opgeslagen!', 'success');
+            }
+        }, currentTime));
+
+        toast(`Liedje gestart (${style}, ${key} ${scaleName}, ${tempo} BPM)`, 'success');
+    }
+
+    stopSong() {
+        this._songPlaying = false;
+        // Clear all scheduled timers
+        this._songTimers.forEach(t => clearTimeout(t));
+        this._songTimers = [];
+        // Stop speech
+        if (window.speechSynthesis) speechSynthesis.cancel();
+        // Stop vocal if running
+        this.stopVocal();
+        // Hide progress
+        const progressEl = document.getElementById('song-progress');
+        if (progressEl) progressEl.style.display = 'none';
+        const currentLineEl = document.getElementById('song-current-line');
+        if (currentLineEl) currentLineEl.textContent = '';
+        // Stop auto-recording
+        if (this._autoRecording && this.isRecording) {
+            this.toggleRecord();
+            this._autoRecording = false;
+            toast('Liedje gestopt, opname opgeslagen', 'info');
+        }
     }
 
     // ---- State Persistence ----
