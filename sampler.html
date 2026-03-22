@@ -684,7 +684,7 @@ select:focus { border-color: var(--accent); }
                 </button>
             </div>
             <div class="pad-actions" style="margin-top:6px">
-                <select id="kit-select" onchange="if(this.value){sampler.autoLoadKit(this.value);this.value='';}" style="background:var(--purple);border:1px solid var(--purple);color:#fff;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer">
+                <select id="kit-select" onchange="if(this.value){this.dataset.lastKit=this.value;sampler.autoLoadKit(this.value);this.value='';}" style="background:var(--purple);border:1px solid var(--purple);color:#fff;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer">
                     <option value="">Laad Sample Kit...</option>
                     <option value="Drums">Drums</option>
                     <option value="Percussion">Percussie</option>
@@ -2558,9 +2558,27 @@ class SamplerApp {
         }
     }
 
-    // ---- Improvisatie ----
+    // ============================================================
+    // IMPROVISATIE ENGINE
+    // Drums: rudiments, fills, riffs, dynamics, tension arc
+    // Melodisch (gitaar/piano/blazers): scales, arpeggios, riffs,
+    // call & response, tension/resolution, pitch bending
+    // ============================================================
     _improvising = false;
     _improvTimer = null;
+    _soloState = null;
+
+    // Toonladders voor melodische improvisatie
+    _melScales = {
+        major:      [0,2,4,5,7,9,11],
+        minor:      [0,2,3,5,7,8,10],
+        pentatonic: [0,2,4,7,9],
+        blues:      [0,3,5,6,7,10],
+        dorian:     [0,2,3,5,7,9,10],
+        mixolydian: [0,2,4,5,7,9,10],
+        phrygian:   [0,1,3,5,7,8,10],
+        bebop:      [0,2,4,5,7,9,10,11],
+    };
 
     toggleImprovise() {
         this._improvising = !this._improvising;
@@ -2570,41 +2588,495 @@ class SamplerApp {
 
         if (this._improvising) {
             this.initAudio();
-            if (!this.isPlaying) this.startSeq();
-            this._startImprovisation();
-            toast('Improvisatie gestart', 'success');
+            this._initSoloEngine();
+            const mode = this._soloState.mode;
+            if (mode === 'drums') {
+                this._runSolo();
+                toast('Drum solo!', 'success');
+            } else {
+                this._runMelodicSolo();
+                toast(`${mode.charAt(0).toUpperCase() + mode.slice(1)} improvisatie!`, 'success');
+            }
         } else {
             this._stopImprovisation();
-            toast('Improvisatie gestopt', 'info');
+            toast('Solo gestopt', 'info');
         }
     }
 
-    _startImprovisation() {
-        // Generate random variations on the current pattern
-        const humanize = () => {
-            if (!this._improvising) return;
+    _initSoloEngine() {
+        const loaded = this.pads.map((p, i) => p.buffer ? i : -1).filter(i => i >= 0);
 
-            const pattern = this.patterns[this.currentPattern];
-            // Randomly trigger extra pads with low velocity (ghost notes)
-            const loadedPads = this.pads.map((p, i) => p.buffer ? i : -1).filter(i => i >= 0);
-            if (loadedPads.length === 0) return;
-
-            // Random ghost note
-            if (Math.random() < 0.3) {
-                const padIdx = loadedPads[Math.floor(Math.random() * loadedPads.length)];
-                this.triggerPad(padIdx, 0.2 + Math.random() * 0.3);
+        // Detecteer instrument type op basis van pad namen
+        const detectMode = () => {
+            const names = loaded.map(i => this.pads[i].name.toLowerCase()).join(' ');
+            if (/guitar|riff|chord|strum|pick/i.test(names)) return 'guitar';
+            if (/piano|keys|chord|rhodes|organ/i.test(names)) return 'piano';
+            if (/trumpet|sax|brass|horn|trombone|flute/i.test(names)) return 'brass';
+            if (/string|violin|cello|viola|orchestra/i.test(names)) return 'strings';
+            if (/synth|pad|lead|stab/i.test(names)) return 'synth';
+            if (/vocal|voice|choir|sing/i.test(names)) return 'vocal';
+            if (/kick|snare|drum|hat|crash|tom|perc|conga|bongo/i.test(names)) return 'drums';
+            // Check welke kit categorie geselecteerd was
+            const kitSelect = document.getElementById('kit-select');
+            if (kitSelect) {
+                const lastKit = kitSelect.dataset.lastKit || '';
+                if (['Guitar','Keys','Synth'].includes(lastKit)) return lastKit.toLowerCase();
+                if (['Brass','Strings'].includes(lastKit)) return lastKit.toLowerCase();
             }
-
-            // Random fill (more notes before beat 1)
-            if (this.currentStep >= 12 && Math.random() < 0.15) {
-                const padIdx = loadedPads[Math.floor(Math.random() * Math.min(4, loadedPads.length))];
-                this.triggerPad(padIdx, 0.5 + Math.random() * 0.5);
-            }
-
-            const stepMs = (60000 / this.bpm) / 4;
-            this._improvTimer = setTimeout(humanize, stepMs * (0.5 + Math.random()));
+            return 'drums'; // default
         };
-        humanize();
+
+        const mode = detectMode();
+
+        // Categoriseer pads voor drums
+        const categorize = (name) => {
+            const n = name.toLowerCase();
+            if (n.includes('kick') || n.includes('bass') || n.includes('bd')) return 'kick';
+            if (n.includes('snare') || n.includes('snr') || n.includes('sd')) return 'snare';
+            if (n.includes('hat') || n.includes('hh') || n.includes('hihat')) return 'hihat';
+            if (n.includes('crash') || n.includes('cym')) return 'crash';
+            if (n.includes('tom')) return 'tom';
+            if (n.includes('ride')) return 'ride';
+            if (n.includes('clap') || n.includes('snap')) return 'clap';
+            if (n.includes('rim') || n.includes('stick')) return 'rim';
+            if (n.includes('conga') || n.includes('bongo') || n.includes('perc')) return 'perc';
+            return 'other';
+        };
+
+        const padMap = {};
+        loaded.forEach(i => {
+            const cat = categorize(this.pads[i].name);
+            if (!padMap[cat]) padMap[cat] = [];
+            padMap[cat].push(i);
+        });
+
+        if (mode === 'drums' && Object.keys(padMap).length <= 1 && loaded.length >= 3) {
+            padMap.kick = [loaded[0]];
+            padMap.snare = [loaded[1]];
+            padMap.hihat = [loaded[2]];
+            if (loaded[3]) padMap.tom = [loaded[3]];
+            if (loaded[4]) padMap.crash = [loaded[4]];
+            if (loaded[5]) padMap.perc = loaded.slice(5);
+        }
+
+        // Kies toonladder gebaseerd op stijl
+        const scaleForMode = {
+            guitar: 'pentatonic', piano: 'major', brass: 'bebop',
+            strings: 'minor', synth: 'mixolydian', vocal: 'pentatonic'
+        };
+
+        this._soloState = {
+            loaded, padMap, mode,
+            energy: 0.3,
+            energyDir: 0.02,
+            phase: 'groove',
+            phaseBar: 0,
+            phaseBars: 4,
+            bar: 0,
+            beat: 0,
+            motif: [],
+            motifRepeat: 0,
+            lastHit: -1,
+            rudiment: null,
+            rudimentPos: 0,
+            // Melodisch
+            scale: this._melScales[scaleForMode[mode] || 'pentatonic'] || this._melScales.pentatonic,
+            lastNote: 0,         // positie in scale
+            lastPad: 0,         // laatste gespeelde pad
+            phrase: [],          // huidig melodisch motief
+            phrasePos: 0,
+        };
+    }
+
+    // Rudiments als velocity/pad patronen
+    _rudiments = {
+        singleStroke:  [{h:'R',v:1},{h:'L',v:1},{h:'R',v:1},{h:'L',v:1}],
+        doubleStroke:  [{h:'R',v:1},{h:'R',v:0.7},{h:'L',v:1},{h:'L',v:0.7}],
+        paradiddle:    [{h:'R',v:1},{h:'L',v:0.8},{h:'R',v:0.9},{h:'R',v:0.6},{h:'L',v:1},{h:'R',v:0.8},{h:'L',v:0.9},{h:'L',v:0.6}],
+        flam:          [{h:'B',v:0.3},{h:'R',v:1}], // B = both (ghost + accent)
+        dragRoll:      [{h:'R',v:0.3},{h:'R',v:0.3},{h:'L',v:1}],
+        sixStroke:     [{h:'R',v:1},{h:'R',v:0.5},{h:'L',v:0.5},{h:'L',v:0.5},{h:'R',v:0.5},{h:'L',v:1}],
+        triplet:       [{h:'R',v:1},{h:'L',v:0.7},{h:'R',v:0.7}],
+        buzz:          [{h:'R',v:0.4},{h:'R',v:0.35},{h:'R',v:0.3},{h:'L',v:0.4},{h:'L',v:0.35},{h:'L',v:0.3}],
+    };
+
+    // Riffs: vaste ritmische patronen (steps + pad role + velocity)
+    _riffs = [
+        // Funk fill
+        [{s:0,r:'kick',v:1},{s:2,r:'snare',v:0.8},{s:3,r:'snare',v:0.4},{s:4,r:'kick',v:0.9},{s:6,r:'tom',v:1},{s:7,r:'tom',v:0.6},{s:8,r:'snare',v:1},{s:10,r:'kick',v:0.7},{s:11,r:'snare',v:0.5},{s:12,r:'tom',v:1},{s:13,r:'tom',v:0.8},{s:14,r:'crash',v:1},{s:15,r:'snare',v:0.9}],
+        // Linear groove
+        [{s:0,r:'kick',v:1},{s:1,r:'hihat',v:0.5},{s:2,r:'snare',v:0.3},{s:3,r:'hihat',v:0.6},{s:4,r:'snare',v:1},{s:5,r:'kick',v:0.6},{s:6,r:'hihat',v:0.5},{s:7,r:'snare',v:0.3},{s:8,r:'kick',v:0.9},{s:9,r:'hihat',v:0.4},{s:10,r:'tom',v:0.8},{s:11,r:'hihat',v:0.5},{s:12,r:'snare',v:1},{s:13,r:'kick',v:0.5},{s:14,r:'hihat',v:0.6},{s:15,r:'snare',v:0.4}],
+        // Tom cascade
+        [{s:0,r:'crash',v:1},{s:2,r:'tom',v:1},{s:3,r:'tom',v:0.8},{s:4,r:'tom',v:0.9},{s:5,r:'tom',v:0.7},{s:6,r:'snare',v:1},{s:8,r:'tom',v:0.6},{s:9,r:'tom',v:0.8},{s:10,r:'tom',v:1},{s:12,r:'kick',v:1},{s:14,r:'snare',v:1},{s:15,r:'crash',v:0.9}],
+        // Double bass blast
+        [{s:0,r:'kick',v:1},{s:1,r:'kick',v:0.8},{s:2,r:'snare',v:1},{s:3,r:'kick',v:0.7},{s:4,r:'kick',v:1},{s:5,r:'kick',v:0.8},{s:6,r:'snare',v:1},{s:7,r:'kick',v:0.6},{s:8,r:'kick',v:1},{s:9,r:'kick',v:0.9},{s:10,r:'snare',v:1},{s:11,r:'hihat',v:0.5},{s:12,r:'kick',v:1},{s:13,r:'kick',v:0.8},{s:14,r:'snare',v:1},{s:15,r:'crash',v:1}],
+        // Reggae one-drop fill
+        [{s:0,r:'rim',v:0.5},{s:2,r:'snare',v:0.3},{s:4,r:'snare',v:1},{s:6,r:'rim',v:0.4},{s:8,r:'kick',v:0.8},{s:10,r:'tom',v:0.6},{s:11,r:'tom',v:0.7},{s:12,r:'snare',v:1},{s:14,r:'tom',v:0.9},{s:15,r:'crash',v:0.8}],
+        // Jazz ride pattern
+        [{s:0,r:'ride',v:1},{s:2,r:'ride',v:0.6},{s:3,r:'ride',v:0.8},{s:4,r:'kick',v:0.5},{s:6,r:'ride',v:0.7},{s:8,r:'ride',v:1},{s:10,r:'snare',v:0.3},{s:11,r:'ride',v:0.6},{s:12,r:'ride',v:0.9},{s:14,r:'ride',v:0.5},{s:15,r:'kick',v:0.4}],
+        // Breakbeat
+        [{s:0,r:'kick',v:1},{s:2,r:'kick',v:0.7},{s:4,r:'snare',v:1},{s:6,r:'hihat',v:0.5},{s:7,r:'hihat',v:0.3},{s:8,r:'kick',v:0.8},{s:10,r:'kick',v:0.9},{s:11,r:'snare',v:0.4},{s:12,r:'snare',v:1},{s:14,r:'hihat',v:0.6},{s:15,r:'hihat',v:0.4}],
+        // Afrobeat bell pattern
+        [{s:0,r:'perc',v:1},{s:2,r:'perc',v:0.7},{s:3,r:'kick',v:0.8},{s:5,r:'perc',v:0.6},{s:6,r:'perc',v:0.9},{s:8,r:'snare',v:0.7},{s:9,r:'perc',v:0.5},{s:10,r:'perc',v:0.8},{s:12,r:'kick',v:1},{s:13,r:'perc',v:0.6},{s:14,r:'perc',v:0.7},{s:15,r:'snare',v:0.5}],
+    ];
+
+    _runSolo() {
+        if (!this._improvising) return;
+        const s = this._soloState;
+        if (!s || !s.loaded.length) return;
+
+        const stepMs = (60000 / this.bpm) / 4;
+        const pm = s.padMap;
+
+        // Energie arc: opbouwen → climax → afbouwen → herhaal
+        s.energy += s.energyDir;
+        if (s.energy >= 1.0) { s.energy = 1.0; s.energyDir = -0.015; }
+        if (s.energy <= 0.2) { s.energy = 0.2; s.energyDir = 0.02; }
+
+        // Fase management
+        s.beat = (s.beat + 1) % 16;
+        if (s.beat === 0) {
+            s.phaseBar++;
+            s.bar++;
+            if (s.phaseBar >= s.phaseBars) {
+                s.phaseBar = 0;
+                // Volgende fase
+                const phases = ['groove','groove','buildup','solo','solo','climax','breakdown'];
+                const currentIdx = phases.indexOf(s.phase);
+                s.phase = phases[(currentIdx + 1) % phases.length];
+                s.phaseBars = s.phase === 'climax' ? 2 : s.phase === 'breakdown' ? 2 : 4;
+                // Nieuw riff bij fase wissel
+                if (Math.random() < 0.6) {
+                    s.motif = this._riffs[Math.floor(Math.random() * this._riffs.length)];
+                    s.motifRepeat = 0;
+                }
+            }
+        }
+
+        const getPad = (role) => {
+            const candidates = pm[role] || pm.other || s.loaded;
+            if (!candidates || !candidates.length) return s.loaded[0];
+            return candidates[Math.floor(Math.random() * candidates.length)];
+        };
+
+        const hit = (role, velocity) => {
+            const pad = getPad(role);
+            if (pad !== undefined) {
+                this.triggerPad(pad, velocity * s.energy + (1 - s.energy) * velocity * 0.4);
+                s.lastHit = pad;
+            }
+        };
+
+        // ---- FASE-GEBASEERD GEDRAG ----
+        switch (s.phase) {
+            case 'groove': {
+                // Basis groove met ghost notes
+                if (s.beat === 0) hit('kick', 1);
+                if (s.beat === 4 || s.beat === 12) hit('snare', 0.9 + Math.random() * 0.1);
+                if (s.beat % 2 === 0) hit('hihat', 0.4 + Math.random() * 0.2);
+                // Ghost notes
+                if (s.beat % 2 === 1 && Math.random() < 0.3) hit('hihat', 0.15 + Math.random() * 0.15);
+                if (Math.random() < 0.08) hit('snare', 0.15 + Math.random() * 0.1); // ghost snare
+                // Kick variatie
+                if ((s.beat === 6 || s.beat === 10) && Math.random() < 0.4) hit('kick', 0.6);
+                break;
+            }
+
+            case 'buildup': {
+                // Toenemende dichtheid, accelerando feel
+                const density = 0.3 + (s.phaseBar / s.phaseBars) * 0.6;
+                if (s.beat === 0) hit('kick', 1);
+                if (s.beat === 4 || s.beat === 12) hit('snare', 1);
+                // Steeds meer hi-hats
+                if (Math.random() < density) hit('hihat', 0.3 + density * 0.4);
+                // Snare roll opbouw in laatste bar
+                if (s.phaseBar === s.phaseBars - 1 && s.beat >= 8) {
+                    hit('snare', 0.4 + (s.beat - 8) / 8 * 0.6);
+                }
+                // Toms erbij
+                if (s.beat >= 12 && s.phaseBar >= 2 && Math.random() < 0.4) hit('tom', 0.7);
+                break;
+            }
+
+            case 'solo': {
+                // Riffs + rudiments + fills
+                // Speel huidige riff als die er is
+                if (s.motif.length > 0) {
+                    const note = s.motif.find(n => n.s === s.beat);
+                    if (note) hit(note.r, note.v);
+                    if (s.beat === 15) {
+                        s.motifRepeat++;
+                        if (s.motifRepeat >= 2 + Math.floor(Math.random() * 2)) {
+                            // Nieuw riff of rudiment
+                            if (Math.random() < 0.5) {
+                                s.motif = this._riffs[Math.floor(Math.random() * this._riffs.length)];
+                            } else {
+                                s.motif = this._generateRudimentBar(s);
+                            }
+                            s.motifRepeat = 0;
+                        }
+                    }
+                } else {
+                    // Improviseer vrij
+                    if (s.beat === 0) hit('kick', 1);
+                    if (Math.random() < 0.5) {
+                        const roles = ['snare','tom','hihat','kick','perc','rim'];
+                        hit(roles[Math.floor(Math.random() * roles.length)], 0.4 + Math.random() * 0.6);
+                    }
+                }
+                // Extra energie hits
+                if (Math.random() < s.energy * 0.15) {
+                    hit(Math.random() < 0.5 ? 'tom' : 'perc', 0.3 + Math.random() * 0.4);
+                }
+                break;
+            }
+
+            case 'climax': {
+                // Maximale energie — alles tegelijk, rolls, crashes
+                if (s.beat === 0) { hit('crash', 1); hit('kick', 1); }
+                // Constant snare/tom rollen
+                hit(s.beat % 3 === 0 ? 'snare' : s.beat % 3 === 1 ? 'tom' : 'kick', 0.6 + Math.random() * 0.4);
+                // Extra layer
+                if (Math.random() < 0.4) hit('hihat', 0.3 + Math.random() * 0.3);
+                if (s.beat === 15) hit('crash', 1);
+                break;
+            }
+
+            case 'breakdown': {
+                // Rustig, space, minimaal
+                if (s.beat === 0 && Math.random() < 0.5) hit('kick', 0.5);
+                if (s.beat === 8 && Math.random() < 0.5) hit('rim', 0.3);
+                if (Math.random() < 0.1) hit('hihat', 0.1 + Math.random() * 0.15);
+                // Occasional ghost
+                if (Math.random() < 0.05) hit('snare', 0.1);
+                break;
+            }
+        }
+
+        // Volgende stap
+        let nextMs = stepMs;
+        // Swing
+        if (this.swing > 0 && s.beat % 2 === 0) nextMs *= 1 + (this.swing / 100) * 0.3;
+        else if (this.swing > 0) nextMs *= 1 - (this.swing / 100) * 0.3;
+        // Humanize timing
+        nextMs *= 0.95 + Math.random() * 0.1;
+
+        this._improvTimer = setTimeout(() => this._runSolo(), nextMs);
+    }
+
+    _generateRudimentBar(state) {
+        // Genereer een bar gebaseerd op een rudiment
+        const rudNames = Object.keys(this._rudiments);
+        const rudName = rudNames[Math.floor(Math.random() * rudNames.length)];
+        const rud = this._rudiments[rudName];
+        const bar = [];
+        const roles = ['snare','tom','rim','perc'];
+        const mainRole = roles[Math.floor(Math.random() * roles.length)];
+        const altRole = roles[Math.floor(Math.random() * roles.length)];
+
+        let step = 0;
+        while (step < 16) {
+            for (const note of rud) {
+                if (step >= 16) break;
+                const role = note.h === 'L' ? altRole : note.h === 'B' ? mainRole : mainRole;
+                bar.push({ s: step, r: role, v: note.v });
+                step++;
+            }
+        }
+        // Voeg kick toe op downbeats
+        bar.push({ s: 0, r: 'kick', v: 1 });
+        if (Math.random() < 0.5) bar.push({ s: 8, r: 'kick', v: 0.8 });
+        return bar;
+    }
+
+    // ---- MELODISCHE IMPROVISATIE (gitaar, piano, blazers, synth) ----
+    _runMelodicSolo() {
+        if (!this._improvising) return;
+        const s = this._soloState;
+        if (!s || !s.loaded.length) return;
+
+        const stepMs = (60000 / this.bpm) / 4;
+
+        // Energie arc
+        s.energy += s.energyDir;
+        if (s.energy >= 1.0) { s.energy = 1.0; s.energyDir = -0.012; }
+        if (s.energy <= 0.15) { s.energy = 0.15; s.energyDir = 0.018; }
+
+        s.beat = (s.beat + 1) % 16;
+        if (s.beat === 0) {
+            s.phaseBar++;
+            s.bar++;
+            if (s.phaseBar >= s.phaseBars) {
+                s.phaseBar = 0;
+                const phases = ['intro','theme','develop','solo','climax','outro'];
+                const idx = phases.indexOf(s.phase);
+                s.phase = phases[(idx + 1) % phases.length];
+                s.phaseBars = s.phase === 'climax' ? 2 : s.phase === 'intro' ? 2 : 4;
+                // Nieuw motief bij fase wissel
+                if (s.phase === 'theme' || s.phase === 'solo') {
+                    s.phrase = this._generateMelodicPhrase(s);
+                    s.phrasePos = 0;
+                }
+            }
+        }
+
+        // Pitch: gebruik scale om semitones te berekenen voor playbackRate
+        const playWithPitch = (padIdx, semitones, velocity) => {
+            if (padIdx === undefined || !this.pads[padIdx]?.buffer) return;
+            const p = this.pads[padIdx];
+            const origPitch = p.pitch;
+            p.pitch = semitones;
+            this.triggerPad(padIdx, velocity * (0.4 + s.energy * 0.6));
+            p.pitch = origPitch;
+        };
+
+        const pickPad = () => s.loaded[Math.floor(Math.random() * s.loaded.length)];
+        const scaleNote = (pos) => {
+            const octave = Math.floor(pos / s.scale.length);
+            const idx = ((pos % s.scale.length) + s.scale.length) % s.scale.length;
+            return s.scale[idx] + octave * 12;
+        };
+
+        switch (s.phase) {
+            case 'intro': {
+                // Rustig, enkele noten, veel ruimte
+                if (s.beat % 8 === 0) {
+                    const st = scaleNote(s.lastNote);
+                    playWithPitch(pickPad(), st, 0.5);
+                }
+                if (s.beat === 12 && Math.random() < 0.3) {
+                    s.lastNote += Math.random() < 0.5 ? 1 : -1;
+                    playWithPitch(pickPad(), scaleNote(s.lastNote), 0.3);
+                }
+                break;
+            }
+
+            case 'theme': {
+                // Speel motief — herkenbaar thema
+                if (s.phrase.length > 0 && s.beat % 2 === 0) {
+                    const note = s.phrase[s.phrasePos % s.phrase.length];
+                    if (note.rest) break;
+                    playWithPitch(s.loaded[note.pad % s.loaded.length], note.semitones, note.vel);
+                    s.phrasePos++;
+                    s.lastNote = note.scalePos;
+                }
+                break;
+            }
+
+            case 'develop': {
+                // Variaties op thema — transpositie, inversie, augmentatie
+                if (s.phrase.length > 0 && Math.random() < 0.6) {
+                    const note = s.phrase[s.phrasePos % s.phrase.length];
+                    if (!note.rest) {
+                        // Transpositie: verschuif hele motief
+                        const transposition = Math.floor(Math.random() * 5) - 2;
+                        const st = note.semitones + transposition;
+                        playWithPitch(s.loaded[(note.pad + 1) % s.loaded.length], st, note.vel * 0.9);
+                    }
+                    s.phrasePos++;
+                }
+                // Nieuwe noten tussendoor
+                if (s.beat % 3 === 0 && Math.random() < 0.3) {
+                    const step = Math.random() < 0.6 ? 1 : 2;
+                    s.lastNote += Math.random() < 0.5 ? step : -step;
+                    playWithPitch(pickPad(), scaleNote(s.lastNote), 0.5 + Math.random() * 0.3);
+                }
+                break;
+            }
+
+            case 'solo': {
+                // Vrije improvisatie — snelle loopjes, bends, energie
+                const density = 0.3 + s.energy * 0.5;
+                if (Math.random() < density) {
+                    // Stepwise motion met af en toe een sprong
+                    const jump = Math.random() < 0.2 ? Math.floor(Math.random() * 5) - 2 : (Math.random() < 0.5 ? 1 : -1);
+                    s.lastNote += jump;
+                    s.lastNote = Math.max(-7, Math.min(14, s.lastNote));
+                    const vel = 0.5 + Math.random() * 0.5;
+                    playWithPitch(pickPad(), scaleNote(s.lastNote), vel);
+                }
+                // Snelle runs (16e noten achter elkaar)
+                if (s.energy > 0.7 && s.beat >= 8 && Math.random() < 0.4) {
+                    s.lastNote += Math.random() < 0.5 ? 1 : -1;
+                    playWithPitch(pickPad(), scaleNote(s.lastNote), 0.6 + Math.random() * 0.3);
+                }
+                // Arpeggio: speel meerdere pads tegelijk met verschillende pitches
+                if (s.mode === 'piano' && s.beat % 4 === 0 && Math.random() < 0.3) {
+                    const root = scaleNote(s.lastNote);
+                    playWithPitch(s.loaded[0 % s.loaded.length], root, 0.7);
+                    playWithPitch(s.loaded[1 % s.loaded.length], root + (s.scale[2] || 4), 0.5);
+                    playWithPitch(s.loaded[2 % s.loaded.length], root + (s.scale[4] || 7), 0.5);
+                }
+                break;
+            }
+
+            case 'climax': {
+                // Maximale energie — akkoorden, snelle noten, crescendo
+                if (s.beat % 2 === 0 || s.energy > 0.8) {
+                    s.lastNote += Math.random() < 0.5 ? 1 : -1;
+                    playWithPitch(pickPad(), scaleNote(s.lastNote), 0.8 + Math.random() * 0.2);
+                }
+                // Akkoorden op downbeats
+                if (s.beat % 4 === 0) {
+                    const root = scaleNote(s.lastNote);
+                    for (let j = 0; j < Math.min(3, s.loaded.length); j++) {
+                        playWithPitch(s.loaded[j], root + (s.scale[j * 2] || j * 4), 0.9);
+                    }
+                }
+                // Triller/trill
+                if (s.beat >= 12 && Math.random() < 0.5) {
+                    const st = scaleNote(s.lastNote);
+                    playWithPitch(pickPad(), st, 0.6);
+                    setTimeout(() => playWithPitch(pickPad(), st + (s.scale[1] || 2), 0.5), stepMs * 0.2);
+                }
+                break;
+            }
+
+            case 'outro': {
+                // Afbouwen, langzame noten, resolutie naar grondtoon
+                if (s.beat % 4 === 0 && s.lastNote !== 0) {
+                    s.lastNote += s.lastNote > 0 ? -1 : 1;
+                    playWithPitch(pickPad(), scaleNote(s.lastNote), 0.3 + Math.random() * 0.2);
+                }
+                if (s.beat === 0 && s.phaseBar === s.phaseBars - 1) {
+                    // Laatste noot: grondtoon
+                    playWithPitch(s.loaded[0], 0, 0.6);
+                }
+                break;
+            }
+        }
+
+        // Humanize timing
+        let nextMs = stepMs * (0.93 + Math.random() * 0.14);
+        // Snellere noten bij hoge energie
+        if (s.energy > 0.7 && s.phase === 'solo') nextMs *= 0.7;
+
+        this._improvTimer = setTimeout(() => this._runMelodicSolo(), nextMs);
+    }
+
+    _generateMelodicPhrase(state) {
+        // Genereer een herkenbaar 4-8 noten motief
+        const len = 4 + Math.floor(Math.random() * 5);
+        const phrase = [];
+        let pos = state.lastNote;
+        for (let i = 0; i < len; i++) {
+            if (Math.random() < 0.15) {
+                phrase.push({ rest: true });
+            } else {
+                const step = Math.random() < 0.6 ? (Math.random() < 0.5 ? 1 : -1) : Math.floor(Math.random() * 4) - 2;
+                pos += step;
+                pos = Math.max(-5, Math.min(12, pos));
+                const octave = Math.floor(pos / state.scale.length);
+                const idx = ((pos % state.scale.length) + state.scale.length) % state.scale.length;
+                phrase.push({
+                    scalePos: pos,
+                    semitones: state.scale[idx] + octave * 12,
+                    pad: Math.floor(Math.random() * state.loaded.length),
+                    vel: 0.5 + Math.random() * 0.5
+                });
+            }
+        }
+        return phrase;
     }
 
     _stopImprovisation() {
@@ -2612,6 +3084,7 @@ class SamplerApp {
             clearTimeout(this._improvTimer);
             this._improvTimer = null;
         }
+        this._soloState = null;
     }
 
     // ---- Community Sharing ----
