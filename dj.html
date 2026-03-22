@@ -721,7 +721,8 @@ body {
 }
 
 /* ---- Browser Tabs ---- */
-#browser-area { height: 280px; }
+#browser-area { height: 280px; overflow: hidden; transition: height 0.3s ease; }
+#browser-area.collapsed { height: 0; min-height: 0; border: none; }
 .browser-tabs {
     display: flex;
     gap: 0;
@@ -1276,7 +1277,10 @@ body {
         </div>
     </div>
 
-    <!-- Track Browser -->
+    <!-- Track Browser (inklapbaar) -->
+    <div id="browser-toggle" onclick="document.getElementById('browser-area').classList.toggle('collapsed');this.querySelector('.material-icons').textContent=document.getElementById('browser-area').classList.contains('collapsed')?'expand_less':'expand_more'" style="display:flex;align-items:center;justify-content:center;gap:4px;padding:4px 0;cursor:pointer;background:var(--bg-panel);border-top:1px solid var(--border);font-size:10px;color:var(--text-dim);user-select:none">
+        <span class="material-icons" style="font-size:16px">expand_more</span> Track Browser
+    </div>
     <div id="browser-area">
         <div class="browser-tabs">
             <button class="browser-tab active" data-tab="jamendo" onclick="djApp.switchBrowserTab('jamendo')">Jamendo</button>

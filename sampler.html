@@ -769,14 +769,51 @@ select:focus { border-color: var(--accent); }
             </div>
         </div>
 
-        <!-- Community Panel (hidden by default) -->
+        <!-- Sample Browser (hidden by default) -->
         <div class="community-panel" id="community-panel" style="display:none">
-            <div class="section-header">Community Samples</div>
-            <div class="community-search">
-                <input type="text" id="community-search-input" placeholder="Zoek samples...">
-                <button onclick="sampler.searchCommunity()">Zoek</button>
+            <div class="section-header">Sample Browser</div>
+            <!-- Source toggles -->
+            <div style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap">
+                <label style="font-size:10px;display:flex;align-items:center;gap:3px;cursor:pointer;padding:3px 8px;border-radius:4px;background:var(--bg-dark);border:1px solid var(--border)">
+                    <input type="checkbox" id="src-freesound" checked style="accent-color:var(--accent)"> Freesound
+                </label>
+                <label style="font-size:10px;display:flex;align-items:center;gap:3px;cursor:pointer;padding:3px 8px;border-radius:4px;background:var(--bg-dark);border:1px solid var(--border)">
+                    <input type="checkbox" id="src-jamendo" checked style="accent-color:var(--orange)"> Jamendo
+                </label>
+                <label style="font-size:10px;display:flex;align-items:center;gap:3px;cursor:pointer;padding:3px 8px;border-radius:4px;background:var(--bg-dark);border:1px solid var(--border)">
+                    <input type="checkbox" id="src-archive" checked style="accent-color:var(--green)"> Internet Archive
+                </label>
+                <label style="font-size:10px;display:flex;align-items:center;gap:3px;cursor:pointer;padding:3px 8px;border-radius:4px;background:var(--bg-dark);border:1px solid var(--border)">
+                    <input type="checkbox" id="src-community" checked style="accent-color:var(--purple)"> Community
+                </label>
             </div>
-            <div class="community-results" id="community-results"></div>
+            <!-- Category presets -->
+            <div style="display:flex;gap:3px;margin-bottom:6px;flex-wrap:wrap">
+                <button class="action-btn" onclick="sampler.browserSearch('kick drum')" style="font-size:9px;padding:2px 8px">Kick</button>
+                <button class="action-btn" onclick="sampler.browserSearch('snare drum')" style="font-size:9px;padding:2px 8px">Snare</button>
+                <button class="action-btn" onclick="sampler.browserSearch('hi-hat')" style="font-size:9px;padding:2px 8px">Hi-Hat</button>
+                <button class="action-btn" onclick="sampler.browserSearch('clap')" style="font-size:9px;padding:2px 8px">Clap</button>
+                <button class="action-btn" onclick="sampler.browserSearch('bass guitar')" style="font-size:9px;padding:2px 8px">Bass</button>
+                <button class="action-btn" onclick="sampler.browserSearch('guitar riff')" style="font-size:9px;padding:2px 8px">Gitaar</button>
+                <button class="action-btn" onclick="sampler.browserSearch('piano chord')" style="font-size:9px;padding:2px 8px">Piano</button>
+                <button class="action-btn" onclick="sampler.browserSearch('trumpet')" style="font-size:9px;padding:2px 8px">Trompet</button>
+                <button class="action-btn" onclick="sampler.browserSearch('saxophone')" style="font-size:9px;padding:2px 8px">Sax</button>
+                <button class="action-btn" onclick="sampler.browserSearch('strings orchestra')" style="font-size:9px;padding:2px 8px">Strings</button>
+                <button class="action-btn" onclick="sampler.browserSearch('synth pad')" style="font-size:9px;padding:2px 8px">Synth</button>
+                <button class="action-btn" onclick="sampler.browserSearch('vocal chop')" style="font-size:9px;padding:2px 8px">Vocals</button>
+                <button class="action-btn" onclick="sampler.browserSearch('bird animal')" style="font-size:9px;padding:2px 8px">Vogels</button>
+                <button class="action-btn" onclick="sampler.browserSearch('dog cat animal')" style="font-size:9px;padding:2px 8px">Dieren</button>
+                <button class="action-btn" onclick="sampler.browserSearch('rain thunder nature')" style="font-size:9px;padding:2px 8px">Natuur</button>
+                <button class="action-btn" onclick="sampler.browserSearch('explosion boom')" style="font-size:9px;padding:2px 8px">FX</button>
+                <button class="action-btn" onclick="sampler.browserSearch('reggae')" style="font-size:9px;padding:2px 8px">Reggae</button>
+                <button class="action-btn" onclick="sampler.browserSearch('bongo conga')" style="font-size:9px;padding:2px 8px">Conga</button>
+            </div>
+            <!-- Search -->
+            <div class="community-search">
+                <input type="text" id="browser-search-input" placeholder="Zoek in alle bronnen..." onkeydown="if(event.key==='Enter')sampler.browserSearch()">
+                <button onclick="sampler.browserSearch()">Zoek</button>
+            </div>
+            <div class="community-results" id="browser-results" style="max-height:300px"></div>
         </div>
 
         <!-- Master FX -->
@@ -2160,48 +2197,159 @@ class SamplerApp {
         panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
     }
 
-    async searchCommunity() {
-        const sb = this.getSupabase();
-        if (!sb) { toast('Supabase niet beschikbaar', 'error'); return; }
+    // ---- Multi-Source Sample Browser ----
+    FREESOUND_KEY = 'oGR9eJ0TvJ67WKDAS1dT7GcUg2pewZC5LoPZHJ55';
+    JAMENDO_ID = 'd14314a3';
 
-        const query = document.getElementById('community-search-input').value;
-        const results = document.getElementById('community-results');
-        results.innerHTML = '<div style="color:var(--text-dim);font-size:11px;padding:8px">Zoeken...</div>';
-
-        try {
-            let q = sb.from('community_samples').select('*').limit(30);
-            if (query) {
-                q = q.or(`name.ilike.%${query}%,tags.cs.{${query}}`);
-            }
-            const { data, error } = await q;
-            if (error) throw error;
-
-            if (!data || data.length === 0) {
-                results.innerHTML = '<div style="color:var(--text-dim);font-size:11px;padding:8px">Geen samples gevonden</div>';
-                return;
-            }
-
-            results.innerHTML = data.map(s => `
-                <div class="community-item" onclick="sampler.loadCommunitySample('${s.file_path}','${(s.name||'sample').replace(/'/g,"\\'")}')">
-                    <span class="material-icons">cloud_download</span>
-                    <span style="flex:1">${s.name || 'Unnamed'}</span>
-                    <span style="color:var(--text-dim);font-size:9px">${s.category || ''}</span>
-                </div>
-            `).join('');
-        } catch(e) {
-            results.innerHTML = `<div style="color:var(--red);font-size:11px;padding:8px">Fout: ${e.message}</div>`;
+    async browserSearch(presetQuery) {
+        const query = presetQuery || document.getElementById('browser-search-input')?.value || '';
+        if (!query) { toast('Voer een zoekterm in', 'error'); return; }
+        if (!presetQuery && document.getElementById('browser-search-input')) {
+            document.getElementById('browser-search-input').value = query;
         }
+
+        const results = document.getElementById('browser-results');
+        results.innerHTML = '<div style="color:var(--text-dim);font-size:11px;padding:8px">Zoeken in alle bronnen...</div>';
+
+        const srcFreesound = document.getElementById('src-freesound')?.checked;
+        const srcJamendo = document.getElementById('src-jamendo')?.checked;
+        const srcArchive = document.getElementById('src-archive')?.checked;
+        const srcCommunity = document.getElementById('src-community')?.checked;
+
+        const allResults = [];
+        const promises = [];
+
+        // Freesound
+        if (srcFreesound) {
+            promises.push(this._searchFreesound(query).then(r => allResults.push(...r)).catch(() => {}));
+        }
+        // Jamendo
+        if (srcJamendo) {
+            promises.push(this._searchJamendo(query).then(r => allResults.push(...r)).catch(() => {}));
+        }
+        // Internet Archive
+        if (srcArchive) {
+            promises.push(this._searchArchive(query).then(r => allResults.push(...r)).catch(() => {}));
+        }
+        // Community (Supabase)
+        if (srcCommunity) {
+            promises.push(this._searchCommunity(query).then(r => allResults.push(...r)).catch(() => {}));
+        }
+
+        await Promise.all(promises);
+
+        if (allResults.length === 0) {
+            results.innerHTML = '<div style="color:var(--text-dim);font-size:11px;padding:8px">Geen resultaten gevonden</div>';
+            return;
+        }
+
+        // Store results for click handler
+        this._browserResults = allResults;
+
+        results.innerHTML = allResults.map((r, i) => `
+            <div class="community-item" data-browser-idx="${i}">
+                <span class="material-icons" style="color:${r.sourceColor}">${r.sourceIcon}</span>
+                <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.name}">${r.name}</span>
+                <span style="color:var(--text-dim);font-size:8px;min-width:50px;text-align:right">${r.source}</span>
+            </div>
+        `).join('');
+
+        results.querySelectorAll('[data-browser-idx]').forEach(el => {
+            el.onclick = () => {
+                const r = this._browserResults[+el.dataset.browserIdx];
+                if (r) this._loadBrowserResult(r);
+            };
+        });
+
+        toast(`${allResults.length} resultaten gevonden`, 'success');
     }
 
-    async loadCommunitySample(filePath, name) {
-        this.initAudio();
+    async _searchFreesound(query) {
+        const url = `https://freesound.org/apiv2/search/text/?query=${encodeURIComponent(query)}&token=${this.FREESOUND_KEY}&page_size=15&fields=id,name,duration,previews,tags&filter=duration:[0.1 TO 30]`;
+        const resp = await fetch(url);
+        const data = await resp.json();
+        return (data.results || []).map(s => ({
+            name: s.name,
+            source: 'Freesound',
+            sourceColor: 'var(--accent)',
+            sourceIcon: 'graphic_eq',
+            url: s.previews?.['preview-hq-mp3'] || s.previews?.['preview-lq-mp3'],
+            needsProxy: true,
+            duration: s.duration
+        }));
+    }
+
+    async _searchJamendo(query) {
+        const url = `https://api.jamendo.com/v3.0/tracks/?client_id=${this.JAMENDO_ID}&format=json&limit=10&search=${encodeURIComponent(query)}&include=musicinfo`;
+        const resp = await fetch(url);
+        const data = await resp.json();
+        return (data.results || []).map(t => ({
+            name: `${t.artist_name} - ${t.name}`,
+            source: 'Jamendo',
+            sourceColor: 'var(--orange)',
+            sourceIcon: 'music_note',
+            url: t.audio || t.audiodownload,
+            needsProxy: false,
+            duration: t.duration
+        }));
+    }
+
+    async _searchArchive(query) {
+        const url = `https://archive.org/advancedsearch.php?q=${encodeURIComponent(query)}+mediatype:audio&fl[]=identifier&fl[]=title&fl[]=creator&output=json&rows=10&sort[]=downloads+desc`;
+        const resp = await fetch(url);
+        const data = await resp.json();
+        return (data.response?.docs || []).map(item => ({
+            name: item.title || item.identifier,
+            source: 'Archive',
+            sourceColor: 'var(--green)',
+            sourceIcon: 'archive',
+            url: `https://archive.org/download/${item.identifier}/${item.identifier}_vbr.mp3`,
+            needsProxy: false
+        }));
+    }
+
+    async _searchCommunity(query) {
+        const sb = this.getSupabase();
+        if (!sb) return [];
         try {
-            const url = `${this.SUPABASE_URL}/storage/v1/object/public/samples/${filePath}`;
+            let q = sb.from('community_samples').select('*').limit(10);
+            if (query) q = q.or(`name.ilike.%${query}%,tags.cs.{${query}}`);
+            const { data } = await q;
+            return (data || []).map(s => ({
+                name: s.name || 'Community Sample',
+                source: 'Community',
+                sourceColor: 'var(--purple)',
+                sourceIcon: 'people',
+                url: `${this.SUPABASE_URL}/storage/v1/object/public/samples/${s.file_path}`,
+                needsProxy: false
+            }));
+        } catch(e) { return []; }
+    }
+
+    async _loadBrowserResult(result) {
+        this.initAudio();
+        toast(`Laden: ${result.name}...`, 'info');
+        try {
+            let url = result.url;
+            // Use proxy for CORS-blocked sources
+            if (result.needsProxy) {
+                try {
+                    const proxyUrl = `/api/proxy/audio?url=${encodeURIComponent(url)}`;
+                    const proxyResp = await fetch(proxyUrl);
+                    if (proxyResp.ok) {
+                        const buf = await proxyResp.arrayBuffer();
+                        await this._loadBuffer(this.selectedPad, buf, result.name);
+                        return;
+                    }
+                } catch(e) {}
+                // Fallback: direct
+            }
             const resp = await fetch(url);
+            if (!resp.ok) { toast(`Fout ${resp.status}`, 'error'); return; }
             const buf = await resp.arrayBuffer();
-            await this._loadBuffer(this.selectedPad, buf, name);
+            await this._loadBuffer(this.selectedPad, buf, result.name);
         } catch(e) {
-            toast('Kan community sample niet laden: ' + e.message, 'error');
+            toast('Laden mislukt: ' + e.message, 'error');
         }
     }
 

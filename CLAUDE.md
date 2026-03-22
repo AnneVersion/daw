@@ -79,6 +79,27 @@ PostgreSQL database `daw`, user `postgres`, pw `postgres`:
 - **Community SQL**: `sql/03_community_samples.sql` — tabel + RLS policies + storage bucket
 - **Supabase credentials**: worden gevraagd bij eerste gebruik, opgeslagen in localStorage
 - **API Keys**: Jamendo `d14314a3` in dj.html, Freesound in `.env`
+- **Synth Keyboard**: 2-octaaf piano in Synth tab, klik + drag + PC keyboard (A-L)
+- **Synth Improvisatie**: key, scale (12 soorten), style (legato/staccato/arpeggio/random/jazz/ambient), BPM, octaaf, density
+- **Synth Record**: opname naar .webm tijdens (improvisatie-)spelen
+- **DJ Browser inklapbaar**: klik op "Track Browser" balk om in/uit te klappen
+- **Sampler Sample Browser**: multi-source zoeken met aan/uit per API
+- **Sampler Drum Kit**: auto-laden van drums/percussion uit library
+- **Sampler Improvisatie**: ghost notes + fills tijdens sequencer playback
+
+## Externe Audio API's
+
+| API | Type | Key | CORS | Proxy nodig | Beschikbaar op |
+|-----|------|-----|------|-------------|----------------|
+| **Freesound** | Samples, loops, FX, natuur, dieren | `.env` FREESOUND_API_KEY | Nee | Ja (localhost) | DJ, Sampler |
+| **Jamendo** | Volledige tracks, muziek | `d14314a3` hardcoded | Ja | Nee | DJ, Sampler |
+| **Internet Archive** | CC muziek, audio | Geen | Ja | Nee | DJ, Sampler |
+| **Free Music Archive** | CC tracks | Geen (via Archive) | Ja | Nee | DJ |
+| **Supabase Community** | Gedeelde samples | anon key in code | Ja | Nee | DJ, Sampler |
+| **Lokale bestanden** | PC audio scan | Geen | N/A | N/A | DJ, Sampler, Editor |
+
+### Sampler categorieën (via Freesound/Jamendo/Archive)
+Kick, Snare, Hi-Hat, Clap, Bass, Gitaar, Piano, Trompet, Sax, Strings, Synth, Vocals, Vogels, Dieren, Natuur, FX, Reggae, Conga
 
 ## Audio Scanner (maart 2026)
 - `/api/scan-audio` - Scant alle schijven (C:/Users, D:/, E:/, F:/) voor audio bestanden

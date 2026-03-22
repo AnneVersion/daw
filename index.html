@@ -2473,8 +2473,36 @@ body {
                     <canvas id="synth-visualizer" width="240" height="60"></canvas>
                 </div>
                 <div class="synth-section" style="flex:1;min-width:100%">
-                    <div class="synth-section-title">Keyboard <span style="font-weight:400;font-size:9px;color:var(--text-dim)">(Klik of gebruik A-L = noten, Z/X = octaaf)</span></div>
-                    <div id="synth-keyboard" style="display:flex;height:80px;position:relative;overflow-x:auto;margin-top:4px"></div>
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+                        <div class="synth-section-title" style="margin:0">Keyboard</div>
+                        <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
+                            <select id="synth-improv-key" style="background:var(--bg-track);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:10px">
+                                <option value="C">C</option><option value="Db">Db</option><option value="D">D</option><option value="Eb">Eb</option>
+                                <option value="E">E</option><option value="F">F</option><option value="Gb">Gb</option><option value="G">G</option>
+                                <option value="Ab">Ab</option><option value="A">A</option><option value="Bb">Bb</option><option value="B">B</option>
+                            </select>
+                            <select id="synth-improv-scale" style="background:var(--bg-track);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:10px">
+                                <option value="major">Major</option><option value="minor">Minor</option><option value="pentatonic">Pentatonic</option>
+                                <option value="blues">Blues</option><option value="dorian">Dorian</option><option value="mixolydian">Mixolydian</option>
+                                <option value="phrygian">Phrygian</option><option value="lydian">Lydian</option><option value="harmonic_minor">Harm. Minor</option>
+                                <option value="melodic_minor">Mel. Minor</option><option value="whole_tone">Whole Tone</option><option value="bebop">Bebop</option>
+                            </select>
+                            <select id="synth-improv-style" style="background:var(--bg-track);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:10px">
+                                <option value="legato">Legato</option><option value="staccato">Staccato</option><option value="arpeggio">Arpeggio</option>
+                                <option value="random">Random</option><option value="jazz">Jazz</option><option value="ambient">Ambient</option>
+                            </select>
+                            <input type="number" id="synth-improv-bpm" value="120" min="40" max="300" style="width:48px;background:var(--bg-track);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:10px;text-align:center" title="BPM">
+                            <span style="font-size:9px;color:var(--text-dim)">BPM</span>
+                            <select id="synth-improv-octave" style="background:var(--bg-track);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:10px" title="Octaaf bereik">
+                                <option value="1">1 oct</option><option value="2" selected>2 oct</option><option value="3">3 oct</option>
+                            </select>
+                            <input type="range" id="synth-improv-density" min="1" max="10" value="5" style="width:50px;height:4px" title="Noot dichtheid">
+                            <span style="font-size:8px;color:var(--text-dim)">Density</span>
+                            <button id="synth-improv-btn" onclick="daw.synth.toggleImprovise()" style="background:var(--green-dim);color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer" title="Auto-improvisatie">Improviseer</button>
+                            <button id="synth-rec-btn" onclick="daw.synth.toggleRecord()" style="background:var(--bg-track);color:var(--red);border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:10px;cursor:pointer" title="Opname">&#x23FA; Rec</button>
+                        </div>
+                    </div>
+                    <div id="synth-keyboard" style="display:flex;height:80px;position:relative;overflow-x:auto"></div>
                 </div>
             </div>
 
@@ -3764,6 +3792,234 @@ class SynthEngine {
                 key.classList.remove('active');
             });
         });
+    }
+
+    // ---- Synth Improvisation ----
+    _improvising = false;
+    _improvTimer = null;
+    _recording = false;
+    _recordedNotes = [];
+    _recordStartTime = 0;
+    _mediaRecorder = null;
+    _recordedChunks = [];
+
+    _scales = {
+        major: [0,2,4,5,7,9,11],
+        minor: [0,2,3,5,7,8,10],
+        pentatonic: [0,2,4,7,9],
+        blues: [0,3,5,6,7,10],
+        dorian: [0,2,3,5,7,9,10],
+        mixolydian: [0,2,4,5,7,9,10],
+        phrygian: [0,1,3,5,7,8,10],
+        lydian: [0,2,4,6,7,9,11],
+        harmonic_minor: [0,2,3,5,7,8,11],
+        melodic_minor: [0,2,3,5,7,9,11],
+        whole_tone: [0,2,4,6,8,10],
+        bebop: [0,2,4,5,7,9,10,11]
+    };
+
+    _getImprovParams() {
+        return {
+            key: document.getElementById('synth-improv-key')?.value || 'C',
+            scale: document.getElementById('synth-improv-scale')?.value || 'major',
+            style: document.getElementById('synth-improv-style')?.value || 'legato',
+            bpm: +(document.getElementById('synth-improv-bpm')?.value || 120),
+            octaves: +(document.getElementById('synth-improv-octave')?.value || 2),
+            density: +(document.getElementById('synth-improv-density')?.value || 5)
+        };
+    }
+
+    _buildScale(key, scaleName, octaves) {
+        const noteNames = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+        const rootIdx = noteNames.indexOf(key);
+        const intervals = this._scales[scaleName] || this._scales.major;
+        const notes = [];
+        for (let oct = 4; oct < 4 + octaves; oct++) {
+            for (const interval of intervals) {
+                const noteIdx = (rootIdx + interval) % 12;
+                const noteOct = oct + Math.floor((rootIdx + interval) / 12);
+                notes.push(`${noteNames[noteIdx]}${noteOct}`);
+            }
+        }
+        return notes;
+    }
+
+    toggleImprovise() {
+        this._improvising = !this._improvising;
+        const btn = document.getElementById('synth-improv-btn');
+        if (this._improvising) {
+            btn.style.background = 'var(--red)';
+            btn.textContent = 'Stop';
+            this.ae.resume();
+            this._runImprovisation();
+        } else {
+            btn.style.background = 'var(--green-dim)';
+            btn.textContent = 'Improviseer';
+            if (this._improvTimer) { clearTimeout(this._improvTimer); this._improvTimer = null; }
+            // Stop all voices
+            this.activeVoices.forEach((v, name) => this.stopNote(name));
+        }
+    }
+
+    _runImprovisation() {
+        if (!this._improvising) return;
+        const p = this._getImprovParams();
+        const scale = this._buildScale(p.key, p.scale, p.octaves);
+        const stepMs = 60000 / p.bpm;
+        let lastNoteIdx = Math.floor(scale.length / 2);
+        let motif = [];
+        let motifPos = 0;
+        let phraseLen = 4 + Math.floor(Math.random() * 12);
+        let noteCount = 0;
+
+        const playNext = () => {
+            if (!this._improvising) return;
+
+            // Stop previous notes (for staccato/legato)
+            this.activeVoices.forEach((v, name) => this.stopNote(name));
+
+            // Rest probability based on density (lower density = more rests)
+            const restChance = (10 - p.density) / 15;
+            if (Math.random() < restChance) {
+                const restDur = stepMs * (0.5 + Math.random());
+                this._improvTimer = setTimeout(playNext, restDur);
+                return;
+            }
+
+            // Note selection based on style
+            let noteIdx;
+            switch (p.style) {
+                case 'arpeggio':
+                    noteIdx = noteCount % scale.length;
+                    if (Math.floor(noteCount / scale.length) % 2 === 1) {
+                        noteIdx = scale.length - 1 - noteIdx;
+                    }
+                    break;
+                case 'jazz':
+                    // Chromatic approach notes + chord tones
+                    const jump = Math.random() < 0.3 ? Math.floor(Math.random() * scale.length) : lastNoteIdx + (Math.random() < 0.5 ? 1 : -1) * (1 + Math.floor(Math.random() * 2));
+                    noteIdx = Math.max(0, Math.min(scale.length - 1, jump));
+                    break;
+                case 'ambient':
+                    // Long notes, wide intervals
+                    noteIdx = Math.floor(Math.random() * scale.length);
+                    break;
+                case 'staccato':
+                case 'random':
+                    noteIdx = Math.floor(Math.random() * scale.length);
+                    break;
+                case 'legato':
+                default:
+                    // Stepwise motion with occasional leaps
+                    const step = Math.random() < 0.7 ? (Math.random() < 0.5 ? 1 : -1) : (Math.random() < 0.5 ? 2 : -2);
+                    noteIdx = Math.max(0, Math.min(scale.length - 1, lastNoteIdx + step));
+                    // Motif: repeat short patterns
+                    if (motif.length < 4 && Math.random() < 0.6) {
+                        motif.push(noteIdx);
+                    } else if (motif.length > 0 && Math.random() < 0.4) {
+                        noteIdx = motif[motifPos % motif.length];
+                        motifPos++;
+                    }
+                    break;
+            }
+
+            lastNoteIdx = noteIdx;
+            const note = scale[noteIdx];
+            this.playNote(note);
+
+            // Highlight key
+            const keyEl = document.querySelector(`[data-synth-note="${note}"]`);
+            if (keyEl) {
+                keyEl.classList.add('active');
+                setTimeout(() => keyEl.classList.remove('active'), stepMs * 0.8);
+            }
+
+            // Record
+            if (this._recording) {
+                this._recordedNotes.push({
+                    note,
+                    time: Date.now() - this._recordStartTime,
+                    duration: stepMs * 0.8
+                });
+            }
+
+            noteCount++;
+            // New phrase occasionally
+            if (noteCount % phraseLen === 0) {
+                phraseLen = 4 + Math.floor(Math.random() * 12);
+                motif = [];
+                motifPos = 0;
+            }
+
+            // Duration varies by style
+            let dur;
+            switch (p.style) {
+                case 'staccato': dur = stepMs * (0.15 + Math.random() * 0.2); break;
+                case 'ambient': dur = stepMs * (1.5 + Math.random() * 3); break;
+                case 'jazz': dur = stepMs * (0.3 + Math.random() * 0.8); break;
+                default: dur = stepMs * (0.4 + Math.random() * 0.6);
+            }
+
+            // Schedule note off
+            setTimeout(() => { if (this._improvising) this.stopNote(note); }, dur);
+
+            // Next note timing
+            let nextMs;
+            switch (p.style) {
+                case 'staccato': nextMs = stepMs * (0.2 + Math.random() * 0.3) / (p.density / 5); break;
+                case 'ambient': nextMs = stepMs * (2 + Math.random() * 4); break;
+                case 'jazz': nextMs = stepMs * (0.25 + Math.random() * 0.75) * (Math.random() < 0.2 ? 0.33 : 1); break; // swing
+                default: nextMs = stepMs * (0.5 + Math.random() * 0.5) / (p.density / 5);
+            }
+            this._improvTimer = setTimeout(playNext, nextMs);
+        };
+
+        playNext();
+    }
+
+    toggleRecord() {
+        this._recording = !this._recording;
+        const btn = document.getElementById('synth-rec-btn');
+        if (this._recording) {
+            btn.style.background = 'var(--red)';
+            btn.style.color = '#fff';
+            btn.style.borderColor = 'var(--red)';
+            btn.innerHTML = '&#x23FA; Stop';
+            this._recordedNotes = [];
+            this._recordStartTime = Date.now();
+            this._recordedChunks = [];
+
+            // Audio recording
+            try {
+                this.ae.resume();
+                const dest = this.ae.ctx.createMediaStreamDestination();
+                this.ae.masterGain.connect(dest);
+                this._mediaRecorder = new MediaRecorder(dest.stream);
+                this._mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) this._recordedChunks.push(e.data);
+                };
+                this._mediaRecorder.onstop = () => {
+                    if (this._recordedChunks.length) {
+                        const blob = new Blob(this._recordedChunks, { type: 'audio/webm' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `synth-improv-${Date.now()}.webm`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                    }
+                };
+                this._mediaRecorder.start();
+            } catch(e) {}
+        } else {
+            btn.style.background = 'var(--bg-track)';
+            btn.style.color = 'var(--red)';
+            btn.style.borderColor = 'var(--border)';
+            btn.innerHTML = '&#x23FA; Rec';
+            if (this._mediaRecorder && this._mediaRecorder.state === 'recording') {
+                this._mediaRecorder.stop();
+            }
+        }
     }
 }
 
