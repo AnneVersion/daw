@@ -2547,7 +2547,7 @@ class DJApp {
     async searchJamendo(append = false) {
         const query = document.getElementById('jamendo-search').value.trim();
         if (!query && !this.jamendoLastGenre) return;
-        if (!append) { this.jamendoOffset = 0; this.jamendoLastQuery = query; this.jamendoLastGenre = ''; }
+        if (!append) { this.jamendoOffset = 0; this.jamendoLastQuery = query; if (query) this.jamendoLastGenre = ''; }
 
         // Clear genre chips
         if (!append) document.querySelectorAll('.genre-chip').forEach(c => c.classList.remove('active'));
