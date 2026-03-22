@@ -684,9 +684,23 @@ select:focus { border-color: var(--accent); }
                 </button>
             </div>
             <div class="pad-actions" style="margin-top:6px">
-                <button class="action-btn" onclick="sampler.autoLoadDrumKit()" style="background:var(--purple);border-color:var(--purple);color:#fff">
-                    <span class="material-icons">drum</span> Laad Drum Kit
-                </button>
+                <select id="kit-select" onchange="if(this.value){sampler.autoLoadKit(this.value);this.value='';}" style="background:var(--purple);border:1px solid var(--purple);color:#fff;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer">
+                    <option value="">Laad Sample Kit...</option>
+                    <option value="Drums">Drums</option>
+                    <option value="Percussion">Percussie</option>
+                    <option value="Bass">Bass</option>
+                    <option value="Guitar">Gitaar</option>
+                    <option value="Keys">Piano / Keys</option>
+                    <option value="Synth">Synth</option>
+                    <option value="Brass">Trompet / Blazers</option>
+                    <option value="Strings">Strings / Strijkers</option>
+                    <option value="Vocals">Vocals</option>
+                    <option value="FX">FX / Geluidseffecten</option>
+                    <option value="Field Recording">Natuur / Dieren</option>
+                    <option value="One-shots">One-shots</option>
+                    <option value="Loops">Loops</option>
+                    <option value="ALL">Alles (mix)</option>
+                </select>
                 <button class="action-btn" id="btn-improvise" onclick="sampler.toggleImprovise()" style="background:var(--green-dim);border-color:var(--green-dim);color:#fff">
                     <span class="material-icons">auto_awesome</span> Improviseer
                 </button>
@@ -2353,28 +2367,38 @@ class SamplerApp {
         }
     }
 
-    // ---- Auto-Load Drum Kit ----
-    async autoLoadDrumKit() {
+    // ---- Auto-Load Sample Kit ----
+    async autoLoadKit(category) {
         this.initAudio();
-        toast('Drum kit laden...', 'info');
+        const label = category === 'ALL' ? 'Mix' : category;
+        toast(`${label} kit laden...`, 'info');
         try {
             const resp = await fetch('/api/sounds');
             const allSounds = await resp.json();
 
-            // Prioritize: drums first, then percussion, then one-shots
-            const drums = allSounds.filter(s => s.category_name === 'Drums');
-            const percs = allSounds.filter(s => s.category_name === 'Percussion');
-            const oneshots = allSounds.filter(s => s.category_name === 'One-shots');
-            const combined = [...drums, ...percs, ...oneshots].slice(0, 16);
+            let selected;
+            if (category === 'ALL') {
+                // Mix: neem van elke categorie wat
+                const cats = [...new Set(allSounds.map(s => s.category_name))];
+                selected = [];
+                const perCat = Math.max(1, Math.floor(16 / cats.length));
+                for (const cat of cats) {
+                    const catSounds = allSounds.filter(s => s.category_name === cat);
+                    selected.push(...catSounds.slice(0, perCat));
+                }
+                selected = selected.slice(0, 16);
+            } else {
+                selected = allSounds.filter(s => s.category_name === category).slice(0, 16);
+            }
 
-            if (!combined.length) {
-                toast('Geen drum samples gevonden in library', 'error');
+            if (!selected.length) {
+                toast(`Geen ${label} samples gevonden in library`, 'error');
                 return;
             }
 
             let loaded = 0;
-            for (let i = 0; i < Math.min(combined.length, 16); i++) {
-                const s = combined[i];
+            for (let i = 0; i < Math.min(selected.length, 16); i++) {
+                const s = selected[i];
                 try {
                     const url = `/api/sounds/${s.id}/file`;
                     const audioResp = await fetch(url);
@@ -2385,7 +2409,7 @@ class SamplerApp {
                     }
                 } catch(e) {}
             }
-            toast(`${loaded} drum samples geladen`, 'success');
+            toast(`${loaded} ${label} samples geladen`, 'success');
         } catch(e) {
             toast('Laden mislukt: ' + e.message, 'error');
         }
