@@ -1182,6 +1182,11 @@ body {
             <div style="display:flex;gap:4px;justify-content:center;padding:2px 0;align-items:center;flex-wrap:wrap">
                 <button id="dj-rec-btn" onclick="djApp.toggleRecording()"
                     style="font-size:16px;padding:3px 8px;border-radius:50%;border:2px solid #f44336;background:var(--bg-darkest);color:#f44336;cursor:pointer;font-weight:700;user-select:none;width:32px;height:32px;display:flex;align-items:center;justify-content:center" title="Opnemen">&#x23FA;</button>
+                <button id="dj-broadcast-btn" onclick="djApp.toggleBroadcast()"
+                    style="font-size:11px;padding:4px 10px;border-radius:6px;border:2px solid #4caf50;background:var(--bg-darkest);color:#4caf50;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:4px" title="Start Broadcast">
+                    <span class="material-icons" style="font-size:16px">cell_tower</span>Live
+                </button>
+                <span id="broadcast-status" style="font-size:8px;color:var(--text-dim);display:none"></span>
                 <button id="sfx-horn" onmousedown="djApp.playHorn()" onmouseup="djApp.stopHorn()" ontouchstart="djApp.playHorn()" ontouchend="djApp.stopHorn()"
                     style="font-size:14px;padding:4px 10px;border-radius:6px;border:2px solid #ff9800;background:linear-gradient(135deg,#ff9800,#f44336);color:#fff;cursor:pointer;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,0.5);user-select:none">&#x1F4E2;</button>
                 <button id="sfx-noise" onmousedown="djApp.startNoise()" onmouseup="djApp.stopNoise()" ontouchstart="djApp.startNoise()" ontouchend="djApp.stopNoise()"
@@ -3655,6 +3660,234 @@ class DJApp {
             }
             if (btn) { btn.style.borderColor = '#a04aff'; btn.style.color = '#fff'; btn.style.background = 'rgba(154,74,255,0.2)'; }
         }
+    }
+
+    // ============================================================
+    // WEBRTC BROADCAST
+    // Stream master audio naar luisteraars via peer-to-peer
+    // ============================================================
+    toggleBroadcast() {
+        if (this._broadcasting) {
+            this.stopBroadcast();
+        } else {
+            this.startBroadcast();
+        }
+    }
+
+    async startBroadcast() {
+        if (!this.audioCtx) this.initAudio();
+        this._broadcasting = true;
+        this._listeners = [];
+        this._broadcastId = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+        // Maak audio stream van master output
+        const dest = this.audioCtx.createMediaStreamDestination();
+        this.masterGain.connect(dest);
+        this._broadcastStream = dest.stream;
+
+        // Signaling via Supabase Realtime (gratis, geen eigen server)
+        const sb = this._getSupabase();
+        if (sb) {
+            this._broadcastChannel = sb.channel(`broadcast-${this._broadcastId}`);
+            this._broadcastChannel.on('broadcast', { event: 'join' }, async (payload) => {
+                // Nieuwe luisteraar wil verbinden
+                await this._handleListenerJoin(payload);
+            });
+            this._broadcastChannel.on('broadcast', { event: 'answer' }, async (payload) => {
+                await this._handleListenerAnswer(payload);
+            });
+            this._broadcastChannel.on('broadcast', { event: 'ice' }, async (payload) => {
+                await this._handleListenerIce(payload);
+            });
+            await this._broadcastChannel.subscribe();
+        }
+
+        // Update UI
+        const btn = document.getElementById('dj-broadcast-btn');
+        btn.style.borderColor = '#f44336';
+        btn.style.color = '#fff';
+        btn.style.background = 'linear-gradient(135deg,#f44336,#e91e63)';
+        btn.innerHTML = '<span class="material-icons" style="font-size:16px">cell_tower</span>LIVE';
+        btn.style.animation = 'pulse-broadcast 1.5s ease-in-out infinite';
+
+        const status = document.getElementById('broadcast-status');
+        status.style.display = 'inline';
+        status.textContent = `Code: ${this._broadcastId} | 0 luisteraars`;
+        status.style.color = '#4caf50';
+
+        // Toon share link
+        this._showBroadcastModal();
+
+        // Pulse animatie toevoegen
+        if (!document.getElementById('broadcast-pulse-style')) {
+            const style = document.createElement('style');
+            style.id = 'broadcast-pulse-style';
+            style.textContent = '@keyframes pulse-broadcast{0%,100%{opacity:1}50%{opacity:0.6}}';
+            document.head.appendChild(style);
+        }
+    }
+
+    stopBroadcast() {
+        this._broadcasting = false;
+
+        // Sluit alle peer connections
+        (this._listeners || []).forEach(pc => { try { pc.close(); } catch(e) {} });
+        this._listeners = [];
+
+        // Unsubscribe van signaling
+        if (this._broadcastChannel) {
+            this._broadcastChannel.unsubscribe();
+            this._broadcastChannel = null;
+        }
+
+        // Disconnect broadcast stream
+        if (this._broadcastStream) {
+            this._broadcastStream.getTracks().forEach(t => t.stop());
+            this._broadcastStream = null;
+        }
+
+        // Update UI
+        const btn = document.getElementById('dj-broadcast-btn');
+        btn.style.borderColor = '#4caf50';
+        btn.style.color = '#4caf50';
+        btn.style.background = 'var(--bg-darkest)';
+        btn.innerHTML = '<span class="material-icons" style="font-size:16px">cell_tower</span>Live';
+        btn.style.animation = 'none';
+
+        const status = document.getElementById('broadcast-status');
+        status.style.display = 'none';
+
+        // Sluit modal
+        const modal = document.getElementById('broadcast-modal');
+        if (modal) modal.remove();
+    }
+
+    async _handleListenerJoin(payload) {
+        const pc = new RTCPeerConnection({
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+        });
+        const listenerId = payload.payload?.listenerId;
+
+        // Voeg audio tracks toe
+        this._broadcastStream.getTracks().forEach(track => {
+            pc.addTrack(track, this._broadcastStream);
+        });
+
+        // ICE candidates verzamelen
+        pc.onicecandidate = (e) => {
+            if (e.candidate && this._broadcastChannel) {
+                this._broadcastChannel.send({
+                    type: 'broadcast',
+                    event: 'broadcaster-ice',
+                    payload: { candidate: e.candidate, listenerId }
+                });
+            }
+        };
+
+        // Maak offer
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        // Stuur offer naar luisteraar
+        if (this._broadcastChannel) {
+            this._broadcastChannel.send({
+                type: 'broadcast',
+                event: 'offer',
+                payload: { sdp: pc.localDescription, listenerId }
+            });
+        }
+
+        this._listeners.push(pc);
+        this._updateListenerCount();
+
+        // Cleanup bij disconnect
+        pc.onconnectionstatechange = () => {
+            if (['disconnected', 'failed', 'closed'].includes(pc.connectionState)) {
+                const idx = this._listeners.indexOf(pc);
+                if (idx > -1) this._listeners.splice(idx, 1);
+                this._updateListenerCount();
+            }
+        };
+    }
+
+    async _handleListenerAnswer(payload) {
+        const { sdp, listenerId } = payload.payload || {};
+        // Vind de juiste peer connection (laatste voor deze listener)
+        const pc = this._listeners[this._listeners.length - 1];
+        if (pc && sdp) {
+            await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+        }
+    }
+
+    async _handleListenerIce(payload) {
+        const { candidate } = payload.payload || {};
+        const pc = this._listeners[this._listeners.length - 1];
+        if (pc && candidate) {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+    }
+
+    _updateListenerCount() {
+        const connected = this._listeners.filter(pc => pc.connectionState === 'connected').length;
+        const status = document.getElementById('broadcast-status');
+        if (status) {
+            status.textContent = `Code: ${this._broadcastId} | ${connected} luisteraar${connected !== 1 ? 's' : ''}`;
+        }
+    }
+
+    _showBroadcastModal() {
+        // Verwijder bestaande modal
+        const existing = document.getElementById('broadcast-modal');
+        if (existing) existing.remove();
+
+        const listenUrl = `${window.location.origin}${window.location.pathname.replace('dj.html', 'live.html')}?listen=${this._broadcastId}`;
+
+        const modal = document.createElement('div');
+        modal.id = 'broadcast-modal';
+        modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:24px;z-index:10000;min-width:400px;box-shadow:0 8px 32px rgba(0,0,0,0.5)';
+        modal.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                <h3 style="color:var(--green);margin:0;font-size:16px">
+                    <span class="material-icons" style="vertical-align:middle;margin-right:6px">cell_tower</span>
+                    Je bent LIVE!
+                </h3>
+                <button onclick="this.closest('#broadcast-modal').remove()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:18px">&times;</button>
+            </div>
+            <div style="background:var(--bg-darkest);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px">
+                <div style="font-size:10px;color:var(--text-dim);margin-bottom:4px">Broadcast Code:</div>
+                <div style="font-size:28px;font-weight:800;color:var(--accent);letter-spacing:6px;text-align:center">${this._broadcastId}</div>
+            </div>
+            <div style="background:var(--bg-darkest);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px">
+                <div style="font-size:10px;color:var(--text-dim);margin-bottom:4px">Deel deze link:</div>
+                <input type="text" value="${listenUrl}" readonly onclick="this.select();navigator.clipboard?.writeText(this.value)"
+                    style="width:100%;background:var(--bg-dark);border:1px solid var(--border);border-radius:4px;padding:8px;color:var(--text);font-size:11px;cursor:pointer" title="Klik om te kopiëren">
+            </div>
+            <div style="font-size:10px;color:var(--text-dim)">
+                <span class="material-icons" style="font-size:12px;vertical-align:middle">info</span>
+                Luisteraars openen de link of voeren de code in op de Live pagina. Max ~10-20 luisteraars (P2P).
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Backdrop
+        const backdrop = document.createElement('div');
+        backdrop.id = 'broadcast-backdrop';
+        backdrop.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9999';
+        backdrop.onclick = () => { modal.remove(); backdrop.remove(); };
+        document.body.insertBefore(backdrop, modal);
+    }
+
+    _getSupabase() {
+        if (this._supabase) return this._supabase;
+        if (typeof supabase !== 'undefined') {
+            const url = 'https://zdhwofuoefczrpkjhtjg.supabase.co';
+            const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkaHdvZnVvZWZjenJwa2podGpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE5NTM5NjUsImV4cCI6MjA1NzUyOTk2NX0.pMb1GBQxQLFd73FKThLBkqVR0_bADVHjlATjB4mS36g';
+            this._supabase = supabase.createClient(url, key);
+        }
+        return this._supabase;
     }
 }
 

@@ -6,6 +6,7 @@
 <title>DAW - Live Streaming</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='none' stroke='%2339ff14' stroke-width='1.5'/><circle cx='16' cy='16' r='3' fill='%2339ff14' opacity='.4'/><ellipse cx='16' cy='16' rx='14' ry='5' fill='none' stroke='%2339ff14' stroke-width='.7' opacity='.4' transform='rotate(-8 16 16)'/></svg>">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ============================================================
    CSS - DAW Live Streaming Dark Theme
@@ -976,6 +977,66 @@ body {
     </button>
 </nav>
 
+<!-- WebRTC Listener Panel -->
+<section id="listen-panel" style="max-width:1200px;margin:0 auto 20px;padding:0 20px">
+    <div style="background:var(--bg-panel,#1a1a26);border:1px solid var(--border,#333348);border-radius:12px;padding:20px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+            <span class="material-icons" style="font-size:28px;color:var(--accent,#4a7fff)">cell_tower</span>
+            <div>
+                <h3 style="margin:0;font-size:16px;color:var(--text,#e0e0ee)">Luister naar een DJ Broadcast</h3>
+                <p style="margin:0;font-size:11px;color:var(--text-dim,#888899)">Voer de broadcast code in of gebruik een gedeelde link</p>
+            </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="text" id="listen-code" placeholder="Broadcast code (bijv. A1B2C3)" maxlength="6"
+                style="background:var(--bg-darkest,#0a0a0f);border:1px solid var(--border,#333348);border-radius:8px;padding:10px 16px;color:var(--text,#e0e0ee);font-size:16px;font-weight:700;letter-spacing:4px;text-transform:uppercase;width:200px;text-align:center;outline:none"
+                oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">
+            <button id="listen-connect-btn" onclick="connectToBroadcast()"
+                style="background:var(--accent,#4a7fff);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px">
+                <span class="material-icons" style="font-size:18px">headphones</span>
+                Verbinden
+            </button>
+            <span id="listen-status" style="font-size:11px;color:var(--text-dim,#888899)"></span>
+        </div>
+        <!-- Audio player (verschijnt na verbinding) -->
+        <div id="listen-player" style="display:none;margin-top:16px;background:var(--bg-darkest,#0a0a0f);border-radius:8px;padding:16px;text-align:center">
+            <div style="display:flex;align-items:center;justify-content:center;gap:12px">
+                <span class="material-icons" style="font-size:32px;color:#4caf50;animation:pulse-broadcast 1.5s infinite">cell_tower</span>
+                <div>
+                    <div style="font-size:14px;font-weight:700;color:var(--text,#e0e0ee)" id="listen-title">Verbonden met broadcast</div>
+                    <div style="font-size:11px;color:var(--text-dim,#888899)" id="listen-info">Bezig met luisteren...</div>
+                </div>
+                <button onclick="disconnectBroadcast()" style="background:#f44336;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:11px;cursor:pointer;margin-left:16px">
+                    <span class="material-icons" style="font-size:14px;vertical-align:middle">stop</span> Stop
+                </button>
+            </div>
+            <audio id="listen-audio" autoplay style="display:none"></audio>
+        </div>
+    </div>
+</section>
+
+<!-- Twitch/YouTube Embed -->
+<section id="embed-panel" style="max-width:1200px;margin:0 auto 20px;padding:0 20px">
+    <div style="background:var(--bg-panel,#1a1a26);border:1px solid var(--border,#333348);border-radius:12px;padding:20px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+            <span class="material-icons" style="font-size:28px;color:#9146ff">live_tv</span>
+            <div>
+                <h3 style="margin:0;font-size:16px;color:var(--text,#e0e0ee)">Externe Stream</h3>
+                <p style="margin:0;font-size:11px;color:var(--text-dim,#888899)">Bekijk een Twitch of YouTube stream</p>
+            </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input type="text" id="embed-url" placeholder="Twitch/YouTube URL (bijv. twitch.tv/kanaal of youtube.com/watch?v=...)"
+                style="flex:1;min-width:250px;background:var(--bg-darkest,#0a0a0f);border:1px solid var(--border,#333348);border-radius:8px;padding:10px 16px;color:var(--text,#e0e0ee);font-size:12px;outline:none">
+            <button onclick="embedStream()"
+                style="background:#9146ff;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer">
+                <span class="material-icons" style="font-size:16px;vertical-align:middle">play_circle</span> Kijk
+            </button>
+        </div>
+        <div id="embed-container" style="display:none;margin-top:16px;border-radius:8px;overflow:hidden;aspect-ratio:16/9;max-height:500px"></div>
+    </div>
+</section>
+
 <!-- Featured Live Stream -->
 <section class="featured-stream">
     <div class="featured-layout">
@@ -1643,6 +1704,165 @@ document.getElementById('channel-modal').addEventListener('click', (e) => {
 // Enter key for chat inputs
 document.getElementById('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
 document.getElementById('modal-chat-input').addEventListener('keydown', e => { if (e.key === 'Enter') sendModalChat(); });
+
+// ============================================================
+// WEBRTC LISTENER - Verbind met een DJ broadcast
+// ============================================================
+let _listenPc = null;
+let _listenChannel = null;
+
+async function connectToBroadcast() {
+    const code = document.getElementById('listen-code').value.trim().toUpperCase();
+    if (!code || code.length < 4) {
+        document.getElementById('listen-status').textContent = 'Voer een geldige code in';
+        document.getElementById('listen-status').style.color = '#f44336';
+        return;
+    }
+
+    document.getElementById('listen-status').textContent = 'Verbinden...';
+    document.getElementById('listen-status').style.color = 'var(--text-dim)';
+
+    // Supabase signaling
+    const sb = supabase.createClient(
+        'https://zdhwofuoefczrpkjhtjg.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkaHdvZnVvZWZjenJwa2podGpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE5NTM5NjUsImV4cCI6MjA1NzUyOTk2NX0.pMb1GBQxQLFd73FKThLbkqVR0_bADVHjlATjB4mS36g'
+    );
+
+    const listenerId = Math.random().toString(36).substring(2, 8);
+
+    _listenPc = new RTCPeerConnection({
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+    });
+
+    // Ontvang audio
+    _listenPc.ontrack = (event) => {
+        const audio = document.getElementById('listen-audio');
+        audio.srcObject = event.streams[0];
+        audio.play().catch(() => {});
+        document.getElementById('listen-player').style.display = 'block';
+        document.getElementById('listen-title').textContent = `Verbonden met broadcast ${code}`;
+        document.getElementById('listen-info').textContent = 'Je luistert nu live mee!';
+        document.getElementById('listen-status').textContent = 'Verbonden!';
+        document.getElementById('listen-status').style.color = '#4caf50';
+        document.getElementById('listen-connect-btn').style.display = 'none';
+    };
+
+    _listenPc.onicecandidate = (e) => {
+        if (e.candidate && _listenChannel) {
+            _listenChannel.send({
+                type: 'broadcast', event: 'ice',
+                payload: { candidate: e.candidate, listenerId }
+            });
+        }
+    };
+
+    _listenPc.onconnectionstatechange = () => {
+        if (['disconnected', 'failed', 'closed'].includes(_listenPc.connectionState)) {
+            disconnectBroadcast();
+        }
+    };
+
+    // Subscribe en stuur join
+    _listenChannel = sb.channel(`broadcast-${code}`);
+    _listenChannel.on('broadcast', { event: 'offer' }, async (payload) => {
+        if (payload.payload?.listenerId !== listenerId) return;
+        const sdp = payload.payload.sdp;
+        await _listenPc.setRemoteDescription(new RTCSessionDescription(sdp));
+        const answer = await _listenPc.createAnswer();
+        await _listenPc.setLocalDescription(answer);
+        _listenChannel.send({
+            type: 'broadcast', event: 'answer',
+            payload: { sdp: _listenPc.localDescription, listenerId }
+        });
+    });
+
+    _listenChannel.on('broadcast', { event: 'broadcaster-ice' }, async (payload) => {
+        if (payload.payload?.listenerId !== listenerId) return;
+        if (payload.payload.candidate) {
+            await _listenPc.addIceCandidate(new RTCIceCandidate(payload.payload.candidate));
+        }
+    });
+
+    await _listenChannel.subscribe();
+
+    // Stuur join request
+    _listenChannel.send({
+        type: 'broadcast', event: 'join',
+        payload: { listenerId }
+    });
+
+    // Timeout na 15 seconden
+    setTimeout(() => {
+        if (_listenPc && _listenPc.connectionState !== 'connected') {
+            document.getElementById('listen-status').textContent = 'Geen broadcast gevonden met deze code';
+            document.getElementById('listen-status').style.color = '#ff9800';
+        }
+    }, 15000);
+}
+
+function disconnectBroadcast() {
+    if (_listenPc) { try { _listenPc.close(); } catch(e) {} _listenPc = null; }
+    if (_listenChannel) { _listenChannel.unsubscribe(); _listenChannel = null; }
+    document.getElementById('listen-player').style.display = 'none';
+    document.getElementById('listen-connect-btn').style.display = 'flex';
+    document.getElementById('listen-status').textContent = 'Verbinding verbroken';
+    document.getElementById('listen-status').style.color = 'var(--text-dim)';
+}
+
+// ============================================================
+// TWITCH / YOUTUBE EMBED
+// ============================================================
+function embedStream() {
+    const url = document.getElementById('embed-url').value.trim();
+    const container = document.getElementById('embed-container');
+    if (!url) return;
+
+    let embedHtml = '';
+
+    // Twitch
+    const twitchMatch = url.match(/twitch\.tv\/([a-zA-Z0-9_]+)/);
+    if (twitchMatch) {
+        const channel = twitchMatch[1];
+        embedHtml = `<iframe src="https://player.twitch.tv/?channel=${channel}&parent=${location.hostname}" frameborder="0" allowfullscreen style="width:100%;height:100%"></iframe>`;
+    }
+
+    // YouTube live of video
+    const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/live\/)([a-zA-Z0-9_-]+)/);
+    if (ytMatch) {
+        const videoId = ytMatch[1];
+        embedHtml = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1" frameborder="0" allow="autoplay;encrypted-media" allowfullscreen style="width:100%;height:100%"></iframe>`;
+    }
+
+    if (!embedHtml) {
+        container.style.display = 'block';
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-dim)">URL niet herkend. Gebruik een Twitch of YouTube link.</div>';
+        return;
+    }
+
+    container.style.display = 'block';
+    container.innerHTML = embedHtml;
+}
+
+// Auto-connect als ?listen=CODE in URL
+(function() {
+    const params = new URLSearchParams(location.search);
+    const code = params.get('listen');
+    if (code) {
+        document.getElementById('listen-code').value = code.toUpperCase();
+        setTimeout(() => connectToBroadcast(), 500);
+    }
+})();
+
+// Pulse animation
+if (!document.getElementById('broadcast-pulse-style')) {
+    const s = document.createElement('style');
+    s.id = 'broadcast-pulse-style';
+    s.textContent = '@keyframes pulse-broadcast{0%,100%{opacity:1}50%{opacity:0.6}}';
+    document.head.appendChild(s);
+}
 </script>
 </body>
 </html>
