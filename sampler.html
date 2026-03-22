@@ -634,9 +634,12 @@ select:focus { border-color: var(--accent); }
         <li><a href="live.html"><span class="material-icons">live_tv</span> Live</a></li>
     </ul>
     <div class="nav-spacer"></div>
-    <button class="action-btn" onclick="sampler.exportRecording()" id="export-btn" style="display:none">
-        <span class="material-icons">download</span> Export
-    </button>
+    <select id="export-btn" onchange="if(this.value){sampler.exportAs(this.value);this.value='';}" style="display:none;background:var(--accent);color:#fff;border:1px solid var(--accent);border-radius:6px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer">
+        <option value="">Export als...</option>
+        <option value="webm">WebM (audio)</option>
+        <option value="wav">WAV (lossless)</option>
+        <option value="midi">MIDI (noten)</option>
+    </select>
 </nav>
 
 <!-- ============================================================
@@ -1486,6 +1489,11 @@ class SamplerApp {
 
         source.start(now);
 
+        // MIDI logging: pad index als MIDI noot (36 + idx = GM drum map), pitch offset
+        const midiNote = 36 + idx + (p.pitch || 0);
+        const durMs = Math.min(p.buffer.duration * 1000 / source.playbackRate.value, 2000);
+        this._logMidiNote(midiNote, velocity, durMs);
+
         const entry = { source, env, panner, startTime: now };
         p.activeSources.push(entry);
 
@@ -2042,14 +2050,18 @@ class SamplerApp {
         this.pads.forEach((_, i) => this._stopPad(i));
     }
 
+    _midiLog = [];       // MIDI noten log voor export
+    _recordStartMs = 0;
+
     toggleRecord() {
         this.isRecording = !this.isRecording;
         const btn = document.getElementById('seq-rec');
         btn.classList.toggle('recording', this.isRecording);
 
         if (this.isRecording) {
-            // Start audio recording
             this.initAudio();
+            this._midiLog = [];
+            this._recordStartMs = Date.now();
             try {
                 const dest = this.audioCtx.createMediaStreamDestination();
                 this.masterGain.connect(dest);
@@ -2060,33 +2072,133 @@ class SamplerApp {
                 };
                 this.mediaRecorder.onstop = () => {
                     document.getElementById('export-btn').style.display = 'flex';
-                    toast('Opname gestopt. Klik Export om te downloaden.', 'success');
+                    toast(`Opname gestopt (${this._midiLog.length} noten). Kies export formaat.`, 'success');
                 };
                 this.mediaRecorder.start();
-                toast('Opname gestart', 'info');
+                toast('Opname gestart (audio + MIDI)', 'info');
             } catch(e) {
-                toast('Opname niet beschikbaar', 'error');
-                this.isRecording = false;
-                btn.classList.remove('recording');
+                toast('Audio opname niet beschikbaar, MIDI wordt wel opgenomen', 'info');
             }
         } else {
             if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
                 this.mediaRecorder.stop();
+            } else {
+                document.getElementById('export-btn').style.display = 'flex';
+                toast(`${this._midiLog.length} noten opgenomen. Kies export formaat.`, 'success');
             }
         }
     }
 
-    exportRecording() {
-        if (!this.recordedChunks.length) return;
+    // Log een noot voor MIDI export (aangeroepen vanuit triggerPad en vocale synth)
+    _logMidiNote(midi, velocity, durationMs) {
+        if (!this.isRecording) return;
+        this._midiLog.push({
+            midi: Math.round(midi),
+            velocity: Math.round(velocity * 127),
+            time: Date.now() - this._recordStartMs,
+            duration: Math.round(durationMs)
+        });
+    }
+
+    exportAs(format) {
+        if (format === 'webm') this._exportWebM();
+        else if (format === 'wav') this._exportWAV();
+        else if (format === 'midi') this._exportMIDI();
+    }
+
+    _exportWebM() {
+        if (!this.recordedChunks.length) { toast('Geen audio opname', 'error'); return; }
         const blob = new Blob(this.recordedChunks, { type: 'audio/webm' });
+        this._downloadBlob(blob, `sampler-${Date.now()}.webm`);
+        toast('WebM gedownload', 'success');
+    }
+
+    _exportWAV() {
+        if (!this.recordedChunks.length) { toast('Geen audio opname', 'error'); return; }
+        // WebM → AudioBuffer → WAV
+        toast('WAV genereren...', 'info');
+        const blob = new Blob(this.recordedChunks, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.onload = async () => {
+            try {
+                const buffer = await this.audioCtx.decodeAudioData(reader.result);
+                const wav = this._audioBufferToWav(buffer);
+                this._downloadBlob(wav, `sampler-${Date.now()}.wav`);
+                toast('WAV gedownload', 'success');
+            } catch(e) {
+                toast('WAV conversie mislukt: ' + e.message, 'error');
+            }
+        };
+        reader.readAsArrayBuffer(blob);
+    }
+
+    _exportMIDI() {
+        if (!this._midiLog.length) { toast('Geen MIDI noten opgenomen', 'error'); return; }
+        // Bouw MIDI bestand (Type 0, 1 track)
+        const bpm = this.bpm;
+        const ticksPerBeat = 480;
+        const msPerTick = 60000 / (bpm * ticksPerBeat);
+
+        const events = [];
+        // Tempo event
+        const uspqn = Math.round(60000000 / bpm);
+        events.push({ tick: 0, data: [0xFF, 0x51, 0x03, (uspqn >> 16) & 0xFF, (uspqn >> 8) & 0xFF, uspqn & 0xFF] });
+
+        // Note events
+        this._midiLog.forEach(note => {
+            const startTick = Math.round(note.time / msPerTick);
+            const durTicks = Math.max(1, Math.round(note.duration / msPerTick));
+            events.push({ tick: startTick, data: [0x90, note.midi, note.velocity] }); // note on
+            events.push({ tick: startTick + durTicks, data: [0x80, note.midi, 0] });   // note off
+        });
+
+        // End of track
+        events.sort((a, b) => a.tick - b.tick);
+        const maxTick = events.length ? events[events.length - 1].tick + 1 : 0;
+        events.push({ tick: maxTick, data: [0xFF, 0x2F, 0x00] });
+
+        // Encode to bytes with delta times
+        const trackBytes = [];
+        let lastTick = 0;
+        events.forEach(ev => {
+            const delta = ev.tick - lastTick;
+            lastTick = ev.tick;
+            // Variable-length delta
+            const vlq = [];
+            let d = delta;
+            vlq.push(d & 0x7F);
+            while (d >>= 7) { vlq.push((d & 0x7F) | 0x80); }
+            vlq.reverse().forEach(b => trackBytes.push(b));
+            ev.data.forEach(b => trackBytes.push(b));
+        });
+
+        // MIDI file structure
+        const midi = [];
+        // Header: MThd
+        [0x4D,0x54,0x68,0x64].forEach(b => midi.push(b)); // "MThd"
+        [0,0,0,6].forEach(b => midi.push(b));               // chunk length
+        [0,0].forEach(b => midi.push(b));                    // format 0
+        [0,1].forEach(b => midi.push(b));                    // 1 track
+        midi.push((ticksPerBeat >> 8) & 0xFF, ticksPerBeat & 0xFF); // ticks/beat
+        // Track: MTrk
+        [0x4D,0x54,0x72,0x6B].forEach(b => midi.push(b));   // "MTrk"
+        const len = trackBytes.length;
+        [len>>24&0xFF, len>>16&0xFF, len>>8&0xFF, len&0xFF].forEach(b => midi.push(b));
+        trackBytes.forEach(b => midi.push(b));
+
+        const blob = new Blob([new Uint8Array(midi)], { type: 'audio/midi' });
+        this._downloadBlob(blob, `sampler-${Date.now()}.mid`);
+        toast(`MIDI gedownload (${this._midiLog.length} noten)`, 'success');
+    }
+
+    _downloadBlob(blob, filename) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `sampler-${Date.now()}.webm`;
+        a.download = filename;
         a.click();
         URL.revokeObjectURL(url);
         document.getElementById('export-btn').style.display = 'none';
-        toast('Opname gedownload', 'success');
     }
 
     // ---- FX ----
@@ -3382,6 +3494,9 @@ class SamplerApp {
         const ctx = this.audioCtx;
         if (!ctx) return;
         const vowel = this._vowels[vowelChar] || this._vowels['a'];
+        // MIDI logging: freq → MIDI noot
+        const midi = Math.round(69 + 12 * Math.log2(freq / 440));
+        this._logMidiNote(midi, velocity, duration * 1000);
         const now = ctx.currentTime;
         const end = now + duration;
 
