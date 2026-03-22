@@ -7,6 +7,7 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='none' stroke='%2339ff14' stroke-width='1.5'/><circle cx='16' cy='16' r='3' fill='%2339ff14' opacity='.4'/><ellipse cx='16' cy='16' rx='14' ry='5' fill='none' stroke='%2339ff14' stroke-width='.7' opacity='.4' transform='rotate(-8 16 16)'/></svg>">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="audio-browser.js"></script>
 <style>
 /* ============================================================
    CSS - DAW Sampler Dark Theme
@@ -835,51 +836,9 @@ select:focus { border-color: var(--accent); }
             </div>
         </div>
 
-        <!-- Sample Browser (hidden by default) -->
-        <div class="community-panel" id="community-panel" style="display:none">
-            <div class="section-header">Sample Browser</div>
-            <!-- Source toggles -->
-            <div style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap">
-                <label style="font-size:10px;display:flex;align-items:center;gap:3px;cursor:pointer;padding:3px 8px;border-radius:4px;background:var(--bg-dark);border:1px solid var(--border)">
-                    <input type="checkbox" id="src-freesound" checked style="accent-color:var(--accent)"> Freesound
-                </label>
-                <label style="font-size:10px;display:flex;align-items:center;gap:3px;cursor:pointer;padding:3px 8px;border-radius:4px;background:var(--bg-dark);border:1px solid var(--border)">
-                    <input type="checkbox" id="src-jamendo" checked style="accent-color:var(--orange)"> Jamendo
-                </label>
-                <label style="font-size:10px;display:flex;align-items:center;gap:3px;cursor:pointer;padding:3px 8px;border-radius:4px;background:var(--bg-dark);border:1px solid var(--border)">
-                    <input type="checkbox" id="src-archive" checked style="accent-color:var(--green)"> Internet Archive
-                </label>
-                <label style="font-size:10px;display:flex;align-items:center;gap:3px;cursor:pointer;padding:3px 8px;border-radius:4px;background:var(--bg-dark);border:1px solid var(--border)">
-                    <input type="checkbox" id="src-community" checked style="accent-color:var(--purple)"> Community
-                </label>
-            </div>
-            <!-- Category presets -->
-            <div style="display:flex;gap:3px;margin-bottom:6px;flex-wrap:wrap">
-                <button class="action-btn" onclick="sampler.browserSearch('kick drum')" style="font-size:9px;padding:2px 8px">Kick</button>
-                <button class="action-btn" onclick="sampler.browserSearch('snare drum')" style="font-size:9px;padding:2px 8px">Snare</button>
-                <button class="action-btn" onclick="sampler.browserSearch('hi-hat')" style="font-size:9px;padding:2px 8px">Hi-Hat</button>
-                <button class="action-btn" onclick="sampler.browserSearch('clap')" style="font-size:9px;padding:2px 8px">Clap</button>
-                <button class="action-btn" onclick="sampler.browserSearch('bass guitar')" style="font-size:9px;padding:2px 8px">Bass</button>
-                <button class="action-btn" onclick="sampler.browserSearch('guitar riff')" style="font-size:9px;padding:2px 8px">Gitaar</button>
-                <button class="action-btn" onclick="sampler.browserSearch('piano chord')" style="font-size:9px;padding:2px 8px">Piano</button>
-                <button class="action-btn" onclick="sampler.browserSearch('trumpet')" style="font-size:9px;padding:2px 8px">Trompet</button>
-                <button class="action-btn" onclick="sampler.browserSearch('saxophone')" style="font-size:9px;padding:2px 8px">Sax</button>
-                <button class="action-btn" onclick="sampler.browserSearch('strings orchestra')" style="font-size:9px;padding:2px 8px">Strings</button>
-                <button class="action-btn" onclick="sampler.browserSearch('synth pad')" style="font-size:9px;padding:2px 8px">Synth</button>
-                <button class="action-btn" onclick="sampler.browserSearch('vocal chop')" style="font-size:9px;padding:2px 8px">Vocals</button>
-                <button class="action-btn" onclick="sampler.browserSearch('bird animal')" style="font-size:9px;padding:2px 8px">Vogels</button>
-                <button class="action-btn" onclick="sampler.browserSearch('dog cat animal')" style="font-size:9px;padding:2px 8px">Dieren</button>
-                <button class="action-btn" onclick="sampler.browserSearch('rain thunder nature')" style="font-size:9px;padding:2px 8px">Natuur</button>
-                <button class="action-btn" onclick="sampler.browserSearch('explosion boom')" style="font-size:9px;padding:2px 8px">FX</button>
-                <button class="action-btn" onclick="sampler.browserSearch('reggae')" style="font-size:9px;padding:2px 8px">Reggae</button>
-                <button class="action-btn" onclick="sampler.browserSearch('bongo conga')" style="font-size:9px;padding:2px 8px">Conga</button>
-            </div>
-            <!-- Search -->
-            <div class="community-search">
-                <input type="text" id="browser-search-input" placeholder="Zoek in alle bronnen..." onkeydown="if(event.key==='Enter')sampler.browserSearch()">
-                <button onclick="sampler.browserSearch()">Zoek</button>
-            </div>
-            <div class="community-results" id="browser-results" style="max-height:300px"></div>
+        <!-- Sample Browser (module) -->
+        <div id="community-panel" style="display:none">
+            <div id="audio-browser-container"></div>
             <!-- Community Upload / Share -->
             <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px">
                 <div style="font-size:10px;font-weight:700;color:var(--purple);margin-bottom:6px">Delen met Community</div>
@@ -3792,6 +3751,26 @@ function toast(msg, type = 'info') {
 
 // ---- Init ----
 const sampler = new SamplerApp();
+
+// Audio Browser module
+const audioBrowser = new AudioBrowser({
+    container: document.getElementById('audio-browser-container'),
+    onSelect: (audioBuffer, name) => {
+        sampler.initAudio();
+        const p = sampler.pads[sampler.selectedPad];
+        p.buffer = audioBuffer;
+        p.reverseBuffer = null;
+        p.name = name.substring(0, 20);
+        if (p.reverse) sampler._createReverseBuffer(sampler.selectedPad);
+        document.getElementById(`pad-${sampler.selectedPad}`).classList.add('loaded');
+        document.getElementById(`pad-name-${sampler.selectedPad}`).textContent = p.name;
+        sampler._drawPadWaveform(sampler.selectedPad);
+        sampler.drawWaveform();
+        document.getElementById('selected-pad-name').textContent = p.name;
+        sampler._updateSeqLabels();
+        toast(`"${p.name}" geladen op Pad ${sampler.selectedPad + 1}`, 'success');
+    }
+});
 
 // Auto-load drums on first click (AudioContext needs user gesture)
 document.addEventListener('click', () => {

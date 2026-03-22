@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audio Editor - DAW</title>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="audio-browser.js"></script>
 <style>
 :root{--bg-darkest:#0a0a0f;--bg-dark:#12121a;--bg-panel:#1a1a26;--bg-track:#1e1e2e;--bg-hover:#2a2a3e;--bg-selected:#2d2d4a;--border:#333348;--border-light:#444460;--text:#e0e0ee;--text-dim:#888899;--text-bright:#fff;--accent:#4a7fff;--accent-hover:#5a8fff;--accent-dim:#3a5fcc;--red:#ff4a5a;--red-dim:#cc3a4a;--green:#4aff6a;--green-dim:#2a8a3a;--yellow:#ffd24a;--orange:#ff8a4a;--purple:#9a4aff;--cyan:#4affd2}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -92,6 +94,7 @@ body{font-family:-apple-system,'SF Pro Display','Segoe UI',system-ui,sans-serif;
 <div class="tool-sep"></div>
 <button class="tb" id="b-import"><span class="material-icons">folder_open</span>Importeer</button>
 <button class="tb" id="b-scan" onclick="scanAudio()"><span class="material-icons">search</span>Scan PC</button>
+<button class="tb" id="b-browse" onclick="toggleEditorBrowser()"><span class="material-icons">library_music</span>Browse</button>
 <button class="tb" id="b-export"><span class="material-icons">save_alt</span>Export WAV</button>
 <button class="tb" id="b-expsel"><span class="material-icons">download</span>Export selectie</button>
 <div class="tool-sep"></div>
@@ -174,6 +177,11 @@ body{font-family:-apple-system,'SF Pro Display','Segoe UI',system-ui,sans-serif;
 </div>
 </div>
 <div id="scan-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:999" onclick="document.getElementById('scan-panel').style.display='none';this.style.display='none'"></div>
+<!-- Audio Browser Modal -->
+<div id="browse-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:999" onclick="toggleEditorBrowser()"></div>
+<div id="browse-panel" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:650px;max-height:80vh;z-index:1000;overflow-y:auto">
+    <div id="editor-browser-container"></div>
+</div>
 <input type="file" id="file-in" accept="audio/*,.wav,.mp3,.ogg,.flac" style="display:none">
 <script>
 /* ================================================================
@@ -1132,6 +1140,32 @@ document.addEventListener('keydown',e=>{
     else if(ctrl&&k==='c'){e.preventDefault();copySel()}
     else if(ctrl&&k==='v'){e.preventDefault();pasteSel()}
 });
+
+/* ---- Audio Browser ---- */
+let _editorBrowser = null;
+function toggleEditorBrowser() {
+    const panel = document.getElementById('browse-panel');
+    const backdrop = document.getElementById('browse-backdrop');
+    const visible = panel.style.display !== 'none';
+    panel.style.display = visible ? 'none' : 'block';
+    backdrop.style.display = visible ? 'none' : 'block';
+    if (!visible && !_editorBrowser) {
+        _editorBrowser = new AudioBrowser({
+            container: document.getElementById('editor-browser-container'),
+            onSelect: (audioBuffer, name) => {
+                // Laad in de editor
+                buffer = audioBuffer;
+                fileName = name;
+                origBuffer = audioBuffer;
+                undoStack = []; redoStack = []; selection = null;
+                document.getElementById('fname').textContent = name;
+                resizeAll(); drawAll();
+                panel.style.display = 'none';
+                backdrop.style.display = 'none';
+            }
+        });
+    }
+}
 
 /* ---- Init ---- */
 resizeAll();drawAll();
