@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="audio-browser.js"></script>
+<script src="library-panel.js"></script>
 <style>
 /* ============================================================
    CSS - DAW Sampler Dark Theme
@@ -686,6 +687,9 @@ select:focus { border-color: var(--accent); }
                 <button class="action-btn" onclick="sampler.toggleCommunity()">
                     <span class="material-icons">cloud</span> Community
                 </button>
+                <button class="action-btn" onclick="sampler.toggleLibrary()">
+                    <span class="material-icons">folder_special</span> Library
+                </button>
                 <button class="action-btn danger" onclick="sampler.clearPad()">
                     <span class="material-icons">delete</span> Wis
                 </button>
@@ -857,6 +861,11 @@ select:focus { border-color: var(--accent); }
                     </button>
                 </div>
             </div>
+        </div>
+
+        <!-- Library Panel -->
+        <div id="library-panel" style="display:none">
+            <div id="sampler-library-container"></div>
         </div>
 
         <!-- Master FX -->
@@ -2515,6 +2524,53 @@ class SamplerApp {
     toggleCommunity() {
         const panel = document.getElementById('community-panel');
         panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+
+    toggleLibrary() {
+        const panel = document.getElementById('library-panel');
+        const visible = panel.style.display !== 'none';
+        panel.style.display = visible ? 'none' : 'block';
+        if (!visible && !this._libraryPanel) {
+            this._libraryPanel = new LibraryPanel({
+                container: document.getElementById('sampler-library-container'),
+                onSelect: (url, name, metadata) => {
+                    if (metadata && metadata.buffer) {
+                        this._loadBufferToPad(metadata.buffer, name);
+                        return;
+                    }
+                    if (url) {
+                        this.initAudio();
+                        fetch(url).then(r => r.arrayBuffer()).then(ab => {
+                            return this.audioCtx.decodeAudioData(ab);
+                        }).then(audioBuffer => {
+                            this._loadBufferToPad(audioBuffer, name);
+                        }).catch(e => console.error('Library load error:', e));
+                    }
+                },
+                onSelectBuffer: (audioBuffer, name) => {
+                    this._loadBufferToPad(audioBuffer, name);
+                },
+                compact: true,
+                showRecordings: true
+            });
+        }
+    }
+
+    _loadBufferToPad(audioBuffer, name) {
+        this.initAudio();
+        const idx = this.selectedPad;
+        const p = this.pads[idx];
+        p.buffer = audioBuffer;
+        p.reverseBuffer = null;
+        p.name = (name || 'Sample').substring(0, 20);
+        if (p.reverse) this._createReverseBuffer(idx);
+        document.getElementById(`pad-${idx}`).classList.add('loaded');
+        document.getElementById(`pad-name-${idx}`).textContent = p.name;
+        this._drawPadWaveform(idx);
+        this.drawWaveform();
+        document.getElementById('selected-pad-name').textContent = p.name;
+        this._updateSeqLabels();
+        toast(`"${p.name}" geladen op Pad ${idx + 1}`, 'success');
     }
 
     // ---- Multi-Source Sample Browser ----

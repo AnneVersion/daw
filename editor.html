@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="audio-browser.js"></script>
+<script src="library-panel.js"></script>
 <style>
 :root{--bg-darkest:#0a0a0f;--bg-dark:#12121a;--bg-panel:#1a1a26;--bg-track:#1e1e2e;--bg-hover:#2a2a3e;--bg-selected:#2d2d4a;--border:#333348;--border-light:#444460;--text:#e0e0ee;--text-dim:#888899;--text-bright:#fff;--accent:#4a7fff;--accent-hover:#5a8fff;--accent-dim:#3a5fcc;--red:#ff4a5a;--red-dim:#cc3a4a;--green:#4aff6a;--green-dim:#2a8a3a;--yellow:#ffd24a;--orange:#ff8a4a;--purple:#9a4aff;--cyan:#4affd2}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -98,6 +99,7 @@ body{font-family:-apple-system,'SF Pro Display','Segoe UI',system-ui,sans-serif;
 <button class="tb" id="b-import"><span class="material-icons">folder_open</span>Importeer</button>
 <button class="tb" id="b-scan" onclick="scanAudio()"><span class="material-icons">search</span>Scan PC</button>
 <button class="tb" id="b-browse" onclick="toggleEditorBrowser()"><span class="material-icons">library_music</span>Browse</button>
+<button class="tb" id="b-library" onclick="toggleEditorLibrary()"><span class="material-icons">folder_special</span>Library</button>
 <button class="tb" id="b-export"><span class="material-icons">save_alt</span>Export WAV</button>
 <button class="tb" id="b-expsel"><span class="material-icons">download</span>Export selectie</button>
 <div class="tool-sep"></div>
@@ -184,6 +186,11 @@ body{font-family:-apple-system,'SF Pro Display','Segoe UI',system-ui,sans-serif;
 <div id="browse-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:999" onclick="toggleEditorBrowser()"></div>
 <div id="browse-panel" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:650px;max-height:80vh;z-index:1000;overflow-y:auto">
     <div id="editor-browser-container"></div>
+</div>
+<!-- Library Panel -->
+<div id="library-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:999" onclick="toggleEditorLibrary()"></div>
+<div id="library-panel" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:420px;height:70vh;z-index:1000">
+    <div id="editor-library-container" style="height:100%"></div>
 </div>
 <input type="file" id="file-in" accept="audio/*,.wav,.mp3,.ogg,.flac" style="display:none">
 <script>
@@ -1166,6 +1173,62 @@ function toggleEditorBrowser() {
                 panel.style.display = 'none';
                 backdrop.style.display = 'none';
             }
+        });
+    }
+}
+
+/* ---- Library Panel ---- */
+let _editorLibrary = null;
+function toggleEditorLibrary() {
+    const panel = document.getElementById('library-panel');
+    const backdrop = document.getElementById('library-backdrop');
+    const visible = panel.style.display !== 'none';
+    panel.style.display = visible ? 'none' : 'block';
+    backdrop.style.display = visible ? 'none' : 'block';
+    if (!visible && !_editorLibrary) {
+        _editorLibrary = new LibraryPanel({
+            container: document.getElementById('editor-library-container'),
+            onSelect: (url, name, metadata) => {
+                if (metadata && metadata.buffer) {
+                    buffer = metadata.buffer;
+                    fileName = name;
+                    origBuffer = metadata.buffer;
+                    undoStack = []; redoStack = []; selection = null;
+                    document.getElementById('fname').textContent = name;
+                    resizeAll(); drawAll();
+                    panel.style.display = 'none';
+                    backdrop.style.display = 'none';
+                    return;
+                }
+                if (url) {
+                    fetch(url).then(r => r.arrayBuffer()).then(ab => {
+                        const actx = new (window.AudioContext || window.webkitAudioContext)();
+                        return actx.decodeAudioData(ab);
+                    }).then(audioBuffer => {
+                        buffer = audioBuffer;
+                        fileName = name;
+                        origBuffer = audioBuffer;
+                        undoStack = []; redoStack = []; selection = null;
+                        document.getElementById('fname').textContent = name;
+                        resizeAll(); drawAll();
+                        panel.style.display = 'none';
+                        backdrop.style.display = 'none';
+                    }).catch(e => console.error('Library load error:', e));
+                }
+            },
+            onSelectBuffer: (audioBuffer, name) => {
+                buffer = audioBuffer;
+                fileName = name;
+                origBuffer = audioBuffer;
+                undoStack = []; redoStack = []; selection = null;
+                document.getElementById('fname').textContent = name;
+                resizeAll(); drawAll();
+                panel.style.display = 'none';
+                backdrop.style.display = 'none';
+            },
+            showFilters: true,
+            showCategories: true,
+            showRecordings: true
         });
     }
 }
