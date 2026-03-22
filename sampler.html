@@ -1,0 +1,2286 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DAW - Sampler</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='none' stroke='%2339ff14' stroke-width='1.5'/><circle cx='16' cy='16' r='3' fill='%2339ff14' opacity='.4'/><ellipse cx='16' cy='16' rx='14' ry='5' fill='none' stroke='%2339ff14' stroke-width='.7' opacity='.4' transform='rotate(-8 16 16)'/></svg>">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ============================================================
+   CSS - DAW Sampler Dark Theme
+   ============================================================ */
+:root {
+    --bg-darkest: #0a0a0f;
+    --bg-dark: #0d1117;
+    --bg-panel: #161b22;
+    --bg-card: #1a1f2e;
+    --bg-hover: #242d3d;
+    --bg-selected: #2d3548;
+    --border: #30363d;
+    --border-light: #484f58;
+    --text: #e0e0ee;
+    --text-dim: #8b949e;
+    --text-bright: #ffffff;
+    --accent: #4a9eff;
+    --accent-hover: #5aafff;
+    --purple: #a855f7;
+    --purple-dim: #7c3aed;
+    --green: #39ff14;
+    --green-dim: #22c55e;
+    --red: #ff4a5a;
+    --yellow: #ffd24a;
+    --orange: #ff8a4a;
+    --pad-active: #4a9eff;
+    --pad-loaded: #1e3a5f;
+    --pad-empty: #161b22;
+    --step-on: #39ff14;
+    --step-off: #1a1f2e;
+    --step-current: #ffd24a;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+    font-family: -apple-system, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg-dark);
+    min-height: 100vh;
+    overflow-x: hidden;
+    user-select: none;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-dark); }
+::-webkit-scrollbar-thumb { background: #484f58; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+
+/* ---- Navigation ---- */
+.nav-bar {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: rgba(13, 17, 23, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    height: 56px;
+    gap: 8px;
+}
+.nav-logo {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-decoration: none;
+    margin-right: 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.nav-logo .material-icons { font-size: 24px; color: var(--green); }
+.nav-links { display: flex; gap: 4px; list-style: none; }
+.nav-links a {
+    color: var(--text-dim);
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.nav-links a:hover { color: var(--text); background: var(--bg-hover); }
+.nav-links a.active { color: var(--accent); background: rgba(74, 158, 255, 0.1); }
+.nav-links .material-icons { font-size: 18px; }
+.nav-spacer { flex: 1; }
+
+/* ---- Main Layout ---- */
+.main-layout {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    grid-template-rows: auto 1fr;
+    gap: 1px;
+    height: calc(100vh - 56px);
+    background: var(--border);
+}
+.pad-section {
+    background: var(--bg-darkest);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.detail-section {
+    background: var(--bg-dark);
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.sequencer-section {
+    grid-column: 1 / -1;
+    background: var(--bg-darkest);
+    padding: 12px 16px;
+    overflow-x: auto;
+    border-top: 1px solid var(--border);
+}
+
+/* ---- Pad Grid ---- */
+.pad-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+}
+.pad {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    background: var(--pad-empty);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    font-size: 10px;
+    color: var(--text-dim);
+    transition: all 0.08s;
+    position: relative;
+    overflow: hidden;
+}
+.pad.loaded {
+    background: var(--pad-loaded);
+    border-color: var(--accent);
+}
+.pad.selected {
+    border-color: var(--yellow);
+    box-shadow: 0 0 12px rgba(255, 210, 74, 0.3);
+}
+.pad.playing {
+    background: var(--pad-active) !important;
+    border-color: var(--accent-hover);
+    transform: scale(0.95);
+}
+.pad.drag-over {
+    border-color: var(--green);
+    border-style: dashed;
+    background: rgba(57, 255, 20, 0.1);
+}
+.pad .pad-key {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--text-dim);
+    position: absolute;
+    top: 4px;
+    left: 6px;
+    opacity: 0.6;
+}
+.pad .pad-name {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text);
+    max-width: 90%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+}
+.pad .pad-choke {
+    font-size: 8px;
+    color: var(--orange);
+    position: absolute;
+    top: 4px;
+    right: 6px;
+}
+.pad canvas {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 30%;
+    opacity: 0.4;
+}
+
+/* ---- Section Headers ---- */
+.section-header {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    margin-bottom: 4px;
+}
+
+/* ---- Controls ---- */
+.control-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+}
+.control-label {
+    font-size: 9px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+.knob-container {
+    position: relative;
+    width: 44px;
+    height: 44px;
+}
+.knob {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: conic-gradient(from 220deg, var(--accent) 0deg, var(--accent) var(--knob-angle, 0deg), var(--bg-panel) var(--knob-angle, 0deg), var(--bg-panel) 280deg);
+    border: 2px solid var(--border-light);
+    cursor: grab;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.knob::after {
+    content: '';
+    width: 3px;
+    height: 14px;
+    background: var(--text-bright);
+    border-radius: 2px;
+    position: absolute;
+    top: 4px;
+    transform-origin: bottom center;
+    transform: rotate(var(--knob-rotation, 0deg));
+}
+.knob-value {
+    font-size: 9px;
+    color: var(--text-dim);
+    text-align: center;
+    margin-top: 2px;
+}
+input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    background: var(--bg-panel);
+    border-radius: 3px;
+    outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid var(--bg-dark);
+}
+select {
+    background: var(--bg-panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    outline: none;
+}
+select:focus { border-color: var(--accent); }
+
+/* ---- Toggle Buttons ---- */
+.toggle-row {
+    display: flex;
+    gap: 6px;
+}
+.toggle-btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-panel);
+    color: var(--text-dim);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.toggle-btn:hover { background: var(--bg-hover); color: var(--text); }
+.toggle-btn.active {
+    background: var(--accent);
+    color: var(--text-bright);
+    border-color: var(--accent);
+}
+.toggle-btn.active.reverse { background: var(--purple); border-color: var(--purple); }
+.toggle-btn.active.loop { background: var(--green-dim); border-color: var(--green-dim); }
+
+/* ---- Waveform ---- */
+.waveform-panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+    height: 120px;
+    position: relative;
+}
+.waveform-panel canvas {
+    width: 100%;
+    height: 100%;
+}
+.waveform-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-dim);
+    font-size: 12px;
+}
+
+/* ---- Step Sequencer ---- */
+.seq-transport {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+.seq-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-panel);
+    color: var(--text);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+.seq-btn:hover { background: var(--bg-hover); }
+.seq-btn.playing { background: var(--green-dim); color: var(--text-bright); border-color: var(--green-dim); }
+.seq-btn.recording { background: var(--red); color: var(--text-bright); border-color: var(--red); animation: pulse-rec 1s infinite; }
+@keyframes pulse-rec { 0%,100%{opacity:1} 50%{opacity:0.6} }
+
+.bpm-input {
+    width: 60px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+    padding: 6px;
+    outline: none;
+}
+.bpm-input:focus { border-color: var(--accent); }
+
+.swing-slider {
+    width: 80px;
+}
+
+.pattern-btns {
+    display: flex;
+    gap: 4px;
+}
+.pattern-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-panel);
+    color: var(--text-dim);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.pattern-btn:hover { background: var(--bg-hover); }
+.pattern-btn.active { background: var(--accent); color: var(--text-bright); border-color: var(--accent); }
+
+.seq-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: fit-content;
+}
+.seq-row {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 28px;
+}
+.seq-row-label {
+    width: 80px;
+    min-width: 80px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding-right: 8px;
+    cursor: pointer;
+}
+.seq-row-label:hover { color: var(--text); }
+.seq-step {
+    width: 32px;
+    min-width: 32px;
+    height: 24px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--step-off);
+    cursor: pointer;
+    transition: all 0.08s;
+}
+.seq-step:hover { background: var(--bg-hover); border-color: var(--border-light); }
+.seq-step.on {
+    background: var(--step-on);
+    border-color: var(--green);
+    box-shadow: 0 0 6px rgba(57, 255, 20, 0.3);
+}
+.seq-step.current {
+    border-color: var(--step-current);
+    box-shadow: 0 0 8px rgba(255, 210, 74, 0.5);
+}
+.seq-step.beat-marker { border-bottom: 2px solid var(--border-light); }
+.seq-vel {
+    width: 32px;
+    min-width: 32px;
+    height: 24px;
+    position: relative;
+}
+
+/* ---- FX Panel ---- */
+.fx-panel {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.fx-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    min-width: 140px;
+    flex: 1;
+}
+.fx-card .fx-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.fx-toggle {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: var(--bg-dark);
+    cursor: pointer;
+}
+.fx-toggle.active {
+    background: var(--green);
+    border-color: var(--green);
+}
+.fx-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+}
+.fx-slider-label {
+    font-size: 9px;
+    color: var(--text-dim);
+    width: 40px;
+    min-width: 40px;
+}
+
+/* ---- Toast ---- */
+.toast-container {
+    position: fixed;
+    top: 64px;
+    right: 16px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.toast {
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    animation: toast-in 0.3s ease;
+    max-width: 320px;
+}
+.toast.success { background: rgba(57, 255, 20, 0.15); color: var(--green); border: 1px solid rgba(57, 255, 20, 0.3); }
+.toast.error { background: rgba(255, 74, 90, 0.15); color: var(--red); border: 1px solid rgba(255, 74, 90, 0.3); }
+.toast.info { background: rgba(74, 158, 255, 0.15); color: var(--accent); border: 1px solid rgba(74, 158, 255, 0.3); }
+@keyframes toast-in { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+
+/* ---- Community Browser ---- */
+.community-panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+}
+.community-search {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.community-search input {
+    flex: 1;
+    background: var(--bg-dark);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 6px 10px;
+    font-size: 12px;
+    outline: none;
+}
+.community-search input:focus { border-color: var(--accent); }
+.community-search button {
+    padding: 6px 14px;
+    background: var(--accent);
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.community-results {
+    max-height: 200px;
+    overflow-y: auto;
+}
+.community-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: background 0.15s;
+}
+.community-item:hover { background: var(--bg-hover); }
+.community-item .material-icons { font-size: 16px; color: var(--accent); }
+
+/* ---- Load buttons ---- */
+.pad-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.action-btn {
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-panel);
+    color: var(--text);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s;
+}
+.action-btn:hover { background: var(--bg-hover); border-color: var(--border-light); }
+.action-btn .material-icons { font-size: 14px; }
+.action-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.action-btn.primary:hover { background: var(--accent-hover); }
+.action-btn.danger { color: var(--red); }
+.action-btn.danger:hover { background: rgba(255, 74, 90, 0.1); }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     Navigation
+     ============================================================ -->
+<nav class="nav-bar">
+    <a href="index.html" class="nav-logo">
+        <span class="material-icons">graphic_eq</span>
+        DAW
+    </a>
+    <ul class="nav-links">
+        <li><a href="index.html"><span class="material-icons">piano</span> Studio</a></li>
+        <li><a href="dj.html"><span class="material-icons">radio</span> DJ</a></li>
+        <li><a href="editor.html"><span class="material-icons">graphic_eq</span> Editor</a></li>
+        <li><a href="sampler.html" class="active"><span class="material-icons">library_music</span> Sampler</a></li>
+        <li><a href="contests.html"><span class="material-icons">emoji_events</span> Contests</a></li>
+        <li><a href="live.html"><span class="material-icons">live_tv</span> Live</a></li>
+    </ul>
+    <div class="nav-spacer"></div>
+    <button class="action-btn" onclick="sampler.exportRecording()" id="export-btn" style="display:none">
+        <span class="material-icons">download</span> Export
+    </button>
+</nav>
+
+<!-- ============================================================
+     Main Layout
+     ============================================================ -->
+<div class="main-layout">
+    <!-- Left: Pad Grid -->
+    <div class="pad-section">
+        <div class="section-header">Pads</div>
+        <div class="pad-grid" id="pad-grid"></div>
+        <div style="font-size:9px;color:var(--text-dim);text-align:center;margin-top:4px">
+            Keyboard: Q W E R / A S D F / Z X C V / 1 2 3 4 &nbsp;|&nbsp; Sleep een audiobestand op een pad
+        </div>
+    </div>
+
+    <!-- Right: Detail Panel -->
+    <div class="detail-section">
+        <!-- Waveform -->
+        <div>
+            <div class="section-header">Waveform &mdash; <span id="selected-pad-name">Pad 1</span> <span style="font-size:9px;color:var(--text-dim);text-transform:none;letter-spacing:0;font-weight:400">(sleep over waveform om te scratchen)</span></div>
+            <div class="waveform-panel" id="waveform-panel">
+                <canvas id="waveform-canvas"></canvas>
+                <div class="waveform-empty" id="waveform-empty">Selecteer een pad en laad een sample</div>
+            </div>
+        </div>
+
+        <!-- Pad Controls -->
+        <div>
+            <div class="section-header">Pad Controls</div>
+            <div class="pad-actions">
+                <button class="action-btn primary" onclick="sampler.loadSampleFile()">
+                    <span class="material-icons">folder_open</span> Laad Sample
+                </button>
+                <button class="action-btn" onclick="sampler.loadFromScan()">
+                    <span class="material-icons">computer</span> Scan PC
+                </button>
+                <button class="action-btn" onclick="sampler.toggleCommunity()">
+                    <span class="material-icons">cloud</span> Community
+                </button>
+                <button class="action-btn danger" onclick="sampler.clearPad()">
+                    <span class="material-icons">delete</span> Wis
+                </button>
+            </div>
+        </div>
+
+        <!-- Volume / Pan / Pitch -->
+        <div>
+            <div class="control-row">
+                <div class="control-group" style="flex:1">
+                    <div class="control-label">Volume</div>
+                    <input type="range" id="ctrl-volume" min="0" max="100" value="80" oninput="sampler.setPadParam('volume', this.value/100)">
+                    <div class="knob-value" id="val-volume">80%</div>
+                </div>
+                <div class="control-group" style="flex:1">
+                    <div class="control-label">Pan</div>
+                    <input type="range" id="ctrl-pan" min="-100" max="100" value="0" oninput="sampler.setPadParam('pan', this.value/100)">
+                    <div class="knob-value" id="val-pan">C</div>
+                </div>
+                <div class="control-group" style="flex:1">
+                    <div class="control-label">Pitch (st)</div>
+                    <input type="range" id="ctrl-pitch" min="-24" max="24" value="0" oninput="sampler.setPadParam('pitch', +this.value)">
+                    <div class="knob-value" id="val-pitch">0</div>
+                </div>
+                <div class="control-group">
+                    <div class="control-label">Choke</div>
+                    <select id="ctrl-choke" onchange="sampler.setPadParam('chokeGroup', +this.value)">
+                        <option value="0">Geen</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- ADSR -->
+        <div>
+            <div class="section-header">Envelope (ADSR)</div>
+            <div class="control-row">
+                <div class="control-group" style="flex:1">
+                    <div class="control-label">Attack</div>
+                    <input type="range" id="ctrl-attack" min="0" max="2000" value="5" oninput="sampler.setPadParam('attack', this.value/1000)">
+                    <div class="knob-value" id="val-attack">5ms</div>
+                </div>
+                <div class="control-group" style="flex:1">
+                    <div class="control-label">Decay</div>
+                    <input type="range" id="ctrl-decay" min="0" max="2000" value="100" oninput="sampler.setPadParam('decay', this.value/1000)">
+                    <div class="knob-value" id="val-decay">100ms</div>
+                </div>
+                <div class="control-group" style="flex:1">
+                    <div class="control-label">Sustain</div>
+                    <input type="range" id="ctrl-sustain" min="0" max="100" value="100" oninput="sampler.setPadParam('sustain', this.value/100)">
+                    <div class="knob-value" id="val-sustain">100%</div>
+                </div>
+                <div class="control-group" style="flex:1">
+                    <div class="control-label">Release</div>
+                    <input type="range" id="ctrl-release" min="0" max="5000" value="100" oninput="sampler.setPadParam('release', this.value/1000)">
+                    <div class="knob-value" id="val-release">100ms</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mode toggles -->
+        <div>
+            <div class="section-header">Afspeelmodus</div>
+            <div class="toggle-row">
+                <button class="toggle-btn active" id="btn-oneshot" onclick="sampler.setPadParam('mode','oneshot')">One-Shot</button>
+                <button class="toggle-btn loop" id="btn-loop" onclick="sampler.setPadParam('mode','loop')">Loop</button>
+                <button class="toggle-btn reverse" id="btn-reverse" onclick="sampler.toggleReverse()">Reverse</button>
+            </div>
+        </div>
+
+        <!-- ADSR Visualization -->
+        <div>
+            <div class="section-header">Envelope Preview</div>
+            <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;padding:4px;height:60px">
+                <canvas id="adsr-canvas" style="width:100%;height:100%"></canvas>
+            </div>
+        </div>
+
+        <!-- Community Panel (hidden by default) -->
+        <div class="community-panel" id="community-panel" style="display:none">
+            <div class="section-header">Community Samples</div>
+            <div class="community-search">
+                <input type="text" id="community-search-input" placeholder="Zoek samples...">
+                <button onclick="sampler.searchCommunity()">Zoek</button>
+            </div>
+            <div class="community-results" id="community-results"></div>
+        </div>
+
+        <!-- Master FX -->
+        <div>
+            <div class="section-header">Master FX</div>
+            <div class="fx-panel">
+                <div class="fx-card">
+                    <div class="fx-title">
+                        <div class="fx-toggle" id="fx-reverb-toggle" onclick="sampler.toggleFX('reverb')"></div>
+                        Reverb
+                    </div>
+                    <div class="fx-slider-row">
+                        <span class="fx-slider-label">Mix</span>
+                        <input type="range" min="0" max="100" value="30" style="flex:1" oninput="sampler.setFX('reverb','mix',this.value/100)">
+                    </div>
+                    <div class="fx-slider-row">
+                        <span class="fx-slider-label">Decay</span>
+                        <input type="range" min="1" max="100" value="40" style="flex:1" oninput="sampler.setFX('reverb','decay',this.value/10)">
+                    </div>
+                </div>
+                <div class="fx-card">
+                    <div class="fx-title">
+                        <div class="fx-toggle" id="fx-delay-toggle" onclick="sampler.toggleFX('delay')"></div>
+                        Delay
+                    </div>
+                    <div class="fx-slider-row">
+                        <span class="fx-slider-label">Time</span>
+                        <input type="range" min="50" max="1000" value="300" style="flex:1" oninput="sampler.setFX('delay','time',this.value/1000)">
+                    </div>
+                    <div class="fx-slider-row">
+                        <span class="fx-slider-label">Fbk</span>
+                        <input type="range" min="0" max="90" value="40" style="flex:1" oninput="sampler.setFX('delay','feedback',this.value/100)">
+                    </div>
+                    <div class="fx-slider-row">
+                        <span class="fx-slider-label">Mix</span>
+                        <input type="range" min="0" max="100" value="25" style="flex:1" oninput="sampler.setFX('delay','mix',this.value/100)">
+                    </div>
+                </div>
+                <div class="fx-card">
+                    <div class="fx-title">
+                        <div class="fx-toggle" id="fx-filter-toggle" onclick="sampler.toggleFX('filter')"></div>
+                        Filter
+                    </div>
+                    <div class="fx-slider-row">
+                        <span class="fx-slider-label">Freq</span>
+                        <input type="range" min="20" max="20000" value="8000" style="flex:1" oninput="sampler.setFX('filter','frequency',+this.value)">
+                    </div>
+                    <div class="fx-slider-row">
+                        <span class="fx-slider-label">Q</span>
+                        <input type="range" min="1" max="200" value="10" style="flex:1" oninput="sampler.setFX('filter','Q',this.value/10)">
+                    </div>
+                    <div class="fx-slider-row">
+                        <span class="fx-slider-label">Type</span>
+                        <select onchange="sampler.setFX('filter','type',this.value)" style="flex:1">
+                            <option value="lowpass">Low Pass</option>
+                            <option value="highpass">High Pass</option>
+                            <option value="bandpass">Band Pass</option>
+                            <option value="notch">Notch</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="fx-card">
+                    <div class="fx-title">
+                        <div class="fx-toggle" id="fx-comp-toggle" onclick="sampler.toggleFX('compressor')"></div>
+                        Compressor
+                    </div>
+                    <div class="fx-slider-row">
+                        <span class="fx-slider-label">Thresh</span>
+                        <input type="range" min="-60" max="0" value="-24" style="flex:1" oninput="sampler.setFX('compressor','threshold',+this.value)">
+                    </div>
+                    <div class="fx-slider-row">
+                        <span class="fx-slider-label">Ratio</span>
+                        <input type="range" min="1" max="20" value="4" style="flex:1" oninput="sampler.setFX('compressor','ratio',+this.value)">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom: Step Sequencer -->
+    <div class="sequencer-section">
+        <div class="seq-transport">
+            <button class="seq-btn" id="seq-play" onclick="sampler.togglePlay()">
+                <span class="material-icons">play_arrow</span>
+            </button>
+            <button class="seq-btn" onclick="sampler.stopSeq()">
+                <span class="material-icons">stop</span>
+            </button>
+            <button class="seq-btn" id="seq-rec" onclick="sampler.toggleRecord()">
+                <span class="material-icons">fiber_manual_record</span>
+            </button>
+
+            <div class="control-group" style="flex-direction:row;gap:6px;align-items:center">
+                <span class="control-label">BPM</span>
+                <input type="number" class="bpm-input" id="bpm-input" value="120" min="40" max="300" onchange="sampler.setBPM(+this.value)">
+            </div>
+
+            <div class="control-group" style="flex-direction:row;gap:6px;align-items:center">
+                <span class="control-label">Swing</span>
+                <input type="range" class="swing-slider" id="swing-slider" min="0" max="100" value="0" oninput="sampler.setSwing(this.value)">
+                <span class="knob-value" id="val-swing" style="width:28px">0%</span>
+            </div>
+
+            <div style="display:flex;gap:6px;align-items:center">
+                <span class="control-label">Pattern</span>
+                <div class="pattern-btns" id="pattern-btns"></div>
+            </div>
+
+            <div class="nav-spacer"></div>
+
+            <div style="display:flex;gap:6px;align-items:center">
+                <span class="control-label">Preset</span>
+                <select id="genre-preset" onchange="sampler.loadPreset(this.value)" style="min-width:120px">
+                    <option value="">-- Genre --</option>
+                    <option value="reggae">Reggae</option>
+                    <option value="reggae_dub">Reggae Dub</option>
+                    <option value="hiphop">Hip-Hop</option>
+                    <option value="house">House</option>
+                    <option value="dnb">Drum & Bass</option>
+                    <option value="trap">Trap</option>
+                    <option value="bossa">Bossa Nova</option>
+                    <option value="funk">Funk</option>
+                    <option value="rock">Rock</option>
+                    <option value="afrobeat">Afrobeat</option>
+                </select>
+            </div>
+
+            <button class="action-btn" onclick="sampler.clearPattern()">
+                <span class="material-icons">cleaning_services</span> Wis Pattern
+            </button>
+            <button class="action-btn" onclick="sampler.saveState()">
+                <span class="material-icons">save</span> Opslaan
+            </button>
+        </div>
+        <div class="seq-grid" id="seq-grid"></div>
+    </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ============================================================
+//  SAMPLER ENGINE
+// ============================================================
+class SamplerApp {
+    constructor() {
+        this.audioCtx = null;
+        this.masterGain = null;
+        this.selectedPad = 0;
+        this.bpm = 120;
+        this.swing = 0;
+        this.isPlaying = false;
+        this.isRecording = false;
+        this.currentStep = -1;
+        this.scheduleTimer = null;
+        this.currentPattern = 0;
+        this.mediaRecorder = null;
+        this.recordedChunks = [];
+
+        // 16 pads
+        this.pads = Array.from({length: 16}, (_, i) => ({
+            id: i,
+            name: `Pad ${i + 1}`,
+            buffer: null,
+            reverseBuffer: null,
+            volume: 0.8,
+            pan: 0,
+            pitch: 0,
+            chokeGroup: 0,
+            attack: 0.005,
+            decay: 0.1,
+            sustain: 1.0,
+            release: 0.1,
+            mode: 'oneshot',
+            reverse: false,
+            activeSources: []
+        }));
+
+        // 4 patterns, each 16 pads x 16 steps
+        this.patterns = Array.from({length: 4}, () =>
+            Array.from({length: 16}, () =>
+                Array.from({length: 16}, () => ({ on: false, velocity: 1.0 }))
+            )
+        );
+
+        // Keyboard mapping
+        this.keyMap = {
+            'q': 0, 'w': 1, 'e': 2, 'r': 3,
+            'a': 4, 's': 5, 'd': 6, 'f': 7,
+            'z': 8, 'x': 9, 'c': 10, 'v': 11,
+            '1': 12, '2': 13, '3': 14, '4': 15
+        };
+        this.keyLabels = ['Q','W','E','R','A','S','D','F','Z','X','C','V','1','2','3','4'];
+        this.keysDown = new Set();
+
+        // FX state
+        this.fx = {
+            reverb: { on: false, mix: 0.3, decay: 4, node: null, wetGain: null, dryGain: null },
+            delay: { on: false, time: 0.3, feedback: 0.4, mix: 0.25, delayNode: null, fbNode: null, wetGain: null, dryGain: null },
+            filter: { on: false, frequency: 8000, Q: 1, type: 'lowpass', node: null },
+            compressor: { on: false, threshold: -24, ratio: 4, node: null }
+        };
+
+        // Supabase
+        this.SUPABASE_URL = 'https://zdhwofuoefczrpkjhtjg.supabase.co';
+        this.SUPABASE_KEY = 'sb_publishable_Dd6tgVm-FJaV1uyfMBxElg_QNu9SQUb';
+        this._supabase = null;
+
+        this.init();
+    }
+
+    init() {
+        this.buildPadGrid();
+        this.buildSequencer();
+        this.buildPatternButtons();
+        this.loadState();
+        this.bindKeyboard();
+        this.bindDragDrop();
+        this.bindScratch();
+        this.selectPad(0);
+    }
+
+    // ---- Audio Context ----
+    initAudio() {
+        if (this.audioCtx) return;
+        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Master chain: pads → FX chain → masterGain → destination
+        this.masterGain = this.audioCtx.createGain();
+        this.masterGain.gain.value = 0.85;
+
+        // Build FX chain
+        this._buildFXChain();
+
+        this.masterGain.connect(this.audioCtx.destination);
+    }
+
+    _buildFXChain() {
+        const ctx = this.audioCtx;
+
+        // Compressor
+        this.fx.compressor.node = ctx.createDynamicsCompressor();
+        this.fx.compressor.node.threshold.value = this.fx.compressor.threshold;
+        this.fx.compressor.node.ratio.value = this.fx.compressor.ratio;
+
+        // Filter
+        this.fx.filter.node = ctx.createBiquadFilter();
+        this.fx.filter.node.type = this.fx.filter.type;
+        this.fx.filter.node.frequency.value = this.fx.filter.frequency;
+        this.fx.filter.node.Q.value = this.fx.filter.Q;
+
+        // Delay
+        this.fx.delay.delayNode = ctx.createDelay(2);
+        this.fx.delay.delayNode.delayTime.value = this.fx.delay.time;
+        this.fx.delay.fbNode = ctx.createGain();
+        this.fx.delay.fbNode.gain.value = this.fx.delay.feedback;
+        this.fx.delay.wetGain = ctx.createGain();
+        this.fx.delay.wetGain.gain.value = 0;
+        this.fx.delay.dryGain = ctx.createGain();
+        this.fx.delay.dryGain.gain.value = 1;
+        this.fx.delay.delayNode.connect(this.fx.delay.fbNode);
+        this.fx.delay.fbNode.connect(this.fx.delay.delayNode);
+        this.fx.delay.delayNode.connect(this.fx.delay.wetGain);
+
+        // Reverb (convolver with impulse response)
+        this.fx.reverb.node = ctx.createConvolver();
+        this.fx.reverb.wetGain = ctx.createGain();
+        this.fx.reverb.wetGain.gain.value = 0;
+        this.fx.reverb.dryGain = ctx.createGain();
+        this.fx.reverb.dryGain.gain.value = 1;
+        this._generateImpulse(this.fx.reverb.decay);
+
+        // This is the input point for all pad audio
+        this.fxInput = ctx.createGain();
+        this.fxInput.gain.value = 1;
+
+        // Chain: fxInput → compressor → filter → delay split → reverb split → masterGain
+        this.fxInput.connect(this.fx.compressor.node);
+        this.fx.compressor.node.connect(this.fx.filter.node);
+
+        // Delay split
+        this.fx.filter.node.connect(this.fx.delay.dryGain);
+        this.fx.filter.node.connect(this.fx.delay.delayNode);
+        this.fx.delay.dryGain.connect(this.fx.reverb.dryGain);
+        this.fx.delay.wetGain.connect(this.fx.reverb.dryGain);
+
+        // Reverb split
+        this.fx.reverb.dryGain.connect(this.masterGain);
+        this.fx.reverb.dryGain.connect(this.fx.reverb.node);
+        this.fx.reverb.node.connect(this.fx.reverb.wetGain);
+        this.fx.reverb.wetGain.connect(this.masterGain);
+    }
+
+    _generateImpulse(decay) {
+        if (!this.audioCtx) return;
+        const rate = this.audioCtx.sampleRate;
+        const length = rate * decay;
+        const impulse = this.audioCtx.createBuffer(2, length, rate);
+        for (let ch = 0; ch < 2; ch++) {
+            const data = impulse.getChannelData(ch);
+            for (let i = 0; i < length; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2);
+            }
+        }
+        try { this.fx.reverb.node.buffer = impulse; } catch(e) {}
+    }
+
+    // ---- Pad Grid ----
+    buildPadGrid() {
+        const grid = document.getElementById('pad-grid');
+        grid.innerHTML = '';
+        this.pads.forEach((pad, i) => {
+            const el = document.createElement('div');
+            el.className = 'pad';
+            el.id = `pad-${i}`;
+            el.innerHTML = `
+                <span class="pad-key">${this.keyLabels[i]}</span>
+                <span class="pad-name" id="pad-name-${i}">${pad.name}</span>
+                <span class="pad-choke" id="pad-choke-${i}"></span>
+                <canvas id="pad-wave-${i}"></canvas>
+            `;
+            el.onclick = () => this.selectPad(i);
+            el.ondblclick = () => { this.selectPad(i); this.loadSampleFile(); };
+            grid.appendChild(el);
+        });
+    }
+
+    selectPad(idx) {
+        this.selectedPad = idx;
+        document.querySelectorAll('.pad').forEach((el, i) => {
+            el.classList.toggle('selected', i === idx);
+        });
+        this.updateControls();
+        this.drawWaveform();
+        this.drawADSR();
+        document.getElementById('selected-pad-name').textContent = this.pads[idx].name;
+    }
+
+    updateControls() {
+        const p = this.pads[this.selectedPad];
+        document.getElementById('ctrl-volume').value = p.volume * 100;
+        document.getElementById('val-volume').textContent = Math.round(p.volume * 100) + '%';
+        document.getElementById('ctrl-pan').value = p.pan * 100;
+        document.getElementById('val-pan').textContent = p.pan === 0 ? 'C' : (p.pan < 0 ? `L${Math.abs(Math.round(p.pan*100))}` : `R${Math.round(p.pan*100)}`);
+        document.getElementById('ctrl-pitch').value = p.pitch;
+        document.getElementById('val-pitch').textContent = (p.pitch > 0 ? '+' : '') + p.pitch;
+        document.getElementById('ctrl-choke').value = p.chokeGroup;
+        document.getElementById('ctrl-attack').value = p.attack * 1000;
+        document.getElementById('val-attack').textContent = p.attack < 1 ? Math.round(p.attack*1000)+'ms' : p.attack.toFixed(1)+'s';
+        document.getElementById('ctrl-decay').value = p.decay * 1000;
+        document.getElementById('val-decay').textContent = p.decay < 1 ? Math.round(p.decay*1000)+'ms' : p.decay.toFixed(1)+'s';
+        document.getElementById('ctrl-sustain').value = p.sustain * 100;
+        document.getElementById('val-sustain').textContent = Math.round(p.sustain*100) + '%';
+        document.getElementById('ctrl-release').value = p.release * 1000;
+        document.getElementById('val-release').textContent = p.release < 1 ? Math.round(p.release*1000)+'ms' : p.release.toFixed(1)+'s';
+        document.getElementById('btn-oneshot').classList.toggle('active', p.mode === 'oneshot');
+        document.getElementById('btn-loop').classList.toggle('active', p.mode === 'loop');
+        document.getElementById('btn-reverse').classList.toggle('active', p.reverse);
+    }
+
+    setPadParam(key, value) {
+        const p = this.pads[this.selectedPad];
+        if (key === 'mode') {
+            p.mode = value;
+        } else {
+            p[key] = value;
+        }
+        this.updateControls();
+        if (key === 'chokeGroup') {
+            this._updatePadChokes();
+        }
+        if (['attack','decay','sustain','release'].includes(key)) {
+            this.drawADSR();
+        }
+    }
+
+    toggleReverse() {
+        const p = this.pads[this.selectedPad];
+        p.reverse = !p.reverse;
+        if (p.buffer && !p.reverseBuffer) {
+            this._createReverseBuffer(this.selectedPad);
+        }
+        this.updateControls();
+    }
+
+    _createReverseBuffer(idx) {
+        const p = this.pads[idx];
+        if (!p.buffer) return;
+        const ctx = this.audioCtx;
+        const rb = ctx.createBuffer(p.buffer.numberOfChannels, p.buffer.length, p.buffer.sampleRate);
+        for (let ch = 0; ch < p.buffer.numberOfChannels; ch++) {
+            const src = p.buffer.getChannelData(ch);
+            const dst = rb.getChannelData(ch);
+            for (let i = 0; i < src.length; i++) {
+                dst[i] = src[src.length - 1 - i];
+            }
+        }
+        p.reverseBuffer = rb;
+    }
+
+    _updatePadChokes() {
+        this.pads.forEach((p, i) => {
+            const el = document.getElementById(`pad-choke-${i}`);
+            if (el) el.textContent = p.chokeGroup > 0 ? `C${p.chokeGroup}` : '';
+        });
+    }
+
+    // ---- Sample Loading ----
+    async loadSampleFile() {
+        this.initAudio();
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'audio/*';
+        input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            await this._loadBuffer(this.selectedPad, await file.arrayBuffer(), file.name);
+        };
+        input.click();
+    }
+
+    async _loadBuffer(idx, arrayBuf, name) {
+        this.initAudio();
+        try {
+            const buffer = await this.audioCtx.decodeAudioData(arrayBuf);
+            const p = this.pads[idx];
+            p.buffer = buffer;
+            p.reverseBuffer = null;
+            p.name = name.replace(/\.[^/.]+$/, '').substring(0, 20);
+            if (p.reverse) this._createReverseBuffer(idx);
+
+            const el = document.getElementById(`pad-${idx}`);
+            el.classList.add('loaded');
+            document.getElementById(`pad-name-${idx}`).textContent = p.name;
+            this._drawPadWaveform(idx);
+
+            if (idx === this.selectedPad) {
+                this.drawWaveform();
+                this.drawADSR();
+                document.getElementById('selected-pad-name').textContent = p.name;
+            }
+            this._updateSeqLabels();
+            toast(`"${p.name}" geladen op Pad ${idx + 1}`, 'success');
+        } catch(e) {
+            toast('Kan sample niet decoderen: ' + e.message, 'error');
+        }
+    }
+
+    async loadFromScan() {
+        this.initAudio();
+        toast('Audio bestanden scannen...', 'info');
+        try {
+            const resp = await fetch('/api/scan-audio');
+            const data = await resp.json();
+            const files = data.results || data;
+            if (!files.length) { toast('Geen audio bestanden gevonden', 'error'); return; }
+
+            toast(`${files.length} bestanden gevonden (${data.scan_time || 0}s)`, 'success');
+
+            const picker = document.createElement('div');
+            picker.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:10000;display:flex;align-items:center;justify-content:center';
+            const box = document.createElement('div');
+            box.style.cssText = 'background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:16px;max-width:500px;width:90%;max-height:70vh;display:flex;flex-direction:column;gap:8px';
+            box.innerHTML = `<div style="font-size:14px;font-weight:700;color:var(--accent)">Selecteer een sample (${files.length} gevonden)</div>
+                <input type="text" id="scan-filter" placeholder="Filter..." style="background:var(--bg-dark);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px;font-size:12px;outline:none">
+                <div id="scan-list" style="overflow-y:auto;flex:1;max-height:50vh"></div>
+                <button onclick="this.closest('div[style]').remove()" style="padding:8px;background:var(--bg-hover);border:1px solid var(--border);border-radius:6px;color:var(--text);cursor:pointer;font-size:12px">Sluiten</button>`;
+            picker.appendChild(box);
+            document.body.appendChild(picker);
+            picker.onclick = (e) => { if (e.target === picker) picker.remove(); };
+
+            const list = box.querySelector('#scan-list');
+            const filterInput = box.querySelector('#scan-filter');
+
+            const renderList = (filter = '') => {
+                const filtered = filter ? files.filter(f => f.name.toLowerCase().includes(filter.toLowerCase())) : files.slice(0, 100);
+                list.innerHTML = filtered.slice(0, 100).map((f, i) => `
+                    <div class="community-item" data-idx="${i}">
+                        <span class="material-icons">audio_file</span>
+                        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</span>
+                        <span style="color:var(--text-dim);font-size:9px">${f.ext || ''} ${f.size_mb ? f.size_mb+'MB' : ''}</span>
+                    </div>
+                `).join('');
+                list.querySelectorAll('.community-item').forEach(el => {
+                    el.onclick = () => {
+                        const idx = +el.dataset.idx;
+                        const file = (filter ? filtered : files)[idx];
+                        if (file) {
+                            sampler.loadFromPath(file.path, file.name);
+                            picker.remove();
+                        }
+                    };
+                });
+            };
+            renderList();
+            filterInput.oninput = () => renderList(filterInput.value);
+        } catch(e) {
+            toast('Scan mislukt: ' + e.message, 'error');
+        }
+    }
+
+    async loadFromPath(path, name) {
+        this.initAudio();
+        toast(`Laden: ${name}...`, 'info');
+        try {
+            const resp = await fetch(`/api/local-audio?path=${encodeURIComponent(path)}`);
+            if (!resp.ok) {
+                const err = await resp.text();
+                toast(`Fout ${resp.status}: ${err}`, 'error');
+                return;
+            }
+            const buf = await resp.arrayBuffer();
+            if (buf.byteLength === 0) {
+                toast('Leeg bestand', 'error');
+                return;
+            }
+            await this._loadBuffer(this.selectedPad, buf, name);
+        } catch(e) {
+            toast('Kan bestand niet laden: ' + e.message, 'error');
+        }
+    }
+
+    clearPad() {
+        const p = this.pads[this.selectedPad];
+        p.buffer = null;
+        p.reverseBuffer = null;
+        p.name = `Pad ${this.selectedPad + 1}`;
+        p.activeSources.forEach(s => { try { s.source.stop(); } catch(e){} });
+        p.activeSources = [];
+        const el = document.getElementById(`pad-${this.selectedPad}`);
+        el.classList.remove('loaded');
+        document.getElementById(`pad-name-${this.selectedPad}`).textContent = p.name;
+        document.getElementById('selected-pad-name').textContent = p.name;
+        this._drawPadWaveform(this.selectedPad);
+        this.drawWaveform();
+        this._updateSeqLabels();
+        toast(`Pad ${this.selectedPad + 1} gewist`, 'info');
+    }
+
+    // ---- Playback ----
+    triggerPad(idx, velocity = 1.0) {
+        this.initAudio();
+        const p = this.pads[idx];
+        if (!p.buffer) return;
+
+        // Choke group: stop other pads in same group
+        if (p.chokeGroup > 0) {
+            this.pads.forEach((other, oi) => {
+                if (oi !== idx && other.chokeGroup === p.chokeGroup) {
+                    this._stopPad(oi);
+                }
+            });
+        }
+
+        // One-shot mode: stop previous if still playing
+        if (p.mode === 'oneshot') {
+            this._stopPad(idx);
+        }
+
+        const ctx = this.audioCtx;
+        const now = ctx.currentTime;
+
+        const source = ctx.createBufferSource();
+        source.buffer = p.reverse ? (p.reverseBuffer || p.buffer) : p.buffer;
+        source.playbackRate.value = Math.pow(2, p.pitch / 12);
+        source.loop = p.mode === 'loop';
+
+        // ADSR envelope
+        const env = ctx.createGain();
+        const peakVol = p.volume * velocity;
+        env.gain.setValueAtTime(0, now);
+        env.gain.linearRampToValueAtTime(peakVol, now + p.attack);
+        env.gain.linearRampToValueAtTime(peakVol * p.sustain, now + p.attack + p.decay);
+
+        // Pan
+        const panner = ctx.createStereoPanner();
+        panner.pan.value = p.pan;
+
+        // Connect: source → env → panner → fxInput
+        source.connect(env);
+        env.connect(panner);
+        panner.connect(this.fxInput);
+
+        source.start(now);
+
+        const entry = { source, env, panner, startTime: now };
+        p.activeSources.push(entry);
+
+        source.onended = () => {
+            p.activeSources = p.activeSources.filter(s => s !== entry);
+            this._updatePadVisual(idx, false);
+        };
+
+        this._updatePadVisual(idx, true);
+
+        // Record step if recording
+        if (this.isRecording && this.isPlaying && this.currentStep >= 0) {
+            this.patterns[this.currentPattern][idx][this.currentStep].on = true;
+            this.patterns[this.currentPattern][idx][this.currentStep].velocity = velocity;
+            this._updateStepVisual(idx, this.currentStep);
+        }
+    }
+
+    _stopPad(idx) {
+        const p = this.pads[idx];
+        const ctx = this.audioCtx;
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        p.activeSources.forEach(entry => {
+            try {
+                entry.env.gain.cancelScheduledValues(now);
+                entry.env.gain.setValueAtTime(entry.env.gain.value, now);
+                entry.env.gain.linearRampToValueAtTime(0, now + p.release);
+                entry.source.stop(now + p.release + 0.05);
+            } catch(e) {}
+        });
+        p.activeSources = [];
+        this._updatePadVisual(idx, false);
+    }
+
+    _updatePadVisual(idx, playing) {
+        const el = document.getElementById(`pad-${idx}`);
+        if (el) el.classList.toggle('playing', playing);
+    }
+
+    // ---- Waveform Drawing ----
+    drawWaveform() {
+        const canvas = document.getElementById('waveform-canvas');
+        const empty = document.getElementById('waveform-empty');
+        const p = this.pads[this.selectedPad];
+        if (!p.buffer) {
+            canvas.style.display = 'none';
+            empty.style.display = 'flex';
+            return;
+        }
+        canvas.style.display = 'block';
+        empty.style.display = 'none';
+
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width - 16;
+        canvas.height = rect.height - 16;
+        const ctx = canvas.getContext('2d');
+        const data = p.buffer.getChannelData(0);
+        const step = Math.ceil(data.length / canvas.width);
+        const mid = canvas.height / 2;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw center line
+        ctx.strokeStyle = '#30363d';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, mid);
+        ctx.lineTo(canvas.width, mid);
+        ctx.stroke();
+
+        // Draw waveform
+        ctx.strokeStyle = '#4a9eff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let x = 0; x < canvas.width; x++) {
+            let min = 1, max = -1;
+            for (let j = 0; j < step; j++) {
+                const val = data[x * step + j] || 0;
+                if (val < min) min = val;
+                if (val > max) max = val;
+            }
+            ctx.moveTo(x, mid + min * mid);
+            ctx.lineTo(x, mid + max * mid);
+        }
+        ctx.stroke();
+
+        // Fill
+        ctx.fillStyle = 'rgba(74, 158, 255, 0.1)';
+        ctx.beginPath();
+        for (let x = 0; x < canvas.width; x++) {
+            let max = 0;
+            for (let j = 0; j < step; j++) {
+                const val = Math.abs(data[x * step + j] || 0);
+                if (val > max) max = val;
+            }
+            ctx.rect(x, mid - max * mid, 1, max * mid * 2);
+        }
+        ctx.fill();
+    }
+
+    _drawPadWaveform(idx) {
+        const canvas = document.getElementById(`pad-wave-${idx}`);
+        if (!canvas) return;
+        const p = this.pads[idx];
+        canvas.width = 80;
+        canvas.height = 24;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, 80, 24);
+        if (!p.buffer) return;
+        const data = p.buffer.getChannelData(0);
+        const step = Math.ceil(data.length / 80);
+        ctx.strokeStyle = 'rgba(74, 158, 255, 0.6)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let x = 0; x < 80; x++) {
+            let max = 0;
+            for (let j = 0; j < step; j++) {
+                max = Math.max(max, Math.abs(data[x * step + j] || 0));
+            }
+            ctx.moveTo(x, 12 - max * 12);
+            ctx.lineTo(x, 12 + max * 12);
+        }
+        ctx.stroke();
+    }
+
+    drawADSR() {
+        const canvas = document.getElementById('adsr-canvas');
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width - 8;
+        canvas.height = rect.height - 8;
+        const ctx = canvas.getContext('2d');
+        const p = this.pads[this.selectedPad];
+        const w = canvas.width;
+        const h = canvas.height;
+
+        ctx.clearRect(0, 0, w, h);
+
+        const totalTime = p.attack + p.decay + 0.3 + p.release;
+        const scale = w / totalTime;
+
+        const ax = p.attack * scale;
+        const dx = ax + p.decay * scale;
+        const sx = dx + 0.3 * scale;
+        const rx = sx + p.release * scale;
+        const sustainY = h - (p.sustain * (h - 4)) - 2;
+
+        ctx.strokeStyle = var_accent();
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, h - 2);
+        ctx.lineTo(ax, 2);          // Attack
+        ctx.lineTo(dx, sustainY);   // Decay
+        ctx.lineTo(sx, sustainY);   // Sustain
+        ctx.lineTo(rx, h - 2);      // Release
+        ctx.stroke();
+
+        // Fill
+        ctx.fillStyle = 'rgba(74, 158, 255, 0.1)';
+        ctx.beginPath();
+        ctx.moveTo(0, h - 2);
+        ctx.lineTo(ax, 2);
+        ctx.lineTo(dx, sustainY);
+        ctx.lineTo(sx, sustainY);
+        ctx.lineTo(rx, h - 2);
+        ctx.closePath();
+        ctx.fill();
+
+        // Labels
+        ctx.fillStyle = '#8b949e';
+        ctx.font = '9px system-ui';
+        ctx.fillText('A', ax / 2 - 3, h - 2);
+        ctx.fillText('D', (ax + dx) / 2 - 3, h - 2);
+        ctx.fillText('S', (dx + sx) / 2 - 3, h - 2);
+        ctx.fillText('R', (sx + rx) / 2 - 3, h - 2);
+    }
+
+    // ---- Step Sequencer ----
+    buildSequencer() {
+        const grid = document.getElementById('seq-grid');
+        grid.innerHTML = '';
+        for (let padIdx = 0; padIdx < 16; padIdx++) {
+            const row = document.createElement('div');
+            row.className = 'seq-row';
+            const label = document.createElement('div');
+            label.className = 'seq-row-label';
+            label.id = `seq-label-${padIdx}`;
+            label.textContent = this.pads[padIdx].name;
+            label.onclick = () => this.selectPad(padIdx);
+            row.appendChild(label);
+
+            for (let step = 0; step < 16; step++) {
+                const stepEl = document.createElement('div');
+                stepEl.className = 'seq-step';
+                stepEl.id = `step-${padIdx}-${step}`;
+                if (step % 4 === 0) stepEl.classList.add('beat-marker');
+                stepEl.onclick = () => this.toggleStep(padIdx, step);
+                stepEl.oncontextmenu = (e) => { e.preventDefault(); this.cycleVelocity(padIdx, step); };
+                row.appendChild(stepEl);
+            }
+            grid.appendChild(row);
+        }
+    }
+
+    _updateSeqLabels() {
+        for (let i = 0; i < 16; i++) {
+            const label = document.getElementById(`seq-label-${i}`);
+            if (label) label.textContent = this.pads[i].name;
+        }
+    }
+
+    toggleStep(padIdx, step) {
+        const s = this.patterns[this.currentPattern][padIdx][step];
+        s.on = !s.on;
+        if (s.on && s.velocity === 0) s.velocity = 1.0;
+        this._updateStepVisual(padIdx, step);
+    }
+
+    cycleVelocity(padIdx, step) {
+        const s = this.patterns[this.currentPattern][padIdx][step];
+        if (!s.on) { s.on = true; s.velocity = 1.0; }
+        else if (s.velocity > 0.66) s.velocity = 0.5;
+        else if (s.velocity > 0.33) s.velocity = 0.25;
+        else { s.on = false; s.velocity = 1.0; }
+        this._updateStepVisual(padIdx, step);
+    }
+
+    _updateStepVisual(padIdx, step) {
+        const el = document.getElementById(`step-${padIdx}-${step}`);
+        const s = this.patterns[this.currentPattern][padIdx][step];
+        el.classList.toggle('on', s.on);
+        if (s.on) {
+            const brightness = 0.3 + s.velocity * 0.7;
+            el.style.opacity = brightness;
+        } else {
+            el.style.opacity = '';
+        }
+    }
+
+    _refreshSequencerView() {
+        for (let p = 0; p < 16; p++) {
+            for (let s = 0; s < 16; s++) {
+                this._updateStepVisual(p, s);
+            }
+        }
+    }
+
+    buildPatternButtons() {
+        const container = document.getElementById('pattern-btns');
+        container.innerHTML = '';
+        ['A','B','C','D'].forEach((label, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'pattern-btn' + (i === this.currentPattern ? ' active' : '');
+            btn.textContent = label;
+            btn.onclick = () => this.switchPattern(i);
+            container.appendChild(btn);
+        });
+    }
+
+    switchPattern(idx) {
+        this.currentPattern = idx;
+        document.querySelectorAll('.pattern-btn').forEach((btn, i) => {
+            btn.classList.toggle('active', i === idx);
+        });
+        this._refreshSequencerView();
+    }
+
+    clearPattern() {
+        this.patterns[this.currentPattern] = Array.from({length: 16}, () =>
+            Array.from({length: 16}, () => ({ on: false, velocity: 1.0 }))
+        );
+        this._refreshSequencerView();
+        toast(`Pattern ${['A','B','C','D'][this.currentPattern]} gewist`, 'info');
+    }
+
+    // ---- Genre Presets ----
+    // Pads: 0=Kick, 1=Snare, 2=HiHat, 3=OpenHH, 4=Rim, 5=Clap, 6=Tom, 7=Perc,
+    //        8=Bass, 9=Chord, 10=Skank, 11=Melody, 12-15=vrij
+    // Velocity: 1.0=hard, 0.6=medium, 0.3=ghost
+    loadPreset(name) {
+        if (!name) return;
+        const presets = this._getPresets();
+        const preset = presets[name];
+        if (!preset) { toast('Preset niet gevonden', 'error'); return; }
+
+        // Clear current pattern
+        const p = this.patterns[this.currentPattern];
+        for (let i = 0; i < 16; i++) {
+            for (let s = 0; s < 16; s++) {
+                p[i][s] = { on: false, velocity: 1.0 };
+            }
+        }
+
+        // Apply preset
+        preset.pattern.forEach(({pad, steps}) => {
+            steps.forEach(([step, vel]) => {
+                if (pad < 16 && step < 16) {
+                    p[pad][step] = { on: true, velocity: vel || 1.0 };
+                }
+            });
+        });
+
+        if (preset.bpm) {
+            this.setBPM(preset.bpm);
+        }
+        if (preset.swing !== undefined) {
+            this.swing = preset.swing;
+            document.getElementById('swing-slider').value = this.swing;
+            document.getElementById('val-swing').textContent = this.swing + '%';
+        }
+
+        // Rename pads to match preset layout
+        if (preset.padNames) {
+            preset.padNames.forEach((name, i) => {
+                if (i < 16 && !this.pads[i].buffer) {
+                    this.pads[i].name = name;
+                    document.getElementById(`pad-name-${i}`).textContent = name;
+                }
+            });
+            this._updateSeqLabels();
+        }
+
+        this._refreshSequencerView();
+        this.selectPad(this.selectedPad);
+        document.getElementById('genre-preset').value = '';
+        toast(`${name.charAt(0).toUpperCase() + name.slice(1)} pattern geladen`, 'success');
+    }
+
+    _getPresets() {
+        // s = step pairs: [stepIndex, velocity]
+        // Typical drum map: 0=kick, 1=snare, 2=hh closed, 3=hh open, 4=rim, 5=clap, 6=tom, 7=perc, 8=bass, 9=chord, 10=skank
+        return {
+            reggae: {
+                bpm: 80, swing: 20,
+                padNames: ['Kick','Snare','Hi-Hat','Open HH','Rimshot','Clap','Tom','Perc','Bass','Chord/Skank','Organ Bubble','Melody','FX 1','FX 2','FX 3','FX 4'],
+                pattern: [
+                    { pad: 0, steps: [[0,1],[6,0.6],[8,1],[14,0.6]] },           // Kick - one drop
+                    { pad: 1, steps: [[4,1],[12,1]] },                            // Snare - backbeat (3 en 7)
+                    { pad: 2, steps: [[0,0.6],[2,1],[4,0.6],[6,1],[8,0.6],[10,1],[12,0.6],[14,1]] }, // HH - offbeat
+                    { pad: 3, steps: [[6,0.6],[14,0.6]] },                        // Open HH
+                    { pad: 4, steps: [[2,0.3],[10,0.3]] },                        // Rimshot ghost
+                    { pad: 8, steps: [[0,1],[3,0.6],[6,0.8],[8,1],[11,0.6],[14,0.8]] },  // Bass - reggae groove
+                    { pad: 9, steps: [[1,0.8],[3,0.8],[5,0.8],[7,0.8],[9,0.8],[11,0.8],[13,0.8],[15,0.8]] }, // Skank - upbeat
+                ]
+            },
+            reggae_dub: {
+                bpm: 72, swing: 15,
+                padNames: ['Kick','Snare','Hi-Hat','Open HH','Rim','Clap','Tom Lo','Tom Hi','Sub Bass','Dub Chord','Organ','Echo FX','Siren','Spring','Dub FX','FX 4'],
+                pattern: [
+                    { pad: 0, steps: [[0,1],[10,0.8]] },                          // Kick - sparse
+                    { pad: 1, steps: [[4,1],[12,0.8]] },                          // Snare
+                    { pad: 2, steps: [[2,0.8],[6,0.6],[10,0.8],[14,0.6]] },       // HH - half-time feel
+                    { pad: 3, steps: [[6,0.5],[14,0.5]] },                        // Open HH
+                    { pad: 4, steps: [[8,0.3]] },                                 // Rim ghost
+                    { pad: 6, steps: [[15,0.7]] },                                // Tom fill
+                    { pad: 8, steps: [[0,1],[6,0.6],[10,0.8]] },                  // Sub bass
+                    { pad: 9, steps: [[1,0.7],[5,0.7],[9,0.7],[13,0.7]] },        // Dub chord
+                    { pad: 11, steps: [[7,0.4],[15,0.4]] },                       // Echo FX
+                ]
+            },
+            hiphop: {
+                bpm: 90, swing: 40,
+                padNames: ['Kick','Snare','Hi-Hat','Open HH','Rim','Clap','Tom','Perc','808 Bass','Chord','Lead','Vocal','FX 1','FX 2','FX 3','FX 4'],
+                pattern: [
+                    { pad: 0, steps: [[0,1],[5,0.6],[8,0.8],[13,0.6]] },
+                    { pad: 1, steps: [[4,1],[12,1]] },
+                    { pad: 2, steps: [[0,0.6],[1,0.3],[2,0.6],[3,0.3],[4,0.6],[5,0.3],[6,0.6],[7,0.3],[8,0.6],[9,0.3],[10,0.6],[11,0.3],[12,0.6],[13,0.3],[14,0.6],[15,0.3]] },
+                    { pad: 3, steps: [[7,0.5],[15,0.5]] },
+                    { pad: 8, steps: [[0,1],[5,0.7],[8,0.9],[13,0.7]] },
+                ]
+            },
+            house: {
+                bpm: 124, swing: 0,
+                padNames: ['Kick','Clap','Hi-Hat','Open HH','Rim','Snap','Tom','Shaker','Bass','Chord','Stab','Lead','FX 1','FX 2','FX 3','FX 4'],
+                pattern: [
+                    { pad: 0, steps: [[0,1],[4,1],[8,1],[12,1]] },                // 4-on-the-floor
+                    { pad: 1, steps: [[4,1],[12,1]] },                            // Clap on 2 & 4
+                    { pad: 2, steps: [[0,0.6],[2,1],[4,0.6],[6,1],[8,0.6],[10,1],[12,0.6],[14,1]] }, // HH offbeat
+                    { pad: 3, steps: [[3,0.5],[11,0.5]] },                        // Open HH
+                    { pad: 7, steps: [[1,0.3],[3,0.3],[5,0.3],[7,0.3],[9,0.3],[11,0.3],[13,0.3],[15,0.3]] }, // Shaker 8ths
+                    { pad: 8, steps: [[0,1],[3,0.7],[8,1],[11,0.7]] },            // Bass
+                    { pad: 10, steps: [[2,0.8],[10,0.8]] },                       // Stab
+                ]
+            },
+            dnb: {
+                bpm: 174, swing: 0,
+                padNames: ['Kick','Snare','Hi-Hat','Open HH','Ride','Clap','Tom','Perc','Reese Bass','Pad','Stab','Lead','FX 1','FX 2','FX 3','FX 4'],
+                pattern: [
+                    { pad: 0, steps: [[0,1],[10,0.8]] },
+                    { pad: 1, steps: [[4,1],[12,0.9],[14,0.6]] },
+                    { pad: 2, steps: [[0,0.5],[2,0.7],[4,0.5],[6,0.7],[8,0.5],[10,0.7],[12,0.5],[14,0.7]] },
+                    { pad: 3, steps: [[6,0.5]] },
+                    { pad: 8, steps: [[0,1],[4,0.6],[8,0.8],[10,0.7],[14,0.6]] },
+                ]
+            },
+            trap: {
+                bpm: 140, swing: 0,
+                padNames: ['Kick','Snare','Hi-Hat','Open HH','Rim','Clap','Tom','808','Sub Bass','Chord','Lead','Vocal','FX 1','FX 2','FX 3','FX 4'],
+                pattern: [
+                    { pad: 0, steps: [[0,1],[7,0.7],[8,1]] },
+                    { pad: 1, steps: [[4,1],[12,1]] },
+                    { pad: 2, steps: [[0,0.5],[1,0.3],[2,0.5],[3,0.3],[4,0.5],[5,0.3],[6,0.7],[7,0.5],[8,0.5],[9,0.3],[10,0.5],[11,0.3],[12,0.7],[13,0.5],[14,0.8],[15,0.6]] },
+                    { pad: 5, steps: [[4,0.9],[12,0.9]] },
+                    { pad: 7, steps: [[0,1],[7,0.8],[8,1]] },
+                ]
+            },
+            bossa: {
+                bpm: 135, swing: 30,
+                padNames: ['Kick','Cross Stick','Hi-Hat','Shaker','Rim','Clap','Surdo','Agogo','Bass','Chord','Melody','Vocal','FX 1','FX 2','FX 3','FX 4'],
+                pattern: [
+                    { pad: 0, steps: [[0,0.8],[3,0.6],[6,0.5],[10,0.8],[13,0.6]] },
+                    { pad: 1, steps: [[4,0.7],[8,0.6],[12,0.7]] },
+                    { pad: 3, steps: [[0,0.4],[1,0.3],[2,0.4],[3,0.3],[4,0.4],[5,0.3],[6,0.4],[7,0.3],[8,0.4],[9,0.3],[10,0.4],[11,0.3],[12,0.4],[13,0.3],[14,0.4],[15,0.3]] },
+                    { pad: 8, steps: [[0,0.8],[3,0.5],[6,0.7],[10,0.8],[13,0.5]] },
+                    { pad: 9, steps: [[1,0.6],[4,0.7],[7,0.5],[9,0.6],[12,0.7],[15,0.5]] },
+                ]
+            },
+            funk: {
+                bpm: 110, swing: 35,
+                padNames: ['Kick','Snare','Hi-Hat','Open HH','Rim','Clap','Tom','Conga','Bass','Chord','Wah','Horn','FX 1','FX 2','FX 3','FX 4'],
+                pattern: [
+                    { pad: 0, steps: [[0,1],[3,0.5],[6,0.7],[8,1],[11,0.5],[14,0.7]] },
+                    { pad: 1, steps: [[4,1],[10,0.4],[12,1]] },
+                    { pad: 2, steps: [[0,0.6],[1,0.3],[2,0.7],[3,0.3],[4,0.6],[5,0.3],[6,0.7],[7,0.3],[8,0.6],[9,0.3],[10,0.7],[11,0.3],[12,0.6],[13,0.3],[14,0.7],[15,0.3]] },
+                    { pad: 3, steps: [[3,0.5],[7,0.4],[11,0.5],[15,0.4]] },
+                    { pad: 8, steps: [[0,1],[2,0.5],[3,0.7],[6,0.8],[8,1],[10,0.5],[11,0.7],[14,0.8]] },
+                    { pad: 9, steps: [[1,0.8],[5,0.7],[9,0.8],[13,0.7]] },
+                ]
+            },
+            rock: {
+                bpm: 120, swing: 0,
+                padNames: ['Kick','Snare','Hi-Hat','Crash','Ride','Tom Hi','Tom Lo','Floor Tom','Bass','Power Chord','Lead','Vocal','FX 1','FX 2','FX 3','FX 4'],
+                pattern: [
+                    { pad: 0, steps: [[0,1],[4,0.7],[8,1],[12,0.7]] },
+                    { pad: 1, steps: [[4,1],[12,1]] },
+                    { pad: 2, steps: [[0,0.7],[2,0.7],[4,0.7],[6,0.7],[8,0.7],[10,0.7],[12,0.7],[14,0.7]] },
+                    { pad: 3, steps: [[0,0.6]] },
+                    { pad: 8, steps: [[0,1],[2,0.7],[4,0.8],[8,1],[10,0.7],[12,0.8]] },
+                    { pad: 9, steps: [[0,1],[4,0.8],[8,1],[12,0.8]] },
+                ]
+            },
+            afrobeat: {
+                bpm: 115, swing: 25,
+                padNames: ['Kick','Snare','Hi-Hat','Open HH','Shekere','Clap','Conga Hi','Conga Lo','Bass','Keys','Guitar','Horn','Talking Drum','Bell','FX 1','FX 4'],
+                pattern: [
+                    { pad: 0, steps: [[0,1],[5,0.6],[8,1],[13,0.6]] },
+                    { pad: 1, steps: [[4,0.9],[12,0.9]] },
+                    { pad: 2, steps: [[0,0.5],[2,0.7],[4,0.5],[6,0.7],[8,0.5],[10,0.7],[12,0.5],[14,0.7]] },
+                    { pad: 3, steps: [[3,0.5],[7,0.4],[11,0.5],[15,0.4]] },
+                    { pad: 4, steps: [[1,0.4],[3,0.3],[5,0.4],[7,0.3],[9,0.4],[11,0.3],[13,0.4],[15,0.3]] },
+                    { pad: 6, steps: [[0,0.7],[3,0.5],[4,0.6],[7,0.4],[8,0.7],[11,0.5],[12,0.6],[15,0.4]] },
+                    { pad: 7, steps: [[2,0.6],[6,0.5],[10,0.6],[14,0.5]] },
+                    { pad: 8, steps: [[0,1],[3,0.6],[5,0.7],[8,1],[11,0.6],[13,0.7]] },
+                    { pad: 13, steps: [[0,0.6],[4,0.7],[8,0.6],[12,0.7]] },
+                ]
+            }
+        };
+    }
+
+    // ---- Transport ----
+    setBPM(bpm) {
+        this.bpm = Math.max(40, Math.min(300, bpm));
+        document.getElementById('bpm-input').value = this.bpm;
+    }
+
+    setSwing(val) {
+        this.swing = +val;
+        document.getElementById('val-swing').textContent = val + '%';
+    }
+
+    togglePlay() {
+        if (this.isPlaying) {
+            this.stopSeq();
+        } else {
+            this.startSeq();
+        }
+    }
+
+    startSeq() {
+        this.initAudio();
+        this.isPlaying = true;
+        this.currentStep = -1;
+        document.getElementById('seq-play').classList.add('playing');
+        document.getElementById('seq-play').querySelector('.material-icons').textContent = 'pause';
+
+        const stepInterval = () => {
+            const stepMs = (60000 / this.bpm) / 4; // 16th notes
+            return stepMs;
+        };
+
+        const tick = () => {
+            if (!this.isPlaying) return;
+
+            // Clear previous step highlight
+            if (this.currentStep >= 0) {
+                for (let p = 0; p < 16; p++) {
+                    const el = document.getElementById(`step-${p}-${this.currentStep}`);
+                    if (el) el.classList.remove('current');
+                }
+            }
+
+            this.currentStep = (this.currentStep + 1) % 16;
+
+            // Highlight current step
+            for (let p = 0; p < 16; p++) {
+                const el = document.getElementById(`step-${p}-${this.currentStep}`);
+                if (el) el.classList.add('current');
+            }
+
+            // Trigger pads
+            const pattern = this.patterns[this.currentPattern];
+            for (let p = 0; p < 16; p++) {
+                if (pattern[p][this.currentStep].on) {
+                    this.triggerPad(p, pattern[p][this.currentStep].velocity);
+                }
+            }
+
+            // Calculate next step timing with swing
+            let ms = stepInterval();
+            if (this.swing > 0 && this.currentStep % 2 === 0) {
+                ms *= 1 + (this.swing / 100) * 0.5;
+            } else if (this.swing > 0 && this.currentStep % 2 === 1) {
+                ms *= 1 - (this.swing / 100) * 0.5;
+            }
+
+            this.scheduleTimer = setTimeout(tick, ms);
+        };
+
+        tick();
+    }
+
+    stopSeq() {
+        this.isPlaying = false;
+        if (this.scheduleTimer) {
+            clearTimeout(this.scheduleTimer);
+            this.scheduleTimer = null;
+        }
+        // Clear step highlights
+        if (this.currentStep >= 0) {
+            for (let p = 0; p < 16; p++) {
+                const el = document.getElementById(`step-${p}-${this.currentStep}`);
+                if (el) el.classList.remove('current');
+            }
+        }
+        this.currentStep = -1;
+        document.getElementById('seq-play').classList.remove('playing');
+        document.getElementById('seq-play').querySelector('.material-icons').textContent = 'play_arrow';
+
+        if (this.isRecording) {
+            this.toggleRecord();
+        }
+
+        // Stop all pads
+        this.pads.forEach((_, i) => this._stopPad(i));
+    }
+
+    toggleRecord() {
+        this.isRecording = !this.isRecording;
+        const btn = document.getElementById('seq-rec');
+        btn.classList.toggle('recording', this.isRecording);
+
+        if (this.isRecording) {
+            // Start audio recording
+            this.initAudio();
+            try {
+                const dest = this.audioCtx.createMediaStreamDestination();
+                this.masterGain.connect(dest);
+                this.mediaRecorder = new MediaRecorder(dest.stream);
+                this.recordedChunks = [];
+                this.mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) this.recordedChunks.push(e.data);
+                };
+                this.mediaRecorder.onstop = () => {
+                    document.getElementById('export-btn').style.display = 'flex';
+                    toast('Opname gestopt. Klik Export om te downloaden.', 'success');
+                };
+                this.mediaRecorder.start();
+                toast('Opname gestart', 'info');
+            } catch(e) {
+                toast('Opname niet beschikbaar', 'error');
+                this.isRecording = false;
+                btn.classList.remove('recording');
+            }
+        } else {
+            if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+                this.mediaRecorder.stop();
+            }
+        }
+    }
+
+    exportRecording() {
+        if (!this.recordedChunks.length) return;
+        const blob = new Blob(this.recordedChunks, { type: 'audio/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `sampler-${Date.now()}.webm`;
+        a.click();
+        URL.revokeObjectURL(url);
+        document.getElementById('export-btn').style.display = 'none';
+        toast('Opname gedownload', 'success');
+    }
+
+    // ---- FX ----
+    toggleFX(name) {
+        this.initAudio();
+        this.fx[name].on = !this.fx[name].on;
+        const toggle = document.getElementById(`fx-${name}-toggle`);
+        toggle.classList.toggle('active', this.fx[name].on);
+
+        if (name === 'reverb') {
+            this.fx.reverb.wetGain.gain.value = this.fx.reverb.on ? this.fx.reverb.mix : 0;
+            this.fx.reverb.dryGain.gain.value = 1;
+        }
+        if (name === 'delay') {
+            this.fx.delay.wetGain.gain.value = this.fx.delay.on ? this.fx.delay.mix : 0;
+        }
+        if (name === 'filter') {
+            this.fx.filter.node.frequency.value = this.fx.filter.on ? this.fx.filter.frequency : 22050;
+            this.fx.filter.node.Q.value = this.fx.filter.on ? this.fx.filter.Q : 0.1;
+        }
+        if (name === 'compressor') {
+            this.fx.compressor.node.threshold.value = this.fx.compressor.on ? this.fx.compressor.threshold : 0;
+            this.fx.compressor.node.ratio.value = this.fx.compressor.on ? this.fx.compressor.ratio : 1;
+        }
+    }
+
+    setFX(name, param, value) {
+        this.initAudio();
+        this.fx[name][param] = value;
+        if (name === 'reverb') {
+            if (param === 'mix' && this.fx.reverb.on) this.fx.reverb.wetGain.gain.value = value;
+            if (param === 'decay') this._generateImpulse(value);
+        }
+        if (name === 'delay') {
+            if (param === 'time') this.fx.delay.delayNode.delayTime.value = value;
+            if (param === 'feedback') this.fx.delay.fbNode.gain.value = value;
+            if (param === 'mix' && this.fx.delay.on) this.fx.delay.wetGain.gain.value = value;
+        }
+        if (name === 'filter' && this.fx.filter.on) {
+            if (param === 'frequency') this.fx.filter.node.frequency.value = value;
+            if (param === 'Q') this.fx.filter.node.Q.value = value;
+            if (param === 'type') this.fx.filter.node.type = value;
+        }
+        if (name === 'compressor' && this.fx.compressor.on) {
+            if (param === 'threshold') this.fx.compressor.node.threshold.value = value;
+            if (param === 'ratio') this.fx.compressor.node.ratio.value = value;
+        }
+    }
+
+    // ---- Keyboard ----
+    bindKeyboard() {
+        document.addEventListener('keydown', (e) => {
+            // Skip if typing in input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+
+            const key = e.key.toLowerCase();
+            if (key in this.keyMap && !this.keysDown.has(key)) {
+                e.preventDefault();
+                this.keysDown.add(key);
+                this.triggerPad(this.keyMap[key]);
+            }
+            if (key === ' ') { e.preventDefault(); this.togglePlay(); }
+        });
+        document.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            if (key in this.keyMap) {
+                this.keysDown.delete(key);
+            }
+        });
+    }
+
+    // ---- Drag & Drop ----
+    bindDragDrop() {
+        document.querySelectorAll('.pad').forEach((el, i) => {
+            el.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                el.classList.add('drag-over');
+            });
+            el.addEventListener('dragleave', () => {
+                el.classList.remove('drag-over');
+            });
+            el.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                el.classList.remove('drag-over');
+                const file = e.dataTransfer.files[0];
+                if (file && file.type.startsWith('audio/')) {
+                    this.selectPad(i);
+                    await this._loadBuffer(i, await file.arrayBuffer(), file.name);
+                }
+            });
+        });
+
+        // Also allow drop on the whole page
+        document.body.addEventListener('dragover', (e) => e.preventDefault());
+        document.body.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('audio/')) {
+                await this._loadBuffer(this.selectedPad, await file.arrayBuffer(), file.name);
+            }
+        });
+    }
+
+    // ---- Scratch Engine ----
+    bindScratch() {
+        const canvas = document.getElementById('waveform-canvas');
+        const panel = document.getElementById('waveform-panel');
+        this._scratchSource = null;
+        this._scratchActive = false;
+        this._scratchLastX = 0;
+
+        const startScratch = (x) => {
+            this.initAudio();
+            const p = this.pads[this.selectedPad];
+            if (!p.buffer) return;
+            this._scratchActive = true;
+            this._scratchLastX = x;
+            panel.style.cursor = 'grabbing';
+
+            // Create source for scratch
+            if (this._scratchSource) {
+                try { this._scratchSource.stop(); } catch(e) {}
+            }
+            const src = this.audioCtx.createBufferSource();
+            src.buffer = p.reverse ? (p.reverseBuffer || p.buffer) : p.buffer;
+            src.loop = true;
+            src.playbackRate.value = 0;
+
+            const gain = this.audioCtx.createGain();
+            gain.gain.value = p.volume;
+            src.connect(gain);
+            gain.connect(this.fxInput);
+            src.start();
+            this._scratchSource = src;
+            this._scratchGain = gain;
+        };
+
+        const moveScratch = (x) => {
+            if (!this._scratchActive || !this._scratchSource) return;
+            const dx = x - this._scratchLastX;
+            this._scratchLastX = x;
+            // Map mouse movement to playback rate (-3x to +3x)
+            const rate = Math.max(-3, Math.min(3, dx * 0.15));
+            this._scratchSource.playbackRate.value = rate;
+        };
+
+        const stopScratch = () => {
+            if (!this._scratchActive) return;
+            this._scratchActive = false;
+            panel.style.cursor = '';
+            if (this._scratchSource) {
+                try {
+                    this._scratchSource.playbackRate.value = 0;
+                    const now = this.audioCtx.currentTime;
+                    this._scratchGain.gain.setValueAtTime(this._scratchGain.gain.value, now);
+                    this._scratchGain.gain.linearRampToValueAtTime(0, now + 0.1);
+                    this._scratchSource.stop(now + 0.15);
+                } catch(e) {}
+                this._scratchSource = null;
+            }
+        };
+
+        panel.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            startScratch(e.clientX);
+        });
+        document.addEventListener('mousemove', (e) => moveScratch(e.clientX));
+        document.addEventListener('mouseup', () => stopScratch());
+
+        // Touch support
+        panel.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startScratch(e.touches[0].clientX);
+        }, { passive: false });
+        panel.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            moveScratch(e.touches[0].clientX);
+        }, { passive: false });
+        panel.addEventListener('touchend', () => stopScratch());
+    }
+
+    // ---- Community Samples (Supabase) ----
+    getSupabase() {
+        if (this._supabase) return this._supabase;
+        if (typeof supabase !== 'undefined' && this.SUPABASE_URL && this.SUPABASE_KEY) {
+            this._supabase = supabase.createClient(this.SUPABASE_URL, this.SUPABASE_KEY);
+        }
+        return this._supabase;
+    }
+
+    toggleCommunity() {
+        const panel = document.getElementById('community-panel');
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+
+    async searchCommunity() {
+        const sb = this.getSupabase();
+        if (!sb) { toast('Supabase niet beschikbaar', 'error'); return; }
+
+        const query = document.getElementById('community-search-input').value;
+        const results = document.getElementById('community-results');
+        results.innerHTML = '<div style="color:var(--text-dim);font-size:11px;padding:8px">Zoeken...</div>';
+
+        try {
+            let q = sb.from('community_samples').select('*').limit(30);
+            if (query) {
+                q = q.or(`name.ilike.%${query}%,tags.cs.{${query}}`);
+            }
+            const { data, error } = await q;
+            if (error) throw error;
+
+            if (!data || data.length === 0) {
+                results.innerHTML = '<div style="color:var(--text-dim);font-size:11px;padding:8px">Geen samples gevonden</div>';
+                return;
+            }
+
+            results.innerHTML = data.map(s => `
+                <div class="community-item" onclick="sampler.loadCommunitySample('${s.file_path}','${(s.name||'sample').replace(/'/g,"\\'")}')">
+                    <span class="material-icons">cloud_download</span>
+                    <span style="flex:1">${s.name || 'Unnamed'}</span>
+                    <span style="color:var(--text-dim);font-size:9px">${s.category || ''}</span>
+                </div>
+            `).join('');
+        } catch(e) {
+            results.innerHTML = `<div style="color:var(--red);font-size:11px;padding:8px">Fout: ${e.message}</div>`;
+        }
+    }
+
+    async loadCommunitySample(filePath, name) {
+        this.initAudio();
+        try {
+            const url = `${this.SUPABASE_URL}/storage/v1/object/public/samples/${filePath}`;
+            const resp = await fetch(url);
+            const buf = await resp.arrayBuffer();
+            await this._loadBuffer(this.selectedPad, buf, name);
+        } catch(e) {
+            toast('Kan community sample niet laden: ' + e.message, 'error');
+        }
+    }
+
+    // ---- State Persistence ----
+    saveState() {
+        const state = {
+            bpm: this.bpm,
+            swing: this.swing,
+            currentPattern: this.currentPattern,
+            pads: this.pads.map(p => ({
+                name: p.name,
+                volume: p.volume,
+                pan: p.pan,
+                pitch: p.pitch,
+                chokeGroup: p.chokeGroup,
+                attack: p.attack,
+                decay: p.decay,
+                sustain: p.sustain,
+                release: p.release,
+                mode: p.mode,
+                reverse: p.reverse,
+                hasBuffer: !!p.buffer
+            })),
+            patterns: this.patterns
+        };
+        localStorage.setItem('daw_sampler_state', JSON.stringify(state));
+        toast('State opgeslagen', 'success');
+    }
+
+    loadState() {
+        try {
+            const saved = localStorage.getItem('daw_sampler_state');
+            if (!saved) return;
+            const state = JSON.parse(saved);
+            this.bpm = state.bpm || 120;
+            this.swing = state.swing || 0;
+            this.currentPattern = state.currentPattern || 0;
+            document.getElementById('bpm-input').value = this.bpm;
+            document.getElementById('swing-slider').value = this.swing;
+            document.getElementById('val-swing').textContent = this.swing + '%';
+
+            if (state.pads) {
+                state.pads.forEach((sp, i) => {
+                    if (i < 16) {
+                        Object.assign(this.pads[i], {
+                            name: sp.name,
+                            volume: sp.volume,
+                            pan: sp.pan,
+                            pitch: sp.pitch,
+                            chokeGroup: sp.chokeGroup || 0,
+                            attack: sp.attack,
+                            decay: sp.decay,
+                            sustain: sp.sustain,
+                            release: sp.release,
+                            mode: sp.mode,
+                            reverse: sp.reverse
+                        });
+                        document.getElementById(`pad-name-${i}`).textContent = sp.name;
+                    }
+                });
+                this._updatePadChokes();
+                this._updateSeqLabels();
+            }
+            if (state.patterns) {
+                this.patterns = state.patterns;
+            }
+            this.buildPatternButtons();
+            this._refreshSequencerView();
+        } catch(e) {}
+    }
+}
+
+// ---- Helpers ----
+function var_accent() { return '#4a9eff'; }
+
+function toast(msg, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.textContent = msg;
+    container.appendChild(el);
+    setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 3000);
+}
+
+// ---- Init ----
+const sampler = new SamplerApp();
+
+// Resize handler for waveform
+window.addEventListener('resize', () => {
+    sampler.drawWaveform();
+    sampler.drawADSR();
+});
+</script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 # DAW - Claude Code Instructies
 
 ## Project
-Web-based muziekproductie platform met 5 pagina's.
+Web-based muziekproductie platform met 6 pagina's.
 Locatie: `E:\scripts\webscraper\CBSbuurt\daw\`
 GitHub: AnneVersion/daw
 
@@ -23,6 +23,7 @@ python serve.py  # Start Flask API + static files: http://localhost:8086
 | `editor.html` | `/editor.html` | Audio Editor - 31 effects, cut/copy/paste, spectrum, spectrogram, WAV export |
 | `contests.html` | `/contests.html` | Producer Contests - Battles, voting, leaderboard |
 | `live.html` | `/live.html` | Live Kanalen - Streaming channels, chat |
+| `sampler.html` | `/sampler.html` | MPC Sampler - 16 pads, step sequencer, ADSR, master FX |
 
 ## Architectuur
 - `index.html` - DAW frontend (single-file)
@@ -33,6 +34,14 @@ python serve.py  # Start Flask API + static files: http://localhost:8086
 - `editor.html` - Audio editor met 31 effects, volledige bewerkingsmogelijkheden
 - `contests.html` - Producer battles met stemmen en leaderboard
 - `live.html` - Live streaming kanalen met chat
+- `sampler.html` - MPC-style sampler met `SamplerApp` class
+  - 16 pads (4x4 grid), elk met eigen sample, ADSR, volume, pan, pitch
+  - Step sequencer (16 steps), 4 patterns (A/B/C/D), BPM, swing
+  - Choke groups, reverse, one-shot/loop modes
+  - Master FX: Reverb, Delay, Filter, Compressor
+  - Keyboard mapping: Q/W/E/R, A/S/D/F, Z/X/C/V, 1/2/3/4
+  - Drag & drop samples, PC scan, Community Samples (Supabase)
+  - Opname naar .webm, pattern opslag in localStorage
 - `serve.py` - Flask server (start API + static files)
 - `api_server.py` - Flask API voor projecten en sound library
 - `freesound_import.py` - Freesound API import tool
