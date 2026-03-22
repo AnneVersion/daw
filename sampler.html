@@ -2375,50 +2375,109 @@ class SamplerApp {
     }
 
     // ---- Auto-Load Sample Kit ----
+    // Category → Freesound zoekterm mapping
+    _kitSearchTerms = {
+        'Drums': 'drum kit one shot',
+        'Percussion': 'percussion hit',
+        'Bass': 'bass note one shot',
+        'Guitar': 'guitar riff chord',
+        'Keys': 'piano chord one shot',
+        'Synth': 'synth stab one shot',
+        'Brass': 'trumpet saxophone brass',
+        'Strings': 'strings orchestra staccato',
+        'Vocals': 'vocal chop one shot',
+        'FX': 'sound effect impact',
+        'Field Recording': 'bird animal nature',
+        'One-shots': 'one shot hit',
+        'Loops': 'loop beat',
+        'ALL': 'drum bass synth'
+    };
+
     async autoLoadKit(category) {
         this.initAudio();
         const label = category === 'ALL' ? 'Mix' : category;
         toast(`${label} kit laden...`, 'info');
+
+        // Probeer eerst lokale API (localhost)
         try {
             const resp = await fetch('/api/sounds');
-            const allSounds = await resp.json();
-
-            let selected;
-            if (category === 'ALL') {
-                // Mix: neem van elke categorie wat
-                const cats = [...new Set(allSounds.map(s => s.category_name))];
-                selected = [];
-                const perCat = Math.max(1, Math.floor(16 / cats.length));
-                for (const cat of cats) {
-                    const catSounds = allSounds.filter(s => s.category_name === cat);
-                    selected.push(...catSounds.slice(0, perCat));
+            if (resp.ok) {
+                const ct = resp.headers.get('content-type') || '';
+                if (ct.includes('json')) {
+                    const allSounds = await resp.json();
+                    let selected;
+                    if (category === 'ALL') {
+                        const cats = [...new Set(allSounds.map(s => s.category_name))];
+                        selected = [];
+                        const perCat = Math.max(1, Math.floor(16 / cats.length));
+                        for (const cat of cats) {
+                            selected.push(...allSounds.filter(s => s.category_name === cat).slice(0, perCat));
+                        }
+                        selected = selected.slice(0, 16);
+                    } else {
+                        selected = allSounds.filter(s => s.category_name === category).slice(0, 16);
+                    }
+                    if (selected.length) {
+                        let loaded = 0;
+                        for (let i = 0; i < Math.min(selected.length, 16); i++) {
+                            try {
+                                const audioResp = await fetch(`/api/sounds/${selected[i].id}/file`);
+                                if (audioResp.ok) {
+                                    await this._loadBuffer(i, await audioResp.arrayBuffer(), selected[i].name);
+                                    loaded++;
+                                }
+                            } catch(e) {}
+                        }
+                        if (loaded > 0) {
+                            toast(`${loaded} ${label} samples geladen (library)`, 'success');
+                            return;
+                        }
+                    }
                 }
-                selected = selected.slice(0, 16);
-            } else {
-                selected = allSounds.filter(s => s.category_name === category).slice(0, 16);
             }
+        } catch(e) {}
 
-            if (!selected.length) {
-                toast(`Geen ${label} samples gevonden in library`, 'error');
+        // Fallback: Freesound API (werkt op GitHub Pages)
+        await this._loadKitFromFreesound(category, label);
+    }
+
+    async _loadKitFromFreesound(category, label) {
+        const query = this._kitSearchTerms[category] || category.toLowerCase();
+        toast(`${label} laden via Freesound...`, 'info');
+        try {
+            const url = `https://freesound.org/apiv2/search/text/?query=${encodeURIComponent(query)}&token=${this.FREESOUND_KEY}&page_size=16&fields=id,name,previews&filter=duration:[0.05 TO 10]&sort=rating_desc`;
+            const resp = await fetch(url);
+            const data = await resp.json();
+            const results = data.results || [];
+
+            if (!results.length) {
+                toast(`Geen ${label} samples gevonden op Freesound`, 'error');
                 return;
             }
 
             let loaded = 0;
-            for (let i = 0; i < Math.min(selected.length, 16); i++) {
-                const s = selected[i];
+            for (let i = 0; i < Math.min(results.length, 16); i++) {
+                const s = results[i];
+                const audioUrl = s.previews?.['preview-hq-mp3'] || s.previews?.['preview-lq-mp3'];
+                if (!audioUrl) continue;
                 try {
-                    const url = `/api/sounds/${s.id}/file`;
-                    const audioResp = await fetch(url);
+                    // Probeer proxy eerst (localhost), dan direct (GitHub Pages)
+                    let audioResp;
+                    try {
+                        audioResp = await fetch(`/api/proxy/audio?url=${encodeURIComponent(audioUrl)}`);
+                        if (!audioResp.ok) throw new Error();
+                    } catch(e) {
+                        audioResp = await fetch(audioUrl);
+                    }
                     if (audioResp.ok) {
-                        const buf = await audioResp.arrayBuffer();
-                        await this._loadBuffer(i, buf, s.name);
+                        await this._loadBuffer(i, await audioResp.arrayBuffer(), s.name);
                         loaded++;
                     }
                 } catch(e) {}
             }
-            toast(`${loaded} ${label} samples geladen`, 'success');
+            toast(`${loaded} ${label} samples geladen (Freesound)`, loaded > 0 ? 'success' : 'error');
         } catch(e) {
-            toast('Laden mislukt: ' + e.message, 'error');
+            toast('Freesound laden mislukt: ' + e.message, 'error');
         }
     }
 
