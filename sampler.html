@@ -1057,6 +1057,9 @@ select:focus { border-color: var(--accent); }
         <span class="material-icons" style="font-size:16px;color:var(--green)">library_music</span> Sample Browser
     </div>
     <div style="height:1px;background:var(--border);margin:4px 0"></div>
+    <div class="ctx-item" onclick="sampler.ctxToggleMute()" id="ctx-mute-item" style="padding:8px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--text)">
+        <span class="material-icons" style="font-size:16px;color:var(--yellow)">volume_off</span> <span id="ctx-mute-label">Mute</span>
+    </div>
     <div class="ctx-item" onclick="sampler.ctxClear()" style="padding:8px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--text-dim)">
         <span class="material-icons" style="font-size:16px">delete</span> Pad wissen
     </div>
@@ -1101,6 +1104,7 @@ class SamplerApp {
             release: 0.1,
             mode: 'oneshot',
             reverse: false,
+            muted: false,
             activeSources: []
         }));
 
@@ -1264,6 +1268,9 @@ class SamplerApp {
         menu.style.display = 'block';
         menu.style.left = e.clientX + 'px';
         menu.style.top = e.clientY + 'px';
+        // Update mute label
+        const muteLabel = document.getElementById('ctx-mute-label');
+        if (muteLabel) muteLabel.textContent = this.pads[idx].muted ? 'Unmute' : 'Mute';
         // Close on click elsewhere
         setTimeout(() => {
             const close = () => { menu.style.display = 'none'; document.removeEventListener('click', close); };
@@ -1344,6 +1351,23 @@ class SamplerApp {
         // Open the community panel (sample browser)
         const panel = document.getElementById('community-panel');
         if (panel.style.display === 'none') panel.style.display = 'block';
+    }
+
+    ctxToggleMute() {
+        document.getElementById('pad-context-menu').style.display = 'none';
+        const idx = this._ctxPadIdx;
+        const p = this.pads[idx];
+        p.muted = !p.muted;
+        const el = document.getElementById(`pad-${idx}`);
+        if (p.muted) {
+            el.style.opacity = '0.3';
+            el.style.filter = 'grayscale(1)';
+            toast(`Pad ${idx + 1} gemute`, 'info');
+        } else {
+            el.style.opacity = '1';
+            el.style.filter = 'none';
+            toast(`Pad ${idx + 1} unmuted`, 'success');
+        }
     }
 
     ctxClear() {
@@ -1587,7 +1611,7 @@ class SamplerApp {
     triggerPad(idx, velocity = 1.0) {
         this.initAudio();
         const p = this.pads[idx];
-        if (!p.buffer) return;
+        if (!p.buffer || p.muted) return;
 
         // Choke group: stop other pads in same group
         if (p.chokeGroup > 0) {
