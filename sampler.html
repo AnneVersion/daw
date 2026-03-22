@@ -2437,8 +2437,52 @@ class SamplerApp {
             }
         } catch(e) {}
 
-        // Fallback: Freesound API (werkt op GitHub Pages)
-        await this._loadKitFromFreesound(category, label);
+        // Fallback: Jamendo API (CORS OK, werkt op GitHub Pages)
+        // Freesound is CORS-blocked zonder proxy
+        await this._loadKitFromJamendo(category, label);
+    }
+
+    _kitJamendoTerms = {
+        'Drums': 'drums', 'Percussion': 'percussion', 'Bass': 'bass',
+        'Guitar': 'guitar', 'Keys': 'piano', 'Synth': 'electronic synth',
+        'Brass': 'jazz trumpet', 'Strings': 'strings classical', 'Vocals': 'vocal',
+        'FX': 'ambient soundscape', 'Field Recording': 'nature ambient',
+        'One-shots': 'electronic', 'Loops': 'loop beat', 'ALL': 'instrumental'
+    };
+
+    async _loadKitFromJamendo(category, label) {
+        const query = this._kitJamendoTerms[category] || category.toLowerCase();
+        toast(`${label} laden via Jamendo...`, 'info');
+        try {
+            const url = `https://api.jamendo.com/v3.0/tracks/?client_id=${this.JAMENDO_ID}&format=json&limit=16&search=${encodeURIComponent(query)}&include=musicinfo`;
+            const resp = await fetch(url);
+            const data = await resp.json();
+            const tracks = data.results || [];
+
+            if (!tracks.length) {
+                // Fallback naar Freesound als Jamendo ook niks heeft
+                await this._loadKitFromFreesound(category, label);
+                return;
+            }
+
+            let loaded = 0;
+            for (let i = 0; i < Math.min(tracks.length, 16); i++) {
+                const t = tracks[i];
+                const audioUrl = t.audio || t.audiodownload;
+                if (!audioUrl) continue;
+                try {
+                    const audioResp = await fetch(audioUrl);
+                    if (audioResp.ok) {
+                        const name = `${t.artist_name} - ${t.name}`.substring(0, 25);
+                        await this._loadBuffer(i, await audioResp.arrayBuffer(), name);
+                        loaded++;
+                    }
+                } catch(e) {}
+            }
+            toast(`${loaded} ${label} samples geladen (Jamendo)`, loaded > 0 ? 'success' : 'error');
+        } catch(e) {
+            toast('Jamendo laden mislukt: ' + e.message, 'error');
+        }
     }
 
     async _loadKitFromFreesound(category, label) {
