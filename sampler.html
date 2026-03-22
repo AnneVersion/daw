@@ -683,6 +683,14 @@ select:focus { border-color: var(--accent); }
                     <span class="material-icons">delete</span> Wis
                 </button>
             </div>
+            <div class="pad-actions" style="margin-top:6px">
+                <button class="action-btn" onclick="sampler.autoLoadDrumKit()" style="background:var(--purple);border-color:var(--purple);color:#fff">
+                    <span class="material-icons">drum</span> Laad Drum Kit
+                </button>
+                <button class="action-btn" id="btn-improvise" onclick="sampler.toggleImprovise()" style="background:var(--green-dim);border-color:var(--green-dim);color:#fff">
+                    <span class="material-icons">auto_awesome</span> Improviseer
+                </button>
+            </div>
         </div>
 
         <!-- Volume / Pan / Pitch -->
@@ -2194,6 +2202,100 @@ class SamplerApp {
             await this._loadBuffer(this.selectedPad, buf, name);
         } catch(e) {
             toast('Kan community sample niet laden: ' + e.message, 'error');
+        }
+    }
+
+    // ---- Auto-Load Drum Kit ----
+    async autoLoadDrumKit() {
+        this.initAudio();
+        toast('Drum kit laden...', 'info');
+        try {
+            const resp = await fetch('/api/sounds');
+            const allSounds = await resp.json();
+
+            // Prioritize: drums first, then percussion, then one-shots
+            const drums = allSounds.filter(s => s.category_name === 'Drums');
+            const percs = allSounds.filter(s => s.category_name === 'Percussion');
+            const oneshots = allSounds.filter(s => s.category_name === 'One-shots');
+            const combined = [...drums, ...percs, ...oneshots].slice(0, 16);
+
+            if (!combined.length) {
+                toast('Geen drum samples gevonden in library', 'error');
+                return;
+            }
+
+            let loaded = 0;
+            for (let i = 0; i < Math.min(combined.length, 16); i++) {
+                const s = combined[i];
+                try {
+                    const url = `/api/sounds/${s.id}/file`;
+                    const audioResp = await fetch(url);
+                    if (audioResp.ok) {
+                        const buf = await audioResp.arrayBuffer();
+                        await this._loadBuffer(i, buf, s.name);
+                        loaded++;
+                    }
+                } catch(e) {}
+            }
+            toast(`${loaded} drum samples geladen`, 'success');
+        } catch(e) {
+            toast('Laden mislukt: ' + e.message, 'error');
+        }
+    }
+
+    // ---- Improvisatie ----
+    _improvising = false;
+    _improvTimer = null;
+
+    toggleImprovise() {
+        this._improvising = !this._improvising;
+        const btn = document.getElementById('btn-improvise');
+        btn.style.background = this._improvising ? 'var(--red)' : 'var(--green-dim)';
+        btn.style.borderColor = this._improvising ? 'var(--red)' : 'var(--green-dim)';
+
+        if (this._improvising) {
+            this.initAudio();
+            if (!this.isPlaying) this.startSeq();
+            this._startImprovisation();
+            toast('Improvisatie gestart', 'success');
+        } else {
+            this._stopImprovisation();
+            toast('Improvisatie gestopt', 'info');
+        }
+    }
+
+    _startImprovisation() {
+        // Generate random variations on the current pattern
+        const humanize = () => {
+            if (!this._improvising) return;
+
+            const pattern = this.patterns[this.currentPattern];
+            // Randomly trigger extra pads with low velocity (ghost notes)
+            const loadedPads = this.pads.map((p, i) => p.buffer ? i : -1).filter(i => i >= 0);
+            if (loadedPads.length === 0) return;
+
+            // Random ghost note
+            if (Math.random() < 0.3) {
+                const padIdx = loadedPads[Math.floor(Math.random() * loadedPads.length)];
+                this.triggerPad(padIdx, 0.2 + Math.random() * 0.3);
+            }
+
+            // Random fill (more notes before beat 1)
+            if (this.currentStep >= 12 && Math.random() < 0.15) {
+                const padIdx = loadedPads[Math.floor(Math.random() * Math.min(4, loadedPads.length))];
+                this.triggerPad(padIdx, 0.5 + Math.random() * 0.5);
+            }
+
+            const stepMs = (60000 / this.bpm) / 4;
+            this._improvTimer = setTimeout(humanize, stepMs * (0.5 + Math.random()));
+        };
+        humanize();
+    }
+
+    _stopImprovisation() {
+        if (this._improvTimer) {
+            clearTimeout(this._improvTimer);
+            this._improvTimer = null;
         }
     }
 

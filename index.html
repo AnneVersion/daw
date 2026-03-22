@@ -2472,6 +2472,10 @@ body {
                     <div class="synth-section-title">Waveform</div>
                     <canvas id="synth-visualizer" width="240" height="60"></canvas>
                 </div>
+                <div class="synth-section" style="flex:1;min-width:100%">
+                    <div class="synth-section-title">Keyboard <span style="font-weight:400;font-size:9px;color:var(--text-dim)">(Klik of gebruik A-L = noten, Z/X = octaaf)</span></div>
+                    <div id="synth-keyboard" style="display:flex;height:80px;position:relative;overflow-x:auto;margin-top:4px"></div>
+                </div>
             </div>
 
             <!-- Sound Match Panel -->
@@ -3490,6 +3494,7 @@ class SynthEngine {
         }
         this._startVisualizer();
         this._bindControls();
+        this._buildSynthKeyboard();
     }
 
     playNote(noteName) {
@@ -3708,6 +3713,57 @@ class SynthEngine {
             return true;
         }
         return false;
+    }
+
+    _buildSynthKeyboard() {
+        const container = document.getElementById('synth-keyboard');
+        if (!container) return;
+        const notes = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+        const isBlack = [0,1,0,1,0,0,1,0,1,0,1,0];
+        const pcKeys = ['A','W','S','E','D','F','T','G','Y','H','U','J','K','O','L'];
+        let html = '';
+        for (let oct = 4; oct <= 5; oct++) {
+            notes.forEach((note, i) => {
+                const noteName = `${note}${oct}`;
+                const black = isBlack[i];
+                const keyIdx = (oct - 4) * 12 + i;
+                const pcKey = keyIdx < pcKeys.length ? pcKeys[keyIdx] : '';
+                if (black) {
+                    html += `<div class="piano-key black" data-synth-note="${noteName}" style="width:18px;height:50px;background:linear-gradient(180deg,#333,#111);border:1px solid #000;border-radius:0 0 3px 3px;margin-left:-9px;margin-right:-9px;z-index:2;cursor:pointer;position:relative">
+                        <span style="position:absolute;bottom:2px;width:100%;text-align:center;font-size:6px;color:#666;pointer-events:none">${pcKey}</span></div>`;
+                } else {
+                    html += `<div class="piano-key white" data-synth-note="${noteName}" style="width:28px;height:80px;background:linear-gradient(180deg,#f0f0f0,#d8d8d8);border:1px solid #999;border-radius:0 0 4px 4px;z-index:1;cursor:pointer;position:relative;flex-shrink:0">
+                        <span style="position:absolute;bottom:3px;width:100%;text-align:center;font-size:7px;color:#888;pointer-events:none">${pcKey}<br>${note}${oct}</span></div>`;
+                }
+            });
+        }
+        container.innerHTML = html;
+        let mouseDown = false;
+        document.addEventListener('mouseup', () => { mouseDown = false; });
+        container.querySelectorAll('[data-synth-note]').forEach(key => {
+            key.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                mouseDown = true;
+                this.ae.resume();
+                this.playNote(key.dataset.synthNote);
+                key.classList.add('active');
+            });
+            key.addEventListener('mouseenter', () => {
+                if (mouseDown) {
+                    this.ae.resume();
+                    this.playNote(key.dataset.synthNote);
+                    key.classList.add('active');
+                }
+            });
+            key.addEventListener('mouseleave', () => {
+                this.stopNote(key.dataset.synthNote);
+                key.classList.remove('active');
+            });
+            key.addEventListener('mouseup', () => {
+                this.stopNote(key.dataset.synthNote);
+                key.classList.remove('active');
+            });
+        });
     }
 }
 
