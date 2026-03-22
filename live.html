@@ -110,186 +110,89 @@ body {
 .nav-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(255, 74, 90, 0.4); }
 .nav-btn .material-icons { font-size: 18px; }
 
-/* ---- Featured Stream ---- */
-.featured-stream {
-    position: relative;
-    background: var(--bg-darkest);
-    border-bottom: 1px solid var(--border);
-}
-.featured-layout {
-    display: grid;
-    grid-template-columns: 1fr 360px;
+/* ---- Broadcast Grid ---- */
+.broadcast-section {
     max-width: 1400px;
     margin: 0 auto;
-    min-height: 500px;
+    padding: 32px 24px;
 }
-
-/* Video/Stream area */
-.stream-player {
-    position: relative;
-    background: #000;
+.broadcast-section-header {
     display: flex;
     align-items: center;
-    justify-content: center;
-    overflow: hidden;
-}
-.stream-placeholder {
-    width: 100%;
-    height: 100%;
-    min-height: 500px;
-    background: linear-gradient(135deg, #0a0a1a 0%, #12121f 50%, #0a0a1a 100%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-}
-.stream-placeholder::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background:
-        repeating-linear-gradient(0deg, transparent, transparent 29px, rgba(74, 158, 255, 0.03) 30px),
-        repeating-linear-gradient(90deg, transparent, transparent 29px, rgba(74, 158, 255, 0.03) 30px);
-}
-
-/* Simulated DAW screen */
-.fake-daw {
-    position: relative;
-    width: 85%;
-    height: 75%;
-    background: var(--bg-darkest);
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    overflow: hidden;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-}
-.fake-daw-header {
-    height: 28px;
-    background: linear-gradient(180deg, #1e1e30, #16162a);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    padding: 0 10px;
-    gap: 6px;
-}
-.fake-daw-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-}
-.fake-daw-dot.red { background: var(--red); opacity: 0.7; }
-.fake-daw-dot.yellow { background: var(--yellow); opacity: 0.7; }
-.fake-daw-dot.green { background: var(--green); opacity: 0.7; }
-.fake-daw-title {
-    flex: 1;
-    text-align: center;
-    font-size: 10px;
-    color: var(--text-dim);
-}
-.fake-daw-body {
-    display: flex;
-    height: calc(100% - 28px);
-}
-.fake-daw-sidebar {
-    width: 100px;
-    background: var(--bg-panel);
-    border-right: 1px solid var(--border);
-    padding: 6px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-.fake-track-header {
-    height: 24px;
-    background: var(--bg-card);
-    border-radius: 3px;
-    padding: 0 6px;
-    display: flex;
-    align-items: center;
-    font-size: 8px;
-    color: var(--text-dim);
-}
-.fake-track-color {
-    width: 3px;
-    height: 14px;
-    border-radius: 2px;
-    margin-right: 4px;
-}
-.fake-daw-timeline {
-    flex: 1;
-    padding: 6px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    position: relative;
-    overflow: hidden;
-}
-.fake-track-row {
-    height: 24px;
-    border-radius: 3px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-.fake-clip {
-    height: 18px;
-    border-radius: 3px;
-    opacity: 0.6;
-    position: relative;
-    overflow: hidden;
-}
-.fake-clip::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: repeating-linear-gradient(
-        90deg,
-        transparent,
-        transparent 3px,
-        rgba(255,255,255,0.1) 3px,
-        rgba(255,255,255,0.1) 4px
-    );
-}
-.fake-playhead {
-    position: absolute;
-    top: 0;
-    width: 1px;
-    height: 100%;
-    background: var(--red);
-    z-index: 10;
-    animation: playheadMove 8s linear infinite;
-}
-@keyframes playheadMove {
-    0% { left: 10%; }
-    100% { left: 80%; }
-}
-
-/* Stream overlay info */
-.stream-overlay {
-    position: absolute;
-    top: 16px;
-    left: 16px;
-    display: flex;
     gap: 10px;
-    align-items: center;
-    z-index: 10;
+    margin-bottom: 24px;
 }
-.live-badge {
+.broadcast-section-header h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-bright);
+}
+.broadcast-section-header .material-icons {
+    font-size: 24px;
+    color: var(--red);
+}
+.broadcast-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+}
+.broadcast-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: all 0.3s;
+}
+.broadcast-card:hover {
+    border-color: var(--border-light);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+.broadcast-card-header {
+    padding: 20px;
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    background: rgba(255, 74, 90, 0.9);
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 700;
-    color: white;
+    gap: 14px;
 }
-.live-badge .pulse-dot {
-    width: 8px;
-    height: 8px;
-    background: white;
+.broadcast-card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.broadcast-card-icon .material-icons { font-size: 26px; color: white; }
+.broadcast-card-info { flex: 1; min-width: 0; }
+.broadcast-card-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-bright);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.broadcast-card-meta {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 2px;
+}
+.broadcast-card-live {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    background: rgba(255, 74, 90, 0.15);
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--red);
+}
+.broadcast-card-live .pulse-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--red);
     border-radius: 50%;
     animation: pulse 1.5s ease-in-out infinite;
 }
@@ -297,141 +200,138 @@ body {
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.5; transform: scale(0.7); }
 }
-.viewer-badge {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 6px 12px;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(10px);
-    border-radius: 6px;
-    font-size: 12px;
+.broadcast-card-body {
+    padding: 0 20px 20px;
+}
+.broadcast-listen-btn {
+    width: 100%;
+    padding: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    border: none;
     color: white;
-}
-.viewer-badge .material-icons { font-size: 16px; }
-.stream-bottom-overlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 16px 20px;
-    background: linear-gradient(transparent, rgba(0,0,0,0.8));
-    z-index: 10;
-}
-.stream-host-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-.host-avatar {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--purple), var(--accent));
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
-    font-weight: 800;
-    color: white;
-    border: 2px solid rgba(255,255,255,0.2);
-}
-.host-name {
-    font-size: 16px;
-    font-weight: 700;
-    color: white;
-}
-.host-category {
-    font-size: 12px;
-    color: rgba(255,255,255,0.6);
-}
-.host-actions {
-    margin-left: auto;
-    display: flex;
-    gap: 8px;
-}
-
-/* Buttons shared */
-.btn-primary {
-    padding: 10px 20px;
-    background: linear-gradient(135deg, var(--purple), var(--accent));
-    border: none;
-    color: white;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 600;
-    transition: all 0.3s;
-    display: flex;
-    align-items: center;
     gap: 6px;
-}
-.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(168, 85, 247, 0.4); }
-.btn-secondary {
-    padding: 10px 20px;
-    background: rgba(255,255,255,0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255,255,255,0.15);
-    color: white;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 500;
     transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 6px;
 }
-.btn-secondary:hover { background: rgba(255,255,255,0.15); }
-.btn-primary .material-icons, .btn-secondary .material-icons { font-size: 18px; }
-.btn-follow {
-    padding: 8px 16px;
-    background: var(--purple);
-    border: none;
-    color: white;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 12px;
-    font-weight: 600;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 4px;
+.broadcast-listen-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(74, 158, 255, 0.3);
 }
-.btn-follow:hover { background: var(--purple-dim); }
-.btn-follow .material-icons { font-size: 16px; }
+.broadcast-listen-btn .material-icons { font-size: 18px; }
 
-/* ---- Chat Sidebar ---- */
-.chat-panel {
-    background: var(--bg-panel);
-    border-left: 1px solid var(--border);
+/* Start broadcast card */
+.broadcast-card-start {
+    border-style: dashed;
+    border-color: var(--border-light);
     display: flex;
     flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    text-decoration: none;
+    min-height: 180px;
 }
-.chat-header {
-    padding: 14px 16px;
+.broadcast-card-start:hover {
+    border-color: var(--accent);
+    background: rgba(74, 158, 255, 0.04);
+}
+.broadcast-card-start .material-icons {
+    font-size: 40px;
+    color: var(--accent);
+    margin-bottom: 12px;
+}
+.broadcast-card-start h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-bright);
+    margin-bottom: 4px;
+}
+.broadcast-card-start p {
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+/* Empty state */
+.broadcast-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--text-dim);
+}
+.broadcast-empty .material-icons {
+    font-size: 48px;
+    opacity: 0.3;
+    display: block;
+    margin: 0 auto 12px;
+}
+.broadcast-empty p {
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+.broadcast-empty .sub {
+    font-size: 12px;
+    opacity: 0.6;
+}
+
+/* ---- Broadcast Chat Panel ---- */
+.broadcast-chat-section {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 24px 32px;
+    display: none;
+}
+.broadcast-chat-container {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1fr;
+    max-height: 400px;
+}
+.broadcast-chat-header {
+    padding: 14px 20px;
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
     justify-content: space-between;
 }
-.chat-header-title {
+.broadcast-chat-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 14px;
     font-weight: 700;
     color: var(--text-bright);
-    display: flex;
-    align-items: center;
-    gap: 6px;
 }
-.chat-header-title .material-icons { font-size: 18px; color: var(--accent); }
-.chat-viewer-count {
-    font-size: 12px;
-    color: var(--text-dim);
+.broadcast-chat-header-left .material-icons { font-size: 18px; color: var(--accent); }
+.broadcast-chat-disconnect {
+    padding: 6px 14px;
+    background: rgba(255, 74, 90, 0.15);
+    border: 1px solid rgba(255, 74, 90, 0.3);
+    color: var(--red);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
     display: flex;
     align-items: center;
     gap: 4px;
+    transition: all 0.2s;
 }
-.chat-viewer-count .material-icons { font-size: 16px; }
+.broadcast-chat-disconnect:hover { background: rgba(255, 74, 90, 0.25); }
+
+
+
+/* ---- Chat ---- */
 .chat-messages {
     flex: 1;
     padding: 12px 16px;
@@ -505,311 +405,6 @@ body {
 .chat-send:hover { background: var(--accent-hover); }
 .chat-send .material-icons { font-size: 18px; }
 
-/* ---- Category Filter ---- */
-.filter-bar {
-    padding: 16px 24px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    overflow-x: auto;
-    max-width: 1400px;
-    margin: 0 auto;
-}
-.filter-chip {
-    padding: 8px 16px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    color: var(--text-dim);
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-    white-space: nowrap;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-.filter-chip:hover { border-color: var(--border-light); color: var(--text); }
-.filter-chip.active {
-    background: rgba(74, 158, 255, 0.1);
-    border-color: var(--accent);
-    color: var(--accent);
-}
-.filter-chip .material-icons { font-size: 16px; }
-
-/* ---- Channel Grid ---- */
-.container {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 0 24px;
-}
-.section {
-    padding: 32px 0;
-}
-.section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-}
-.section-title {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--text-bright);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.section-title .material-icons { color: var(--purple); font-size: 24px; }
-
-.channel-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 16px;
-}
-.channel-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    overflow: hidden;
-    transition: all 0.3s;
-    cursor: pointer;
-}
-.channel-card:hover {
-    border-color: var(--border-light);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
-}
-.channel-thumbnail {
-    height: 170px;
-    position: relative;
-    overflow: hidden;
-    background: linear-gradient(135deg, #0a0a1a, #12121f);
-}
-.channel-thumbnail-art {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.thumb-eq {
-    display: flex;
-    align-items: flex-end;
-    gap: 3px;
-    height: 60px;
-}
-.thumb-eq-bar {
-    width: 6px;
-    border-radius: 3px;
-    animation: eqBounce var(--dur) ease-in-out infinite alternate;
-}
-@keyframes eqBounce {
-    0% { height: var(--min-h); }
-    100% { height: var(--max-h); }
-}
-.channel-status-badge {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-size: 11px;
-    font-weight: 700;
-}
-.channel-status-badge.live {
-    background: rgba(255, 74, 90, 0.9);
-    color: white;
-}
-.channel-status-badge.live .pulse-dot {
-    width: 6px;
-    height: 6px;
-    background: white;
-    border-radius: 50%;
-    animation: pulse 1.5s ease-in-out infinite;
-}
-.channel-status-badge.offline {
-    background: rgba(0, 0, 0, 0.6);
-    color: var(--text-dim);
-}
-.channel-viewers {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 10px;
-    background: rgba(0, 0, 0, 0.6);
-    border-radius: 6px;
-    font-size: 11px;
-    color: white;
-}
-.channel-viewers .material-icons { font-size: 14px; }
-.channel-info {
-    padding: 14px 16px;
-}
-.channel-info-top {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 8px;
-}
-.channel-avatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    font-weight: 800;
-    color: white;
-    flex-shrink: 0;
-}
-.channel-name {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--text-bright);
-}
-.channel-host {
-    font-size: 11px;
-    color: var(--text-dim);
-}
-.channel-category {
-    display: inline-flex;
-    padding: 3px 8px;
-    background: rgba(74, 158, 255, 0.1);
-    border-radius: 6px;
-    font-size: 10px;
-    color: var(--accent);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-/* ---- Schedule Section ---- */
-.schedule-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 12px;
-}
-.schedule-item {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 16px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    transition: all 0.2s;
-}
-.schedule-item:hover {
-    border-color: var(--border-light);
-    background: var(--bg-hover);
-}
-.schedule-time-block {
-    text-align: center;
-    min-width: 56px;
-    padding: 8px;
-    background: var(--bg-darkest);
-    border-radius: 8px;
-}
-.schedule-day {
-    font-size: 10px;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-.schedule-time {
-    font-size: 18px;
-    font-weight: 800;
-    color: var(--text-bright);
-    font-family: 'SF Mono', 'Consolas', monospace;
-}
-.schedule-info { flex: 1; }
-.schedule-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-bright);
-}
-.schedule-host {
-    font-size: 12px;
-    color: var(--text-dim);
-    margin-top: 2px;
-}
-.schedule-category-tag {
-    padding: 3px 8px;
-    border-radius: 6px;
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-}
-.schedule-notify {
-    width: 36px;
-    height: 36px;
-    border: 1px solid var(--border);
-    background: transparent;
-    color: var(--text-dim);
-    border-radius: 8px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-}
-.schedule-notify:hover { background: var(--bg-hover); color: var(--accent); border-color: var(--accent); }
-.schedule-notify .material-icons { font-size: 18px; }
-
-/* ---- CTA ---- */
-.cta-section {
-    padding: 48px 0;
-    text-align: center;
-}
-.cta-card {
-    background: linear-gradient(135deg, rgba(255, 74, 90, 0.08), rgba(255, 138, 74, 0.06));
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 48px;
-    max-width: 600px;
-    margin: 0 auto;
-}
-.cta-card h2 {
-    font-size: 26px;
-    font-weight: 800;
-    color: var(--text-bright);
-    margin-bottom: 12px;
-}
-.cta-card p {
-    font-size: 14px;
-    color: var(--text-dim);
-    margin-bottom: 24px;
-    line-height: 1.6;
-}
-.cta-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 14px 32px;
-    background: linear-gradient(135deg, var(--red), var(--orange));
-    border: none;
-    color: white;
-    border-radius: 12px;
-    cursor: pointer;
-    font-size: 15px;
-    font-weight: 700;
-    transition: all 0.3s;
-}
-.cta-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 30px rgba(255, 74, 90, 0.4);
-}
-.cta-btn .material-icons { font-size: 22px; }
 
 /* ---- Footer ---- */
 .footer {
@@ -820,137 +415,15 @@ body {
     color: var(--text-dim);
 }
 
-/* ---- Channel Detail Modal ---- */
-.modal-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(8px);
-    z-index: 2000;
-    align-items: stretch;
-    justify-content: center;
-}
-.modal-overlay.open { display: flex; }
-.modal-fullscreen {
-    width: 100%;
-    height: 100%;
-    display: grid;
-    grid-template-columns: 1fr 380px;
-    background: var(--bg-dark);
-    animation: modalIn 0.3s ease;
-}
-@keyframes modalIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-.modal-stream-area {
-    position: relative;
-    background: #000;
-    display: flex;
-    flex-direction: column;
-}
-.modal-stream-content {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-}
-.modal-stream-bar {
-    padding: 12px 20px;
-    background: var(--bg-panel);
-    border-top: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-.modal-close-btn {
-    position: absolute;
-    top: 16px;
-    left: 16px;
-    width: 40px;
-    height: 40px;
-    border: none;
-    background: rgba(0,0,0,0.6);
-    backdrop-filter: blur(10px);
-    color: white;
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 20;
-    transition: background 0.2s;
-}
-.modal-close-btn:hover { background: rgba(0,0,0,0.8); }
-.modal-chat {
-    display: flex;
-    flex-direction: column;
-    background: var(--bg-panel);
-    border-left: 1px solid var(--border);
-}
-
-/* Host info card */
-.host-card {
-    padding: 16px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-.host-card-avatar {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    font-weight: 800;
-    color: white;
-}
-.host-card-info { flex: 1; }
-.host-card-name {
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--text-bright);
-}
-.host-card-desc {
-    font-size: 11px;
-    color: var(--text-dim);
-}
-.host-card-stats {
-    display: flex;
-    gap: 12px;
-    margin-top: 4px;
-}
-.host-card-stat {
-    font-size: 11px;
-    color: var(--text-dim);
-    display: flex;
-    align-items: center;
-    gap: 3px;
-}
-.host-card-stat .material-icons { font-size: 14px; }
 
 /* ---- Responsive ---- */
 @media (max-width: 900px) {
-    .featured-layout { grid-template-columns: 1fr; }
-    .chat-panel { display: none; }
-    .modal-fullscreen { grid-template-columns: 1fr; }
-    .modal-chat { display: none; }
-    .channel-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+    .broadcast-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
 }
 @media (max-width: 600px) {
     .nav-links a span.nav-label { display: none; }
-    .filter-bar { padding: 12px 16px; }
-    .stream-placeholder { min-height: 300px; }
-    .schedule-grid { grid-template-columns: 1fr; }
+    .broadcast-section { padding: 24px 16px; }
+    .broadcast-grid { grid-template-columns: 1fr; }
 }
 </style>
 </head>
@@ -1037,245 +510,36 @@ body {
     </div>
 </section>
 
-<!-- Featured Live Stream -->
-<section class="featured-stream">
-    <div class="featured-layout">
-        <!-- Stream Player -->
-        <div class="stream-player" onclick="openChannel(0)">
-            <div class="stream-overlay">
-                <div class="live-badge">
-                    <span class="pulse-dot"></span>
-                    LIVE
-                </div>
-                <div class="viewer-badge">
-                    <span class="material-icons">visibility</span>
-                    47 kijkers
-                </div>
-            </div>
-
-            <div class="stream-placeholder">
-                <!-- Simulated DAW screen -->
-                <div class="fake-daw">
-                    <div class="fake-daw-header">
-                        <span class="fake-daw-dot red"></span>
-                        <span class="fake-daw-dot yellow"></span>
-                        <span class="fake-daw-dot green"></span>
-                        <span class="fake-daw-title">BeatMaker_NL - Session 47</span>
-                    </div>
-                    <div class="fake-daw-body">
-                        <div class="fake-daw-sidebar">
-                            <div class="fake-track-header"><span class="fake-track-color" style="background:#4a9eff"></span>Drums</div>
-                            <div class="fake-track-header"><span class="fake-track-color" style="background:#ff4a5a"></span>Bass</div>
-                            <div class="fake-track-header"><span class="fake-track-color" style="background:#39ff14"></span>Keys</div>
-                            <div class="fake-track-header"><span class="fake-track-color" style="background:#ffd24a"></span>Synth</div>
-                            <div class="fake-track-header"><span class="fake-track-color" style="background:#a855f7"></span>Vocals</div>
-                            <div class="fake-track-header"><span class="fake-track-color" style="background:#ff8a4a"></span>FX</div>
-                        </div>
-                        <div class="fake-daw-timeline">
-                            <div class="fake-playhead"></div>
-                            <div class="fake-track-row">
-                                <div class="fake-clip" style="width:25%;background:#4a9eff"></div>
-                                <div class="fake-clip" style="width:20%;background:#4a9eff"></div>
-                                <div class="fake-clip" style="width:30%;background:#4a9eff"></div>
-                            </div>
-                            <div class="fake-track-row">
-                                <div class="fake-clip" style="width:40%;background:#ff4a5a;margin-left:10%"></div>
-                                <div class="fake-clip" style="width:25%;background:#ff4a5a"></div>
-                            </div>
-                            <div class="fake-track-row">
-                                <div class="fake-clip" style="width:15%;background:#39ff14;margin-left:5%"></div>
-                                <div class="fake-clip" style="width:35%;background:#39ff14"></div>
-                                <div class="fake-clip" style="width:20%;background:#39ff14"></div>
-                            </div>
-                            <div class="fake-track-row">
-                                <div class="fake-clip" style="width:50%;background:#ffd24a;margin-left:15%"></div>
-                            </div>
-                            <div class="fake-track-row">
-                                <div class="fake-clip" style="width:20%;background:#a855f7;margin-left:30%"></div>
-                                <div class="fake-clip" style="width:15%;background:#a855f7"></div>
-                            </div>
-                            <div class="fake-track-row">
-                                <div class="fake-clip" style="width:10%;background:#ff8a4a;margin-left:45%"></div>
-                                <div class="fake-clip" style="width:8%;background:#ff8a4a"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="stream-bottom-overlay">
-                <div class="stream-host-info">
-                    <div class="host-avatar" style="background:linear-gradient(135deg, #4a9eff, #39ff14)">B</div>
-                    <div>
-                        <div class="host-name">BeatMaker_NL</div>
-                        <div class="host-category">Live Beat Making &middot; Hip-Hop / Boom Bap</div>
-                    </div>
-                    <div class="host-actions">
-                        <button class="btn-follow">
-                            <span class="material-icons">person_add</span>
-                            Volgen
-                        </button>
-                        <button class="btn-secondary" style="padding:8px 16px;font-size:12px" onclick="event.stopPropagation()">
-                            <span class="material-icons">share</span>
-                            Delen
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Chat -->
-        <div class="chat-panel">
-            <div class="chat-header">
-                <div class="chat-header-title">
-                    <span class="material-icons">chat</span>
-                    Live Chat
-                </div>
-                <div class="chat-viewer-count">
-                    <span class="material-icons">people</span>
-                    47
-                </div>
-            </div>
-            <div class="chat-messages" id="featured-chat">
-                <!-- Messages filled by JS -->
-            </div>
-            <div class="chat-input-wrap">
-                <input class="chat-input" placeholder="Stuur een bericht..." id="chat-input">
-                <button class="chat-send" onclick="sendChat()">
-                    <span class="material-icons">send</span>
-                </button>
-            </div>
-        </div>
+<!-- Actieve Broadcasts -->
+<section class="broadcast-section">
+    <div class="broadcast-section-header">
+        <span class="material-icons">cell_tower</span>
+        <h2>Actieve Broadcasts</h2>
+    </div>
+    <div class="broadcast-grid" id="broadcast-grid">
+        <!-- Filled by JS -->
     </div>
 </section>
 
-<!-- Category Filter -->
-<div class="filter-bar">
-    <button class="filter-chip active" onclick="filterChannels('alle', this)">
-        <span class="material-icons">apps</span>
-        Alle
-    </button>
-    <button class="filter-chip" onclick="filterChannels('beats', this)">
-        <span class="material-icons">music_note</span>
-        Beats
-    </button>
-    <button class="filter-chip" onclick="filterChannels('mixing', this)">
-        <span class="material-icons">tune</span>
-        Mixing
-    </button>
-    <button class="filter-chip" onclick="filterChannels('sound-design', this)">
-        <span class="material-icons">waves</span>
-        Sound Design
-    </button>
-    <button class="filter-chip" onclick="filterChannels('mastering', this)">
-        <span class="material-icons">equalizer</span>
-        Mastering
-    </button>
-    <button class="filter-chip" onclick="filterChannels('dj', this)">
-        <span class="material-icons">album</span>
-        DJ Sets
-    </button>
-</div>
-
-<!-- Live Channels -->
-<section class="section">
-    <div class="container">
-        <div class="section-header">
-            <div class="section-title">
-                <span class="material-icons">sensors</span>
-                Kanalen
+<!-- Broadcast Chat -->
+<section class="broadcast-chat-section" id="broadcast-chat-section">
+    <div class="broadcast-chat-container">
+        <div class="broadcast-chat-header">
+            <div class="broadcast-chat-header-left">
+                <span class="material-icons">chat</span>
+                <span id="broadcast-chat-title">Live Chat</span>
             </div>
+            <button class="broadcast-chat-disconnect" onclick="leaveBroadcastChat()">
+                <span class="material-icons" style="font-size:14px">close</span>
+                Verlaat chat
+            </button>
         </div>
-
-        <div class="channel-grid" id="channel-grid">
-            <!-- Filled by JS -->
+        <div class="chat-messages" id="broadcast-chat-messages" style="min-height:200px;max-height:280px">
         </div>
-    </div>
-</section>
-
-<!-- Schedule -->
-<section class="section" style="padding-top:0">
-    <div class="container">
-        <div class="section-header">
-            <div class="section-title">
-                <span class="material-icons">event</span>
-                Aankomende Streams
-            </div>
-        </div>
-
-        <div class="schedule-grid">
-            <div class="schedule-item">
-                <div class="schedule-time-block">
-                    <div class="schedule-day">Morgen</div>
-                    <div class="schedule-time">20:00</div>
-                </div>
-                <div class="schedule-info">
-                    <div class="schedule-title">Live DJ Set - Deep House Night</div>
-                    <div class="schedule-host">DJ_Amsterdam</div>
-                </div>
-                <span class="schedule-category-tag" style="background:rgba(168,85,247,0.15);color:var(--purple)">DJ Set</span>
-                <button class="schedule-notify" title="Herinnering instellen">
-                    <span class="material-icons">notifications_none</span>
-                </button>
-            </div>
-
-            <div class="schedule-item">
-                <div class="schedule-time-block">
-                    <div class="schedule-day">Morgen</div>
-                    <div class="schedule-time">14:00</div>
-                </div>
-                <div class="schedule-info">
-                    <div class="schedule-title">Mixing Masterclass - Vocals</div>
-                    <div class="schedule-host">MixMaster</div>
-                </div>
-                <span class="schedule-category-tag" style="background:rgba(74,158,255,0.15);color:var(--accent)">Mixing</span>
-                <button class="schedule-notify" title="Herinnering instellen">
-                    <span class="material-icons">notifications_none</span>
-                </button>
-            </div>
-
-            <div class="schedule-item">
-                <div class="schedule-time-block">
-                    <div class="schedule-day">Vrijdag</div>
-                    <div class="schedule-time">21:00</div>
-                </div>
-                <div class="schedule-info">
-                    <div class="schedule-title">Beat Battle Live - Producers Tournament</div>
-                    <div class="schedule-host">BeatMaker_NL</div>
-                </div>
-                <span class="schedule-category-tag" style="background:rgba(57,255,20,0.15);color:var(--green)">Beats</span>
-                <button class="schedule-notify" title="Herinnering instellen">
-                    <span class="material-icons">notifications_none</span>
-                </button>
-            </div>
-
-            <div class="schedule-item">
-                <div class="schedule-time-block">
-                    <div class="schedule-day">Zaterdag</div>
-                    <div class="schedule-time">15:00</div>
-                </div>
-                <div class="schedule-info">
-                    <div class="schedule-title">Sound Design Workshop - Serum Basics</div>
-                    <div class="schedule-host">SynthWizard</div>
-                </div>
-                <span class="schedule-category-tag" style="background:rgba(255,138,74,0.15);color:var(--orange)">Sound Design</span>
-                <button class="schedule-notify" title="Herinnering instellen">
-                    <span class="material-icons">notifications_none</span>
-                </button>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- Start Channel CTA -->
-<section class="cta-section">
-    <div class="container">
-        <div class="cta-card">
-            <h2>Start je eigen Kanaal</h2>
-            <p>Deel je productieproces met de wereld. Stream je DAW sessies, geef tutorials of draai live DJ sets. Het enige wat je nodig hebt is je creativiteit.</p>
-            <button class="cta-btn">
-                <span class="material-icons">videocam</span>
-                Ga Live
+        <div class="chat-input-wrap">
+            <input class="chat-input" placeholder="Stuur een bericht..." id="broadcast-chat-input">
+            <button class="chat-send" onclick="sendBroadcastChat()">
+                <span class="material-icons">send</span>
             </button>
         </div>
     </div>
@@ -1286,424 +550,251 @@ body {
     DAW Platform &copy; 2026 &middot; Live Streaming &middot; Gebouwd met Web Audio API
 </footer>
 
-<!-- Channel Detail Modal -->
-<div class="modal-overlay" id="channel-modal">
-    <div class="modal-fullscreen">
-        <div class="modal-stream-area">
-            <button class="modal-close-btn" onclick="closeChannelModal()">&times;</button>
-            <div class="modal-stream-content">
-                <div class="stream-overlay" style="top:16px;left:70px">
-                    <div class="live-badge" id="modal-live-badge">
-                        <span class="pulse-dot"></span>
-                        LIVE
-                    </div>
-                    <div class="viewer-badge">
-                        <span class="material-icons">visibility</span>
-                        <span id="modal-viewers">0</span> kijkers
-                    </div>
-                </div>
-                <div class="stream-placeholder" style="min-height:auto;height:100%">
-                    <div class="fake-daw" id="modal-daw">
-                        <div class="fake-daw-header">
-                            <span class="fake-daw-dot red"></span>
-                            <span class="fake-daw-dot yellow"></span>
-                            <span class="fake-daw-dot green"></span>
-                            <span class="fake-daw-title" id="modal-daw-title">Session</span>
-                        </div>
-                        <div class="fake-daw-body">
-                            <div class="fake-daw-sidebar">
-                                <div class="fake-track-header"><span class="fake-track-color" style="background:#4a9eff"></span>Track 1</div>
-                                <div class="fake-track-header"><span class="fake-track-color" style="background:#ff4a5a"></span>Track 2</div>
-                                <div class="fake-track-header"><span class="fake-track-color" style="background:#39ff14"></span>Track 3</div>
-                                <div class="fake-track-header"><span class="fake-track-color" style="background:#ffd24a"></span>Track 4</div>
-                            </div>
-                            <div class="fake-daw-timeline">
-                                <div class="fake-playhead"></div>
-                                <div class="fake-track-row">
-                                    <div class="fake-clip" style="width:30%;background:#4a9eff"></div>
-                                    <div class="fake-clip" style="width:25%;background:#4a9eff"></div>
-                                </div>
-                                <div class="fake-track-row">
-                                    <div class="fake-clip" style="width:45%;background:#ff4a5a;margin-left:10%"></div>
-                                </div>
-                                <div class="fake-track-row">
-                                    <div class="fake-clip" style="width:20%;background:#39ff14;margin-left:20%"></div>
-                                    <div class="fake-clip" style="width:30%;background:#39ff14"></div>
-                                </div>
-                                <div class="fake-track-row">
-                                    <div class="fake-clip" style="width:35%;background:#ffd24a;margin-left:5%"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-stream-bar">
-                <div class="host-avatar" id="modal-host-avatar" style="width:36px;height:36px;font-size:14px">B</div>
-                <div style="flex:1">
-                    <div style="font-size:14px;font-weight:700;color:var(--text-bright)" id="modal-host-name">Host</div>
-                    <div style="font-size:12px;color:var(--text-dim)" id="modal-host-category">Category</div>
-                </div>
-                <button class="btn-follow" id="modal-follow-btn">
-                    <span class="material-icons">person_add</span>
-                    Volgen
-                </button>
-                <button class="btn-secondary" style="padding:8px 16px;font-size:12px;background:var(--bg-card);border-color:var(--border)">
-                    <span class="material-icons">share</span>
-                    Delen
-                </button>
-            </div>
-        </div>
-        <div class="modal-chat">
-            <div class="host-card" id="modal-host-card">
-                <!-- Filled by JS -->
-            </div>
-            <div class="chat-header">
-                <div class="chat-header-title">
-                    <span class="material-icons">chat</span>
-                    Live Chat
-                </div>
-            </div>
-            <div class="chat-messages" id="modal-chat-messages">
-                <!-- Filled by JS -->
-            </div>
-            <div class="chat-input-wrap">
-                <input class="chat-input" placeholder="Stuur een bericht..." id="modal-chat-input">
-                <button class="chat-send" onclick="sendModalChat()">
-                    <span class="material-icons">send</span>
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <script>
 // ============================================================
-// Channel Data
+// BROADCAST DISCOVERY - Poll Supabase for active broadcasts
 // ============================================================
-const channels = [
-    {
-        id: 0,
-        name: 'BeatMaker_NL',
-        host: 'Stefan van den Berg',
-        desc: 'Nederlandse beat maker gespecialiseerd in hip-hop, boom bap en lo-fi beats. Dagelijks live beat making sessions.',
-        category: 'Beats',
-        categoryFilter: 'beats',
-        isLive: true,
-        viewers: 47,
-        followers: 1240,
-        totalStreams: 89,
-        avatarBg: 'linear-gradient(135deg, #4a9eff, #39ff14)',
-        initial: 'B',
-        eqColors: ['#4a9eff', '#39ff14', '#4a9eff', '#39ff14', '#4a9eff', '#39ff14', '#4a9eff'],
-        chatMessages: [
-            { author: 'LoFiKing', text: 'Die snare is hard!', color: '#a855f7', initial: 'L' },
-            { author: 'BassHead', text: 'Kun je die 808 wat harder zetten?', color: '#4a9eff', initial: 'B' },
-            { author: 'ChillVibes', text: 'Welke DAW gebruik je?', color: '#39ff14', initial: 'C' },
-            { author: 'ProducerX', text: 'Fire beat man!', color: '#ff8a4a', initial: 'P' },
-            { author: 'DrumKit_NL', text: 'Waar haal je die samples vandaan?', color: '#ffd24a', initial: 'D' },
-            { author: 'VinylDigger', text: 'Die groove is lekker', color: '#ff4a5a', initial: 'V' },
-            { author: 'SampleKing', text: 'Kan je de hi-hats laten horen solo?', color: '#a855f7', initial: 'S' },
-            { author: 'NightOwl', text: 'Ben hier elke avond, beste stream!', color: '#4a9eff', initial: 'N' }
-        ]
-    },
-    {
-        id: 1,
-        name: 'SynthWizard',
-        host: 'Emma de Vries',
-        desc: 'Sound design tutorials met Serum, Vital en hardware synths. Van basis tot geavanceerd.',
-        category: 'Sound Design',
-        categoryFilter: 'sound-design',
-        isLive: true,
-        viewers: 23,
-        followers: 856,
-        totalStreams: 45,
-        avatarBg: 'linear-gradient(135deg, #a855f7, #ff4a5a)',
-        initial: 'S',
-        eqColors: ['#a855f7', '#ff4a5a', '#a855f7', '#ff4a5a', '#a855f7', '#ff4a5a', '#a855f7'],
-        chatMessages: [
-            { author: 'SynthNerd', text: 'Welke wavetable gebruik je nu?', color: '#4a9eff', initial: 'S' },
-            { author: 'BassLover', text: 'Die reese bass is insane', color: '#39ff14', initial: 'B' },
-            { author: 'NewProducer', text: 'Super duidelijke uitleg, bedankt!', color: '#ff8a4a', initial: 'N' },
-            { author: 'Modular_NL', text: 'Doe je ook hardware synth streams?', color: '#ffd24a', initial: 'M' },
-            { author: 'WaveFan', text: 'Kan je die preset delen?', color: '#a855f7', initial: 'W' }
-        ]
-    },
-    {
-        id: 2,
-        name: 'DJ_Amsterdam',
-        host: 'Jayden Bakker',
-        desc: 'Live DJ sets vanuit Amsterdam. Deep house, tech house en melodic techno. Elke donderdag en zaterdag.',
-        category: 'DJ Sets',
-        categoryFilter: 'dj',
-        isLive: false,
-        viewers: 0,
-        followers: 2100,
-        totalStreams: 120,
-        avatarBg: 'linear-gradient(135deg, #ff8a4a, #ffd24a)',
-        initial: 'D',
-        eqColors: ['#ff8a4a', '#ffd24a', '#ff8a4a', '#ffd24a', '#ff8a4a', '#ffd24a', '#ff8a4a'],
-        nextStream: 'Morgen 20:00',
-        chatMessages: []
-    },
-    {
-        id: 3,
-        name: 'MixMaster',
-        host: 'Thomas Jansen',
-        desc: 'Professionele mixing en mastering tips. Leer je mixen verbeteren met praktische voorbeelden.',
-        category: 'Mixing',
-        categoryFilter: 'mixing',
-        isLive: false,
-        viewers: 0,
-        followers: 1580,
-        totalStreams: 67,
-        avatarBg: 'linear-gradient(135deg, #4a9eff, #a855f7)',
-        initial: 'M',
-        eqColors: ['#4a9eff', '#a855f7', '#4a9eff', '#a855f7', '#4a9eff', '#a855f7', '#4a9eff'],
-        nextStream: 'Morgen 14:00',
-        chatMessages: []
-    }
-];
+const SUPABASE_URL = 'https://zdhwofuoefczrpkjhtjg.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkaHdvZnVvZWZjenJwa2podGpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE5NTM5NjUsImV4cCI6MjA1NzUyOTk2NX0.pMb1GBQxQLFd73FKThLbkqVR0_bADVHjlATjB4mS36g';
 
-// ============================================================
-// Render Channel Grid
-// ============================================================
-function renderChannels(filter = 'alle') {
-    const grid = document.getElementById('channel-grid');
-    const filtered = filter === 'alle' ? channels : channels.filter(c => c.categoryFilter === filter);
+let _sbClient = null;
+function getSB() {
+    if (!_sbClient) _sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    return _sbClient;
+}
 
-    grid.innerHTML = filtered.map(ch => {
-        const eqBars = ch.eqColors.map((color, i) => {
-            const minH = 10 + Math.random() * 15;
-            const maxH = 30 + Math.random() * 30;
-            const dur = (0.4 + Math.random() * 0.6).toFixed(2);
-            const animStyle = ch.isLive
-                ? `style="--min-h:${minH}px;--max-h:${maxH}px;--dur:${dur}s;background:${color}"`
-                : `style="height:${minH}px;background:${color};opacity:0.3"`;
-            return `<div class="thumb-eq-bar" ${animStyle}></div>`;
-        }).join('');
+// Track known broadcasts { code: { code, startedAt, presenceCount } }
+let knownBroadcasts = {};
+let currentChatCode = null;
+let chatChannel = null;
+let chatNickname = 'Luisteraar-' + Math.random().toString(36).substring(2, 6).toUpperCase();
 
-        return `
-            <div class="channel-card" data-category="${ch.categoryFilter}" onclick="openChannel(${ch.id})">
-                <div class="channel-thumbnail">
-                    <div class="channel-thumbnail-art">
-                        <div class="thumb-eq">${eqBars}</div>
-                    </div>
-                    <div class="channel-status-badge ${ch.isLive ? 'live' : 'offline'}">
-                        ${ch.isLive ? '<span class="pulse-dot"></span>LIVE' : 'Offline'}
-                    </div>
-                    ${ch.isLive
-                        ? `<div class="channel-viewers"><span class="material-icons">visibility</span>${ch.viewers}</div>`
-                        : ch.nextStream
-                            ? `<div class="channel-viewers"><span class="material-icons">schedule</span>${ch.nextStream}</div>`
-                            : ''
-                    }
-                </div>
-                <div class="channel-info">
-                    <div class="channel-info-top">
-                        <div class="channel-avatar" style="background:${ch.avatarBg}">${ch.initial}</div>
-                        <div>
-                            <div class="channel-name">${ch.name}</div>
-                            <div class="channel-host">${ch.host}</div>
-                        </div>
-                    </div>
-                    <div class="channel-category">${ch.category}</div>
-                </div>
+// ---- Render broadcast grid ----
+function renderBroadcastGrid() {
+    const grid = document.getElementById('broadcast-grid');
+    const codes = Object.keys(knownBroadcasts);
+
+    let html = '';
+
+    if (codes.length === 0) {
+        html += `
+            <div class="broadcast-empty">
+                <span class="material-icons">wifi_tethering_off</span>
+                <p>Geen actieve broadcasts</p>
+                <span class="sub">Start een broadcast vanuit de DJ App, of voer een code in hierboven</span>
             </div>
         `;
-    }).join('');
-}
-
-function filterChannels(category, el) {
-    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-    el.classList.add('active');
-    renderChannels(category);
-}
-
-// Initial render
-renderChannels();
-
-// ============================================================
-// Featured Chat
-// ============================================================
-function renderFeaturedChat() {
-    const chatEl = document.getElementById('featured-chat');
-    const msgs = channels[0].chatMessages;
-    chatEl.innerHTML = msgs.map(m => `
-        <div class="chat-msg">
-            <div class="chat-avatar" style="background:${m.color}">${m.initial}</div>
-            <div class="chat-msg-body">
-                <div class="chat-msg-author" style="color:${m.color}">${m.author}</div>
-                <div class="chat-msg-text">${m.text}</div>
-            </div>
-        </div>
-    `).join('');
-    chatEl.scrollTop = chatEl.scrollHeight;
-}
-renderFeaturedChat();
-
-function sendChat() {
-    const input = document.getElementById('chat-input');
-    const text = input.value.trim();
-    if (!text) return;
-
-    const chatEl = document.getElementById('featured-chat');
-    chatEl.insertAdjacentHTML('beforeend', `
-        <div class="chat-msg">
-            <div class="chat-avatar" style="background:var(--green)">J</div>
-            <div class="chat-msg-body">
-                <div class="chat-msg-author" style="color:var(--green)">Jij</div>
-                <div class="chat-msg-text">${text}</div>
-            </div>
-        </div>
-    `);
-    chatEl.scrollTop = chatEl.scrollHeight;
-    input.value = '';
-}
-
-// ============================================================
-// Simulated incoming chat messages
-// ============================================================
-const autoMessages = [
-    { author: 'BeatsForDays', text: 'Wat een flow!', color: '#ff4a5a', initial: 'B' },
-    { author: 'NovaBeat', text: 'Welk tempo is dit?', color: '#4a9eff', initial: 'N' },
-    { author: 'CrateDigger', text: 'Die sample is goud', color: '#ffd24a', initial: 'C' },
-    { author: 'Vinyl_NL', text: 'Lekker bezig!', color: '#39ff14', initial: 'V' },
-    { author: 'StudioRat', text: 'Kan je de low end checken?', color: '#a855f7', initial: 'S' },
-    { author: 'BoomBap020', text: 'Klassiek geluid dit', color: '#ff8a4a', initial: 'B' },
-];
-let autoMsgIndex = 0;
-
-setInterval(() => {
-    const chatEl = document.getElementById('featured-chat');
-    if (!chatEl) return;
-    const msg = autoMessages[autoMsgIndex % autoMessages.length];
-    chatEl.insertAdjacentHTML('beforeend', `
-        <div class="chat-msg">
-            <div class="chat-avatar" style="background:${msg.color}">${msg.initial}</div>
-            <div class="chat-msg-body">
-                <div class="chat-msg-author" style="color:${msg.color}">${msg.author}</div>
-                <div class="chat-msg-text">${msg.text}</div>
-            </div>
-        </div>
-    `);
-    chatEl.scrollTop = chatEl.scrollHeight;
-    autoMsgIndex++;
-
-    // Keep chat from growing too large
-    while (chatEl.children.length > 30) {
-        chatEl.removeChild(chatEl.firstChild);
-    }
-}, 5000 + Math.random() * 3000);
-
-// ============================================================
-// Channel Detail Modal
-// ============================================================
-function openChannel(id) {
-    const ch = channels[id];
-    if (!ch) return;
-
-    const modal = document.getElementById('channel-modal');
-
-    // Update badges
-    const liveBadge = document.getElementById('modal-live-badge');
-    if (ch.isLive) {
-        liveBadge.innerHTML = '<span class="pulse-dot"></span>LIVE';
-        liveBadge.style.background = 'rgba(255, 74, 90, 0.9)';
     } else {
-        liveBadge.innerHTML = 'OFFLINE';
-        liveBadge.style.background = 'rgba(139, 148, 158, 0.6)';
+        codes.forEach(code => {
+            const bc = knownBroadcasts[code];
+            const colors = ['#4a9eff', '#a855f7', '#ff4a5a', '#39ff14', '#ff8a4a', '#ffd24a'];
+            const color = colors[code.charCodeAt(0) % colors.length];
+            const isConnected = currentChatCode === code;
+            html += `
+                <div class="broadcast-card">
+                    <div class="broadcast-card-header">
+                        <div class="broadcast-card-icon" style="background:${color}">
+                            <span class="material-icons">headphones</span>
+                        </div>
+                        <div class="broadcast-card-info">
+                            <div class="broadcast-card-name">Broadcast ${code}</div>
+                            <div class="broadcast-card-meta">Code: ${code}</div>
+                        </div>
+                        <div class="broadcast-card-live">
+                            <span class="pulse-dot"></span>
+                            LIVE
+                        </div>
+                    </div>
+                    <div class="broadcast-card-body">
+                        <button class="broadcast-listen-btn" onclick="listenToBroadcast('${code}')" ${isConnected ? 'disabled style="opacity:0.5;cursor:default"' : ''}>
+                            <span class="material-icons">${isConnected ? 'check_circle' : 'headphones'}</span>
+                            ${isConnected ? 'Verbonden' : 'Luister mee'}
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
     }
 
-    document.getElementById('modal-viewers').textContent = ch.viewers;
-    document.getElementById('modal-daw-title').textContent = `${ch.name} - Live Session`;
-    document.getElementById('modal-host-name').textContent = ch.name;
-    document.getElementById('modal-host-category').textContent = `${ch.category} ${ch.isLive ? '- Nu live' : '- Offline'}`;
+    // Always show "Start broadcast" card
+    html += `
+        <a href="dj.html" class="broadcast-card broadcast-card-start">
+            <span class="material-icons">podcasts</span>
+            <h3>Start je eigen broadcast</h3>
+            <p>Open de DJ App en begin met uitzenden</p>
+        </a>
+    `;
 
-    const avatar = document.getElementById('modal-host-avatar');
-    avatar.style.background = ch.avatarBg;
-    avatar.textContent = ch.initial;
+    grid.innerHTML = html;
+}
 
-    // Host card
-    document.getElementById('modal-host-card').innerHTML = `
-        <div class="host-card-avatar" style="background:${ch.avatarBg}">${ch.initial}</div>
-        <div class="host-card-info">
-            <div class="host-card-name">${ch.name}</div>
-            <div class="host-card-desc">${ch.desc}</div>
-            <div class="host-card-stats">
-                <div class="host-card-stat">
-                    <span class="material-icons">people</span>
-                    ${ch.followers} volgers
-                </div>
-                <div class="host-card-stat">
-                    <span class="material-icons">live_tv</span>
-                    ${ch.totalStreams} streams
-                </div>
+// ---- Discover broadcasts via Supabase Realtime presence ----
+// We subscribe to a discovery channel where broadcasters announce themselves
+let discoveryChannel = null;
+
+function startBroadcastDiscovery() {
+    const sb = getSB();
+    discoveryChannel = sb.channel('broadcast-discovery', {
+        config: { broadcast: { self: false } }
+    });
+
+    // Listen for broadcaster announcements
+    discoveryChannel.on('broadcast', { event: 'announce' }, (payload) => {
+        const code = payload.payload?.code;
+        if (code && !knownBroadcasts[code]) {
+            knownBroadcasts[code] = { code, startedAt: Date.now() };
+            renderBroadcastGrid();
+        }
+    });
+
+    // Listen for broadcaster sign-off
+    discoveryChannel.on('broadcast', { event: 'signoff' }, (payload) => {
+        const code = payload.payload?.code;
+        if (code && knownBroadcasts[code]) {
+            delete knownBroadcasts[code];
+            if (currentChatCode === code) leaveBroadcastChat();
+            renderBroadcastGrid();
+        }
+    });
+
+    discoveryChannel.subscribe();
+
+    // Also try to detect active broadcasts by pinging known codes
+    // Broadcasters periodically send announces, so we will pick them up
+}
+
+// ---- Poll: try joining broadcast channels to see if active ----
+// Fallback: check if a broadcast channel has activity
+async function probeBroadcast(code) {
+    return new Promise((resolve) => {
+        const sb = getSB();
+        const ch = sb.channel(`broadcast-${code}`, { config: { broadcast: { self: false } } });
+        let found = false;
+
+        ch.on('broadcast', { event: '*' }, () => {
+            if (!found) {
+                found = true;
+                knownBroadcasts[code] = { code, startedAt: Date.now() };
+                renderBroadcastGrid();
+            }
+        });
+
+        ch.subscribe();
+
+        // Wait a short time then clean up
+        setTimeout(() => {
+            if (!found) ch.unsubscribe();
+            resolve(found);
+        }, 3000);
+    });
+}
+
+// ---- Listen to broadcast (connects WebRTC via existing listener code) ----
+function listenToBroadcast(code) {
+    // Fill in the listen code and trigger connection
+    const input = document.getElementById('listen-code');
+    if (input) {
+        input.value = code;
+        if (typeof connectToBroadcast === 'function') {
+            connectToBroadcast();
+        }
+    }
+    // Also open chat for this broadcast
+    joinBroadcastChat(code);
+}
+
+// ---- Broadcast Chat (Supabase Realtime) ----
+function joinBroadcastChat(code) {
+    if (currentChatCode === code) return;
+    if (chatChannel) {
+        chatChannel.unsubscribe();
+        chatChannel = null;
+    }
+
+    currentChatCode = code;
+    const sb = getSB();
+    chatChannel = sb.channel(`broadcast-chat-${code}`, {
+        config: { broadcast: { self: true } }
+    });
+
+    chatChannel.on('broadcast', { event: 'message' }, (payload) => {
+        const msg = payload.payload;
+        if (msg) appendChatMessage(msg.nickname, msg.text, msg.color);
+    });
+
+    chatChannel.subscribe();
+
+    // Show chat section
+    document.getElementById('broadcast-chat-section').style.display = 'block';
+    document.getElementById('broadcast-chat-title').textContent = `Chat - Broadcast ${code}`;
+    document.getElementById('broadcast-chat-messages').innerHTML = `
+        <div class="chat-msg" style="justify-content:center">
+            <div class="chat-msg-body" style="text-align:center">
+                <div class="chat-msg-text" style="color:var(--accent)">Verbonden met chat van broadcast ${code}</div>
             </div>
         </div>
     `;
 
-    // Chat
-    const chatEl = document.getElementById('modal-chat-messages');
-    if (ch.chatMessages.length > 0) {
-        chatEl.innerHTML = ch.chatMessages.map(m => `
-            <div class="chat-msg">
-                <div class="chat-avatar" style="background:${m.color}">${m.initial}</div>
-                <div class="chat-msg-body">
-                    <div class="chat-msg-author" style="color:${m.color}">${m.author}</div>
-                    <div class="chat-msg-text">${m.text}</div>
-                </div>
-            </div>
-        `).join('');
-    } else {
-        chatEl.innerHTML = `
-            <div style="text-align:center;padding:40px 20px;color:var(--text-dim)">
-                <span class="material-icons" style="font-size:40px;opacity:0.3;display:block;margin-bottom:8px">chat_bubble_outline</span>
-                <div style="font-size:13px">${ch.isLive ? 'Nog geen berichten. Wees de eerste!' : 'Chat is offline. Komt terug als de stream live gaat.'}</div>
-            </div>
-        `;
+    renderBroadcastGrid();
+}
+
+function leaveBroadcastChat() {
+    if (chatChannel) {
+        chatChannel.unsubscribe();
+        chatChannel = null;
     }
-    chatEl.scrollTop = chatEl.scrollHeight;
-
-    modal.classList.add('open');
+    currentChatCode = null;
+    document.getElementById('broadcast-chat-section').style.display = 'none';
+    document.getElementById('broadcast-chat-messages').innerHTML = '';
+    renderBroadcastGrid();
 }
 
-function closeChannelModal() {
-    document.getElementById('channel-modal').classList.remove('open');
-}
-
-function sendModalChat() {
-    const input = document.getElementById('modal-chat-input');
+function sendBroadcastChat() {
+    const input = document.getElementById('broadcast-chat-input');
     const text = input.value.trim();
-    if (!text) return;
+    if (!text || !chatChannel) return;
 
-    const chatEl = document.getElementById('modal-chat-messages');
+    const colors = ['#4a9eff', '#a855f7', '#39ff14', '#ff8a4a', '#ffd24a', '#ff4a5a'];
+    const myColor = colors[chatNickname.charCodeAt(chatNickname.length - 1) % colors.length];
+
+    chatChannel.send({
+        type: 'broadcast',
+        event: 'message',
+        payload: { nickname: chatNickname, text, color: myColor }
+    });
+
+    input.value = '';
+}
+
+function appendChatMessage(nickname, text, color) {
+    const chatEl = document.getElementById('broadcast-chat-messages');
+    if (!chatEl) return;
+    const initial = nickname.charAt(0).toUpperCase();
     chatEl.insertAdjacentHTML('beforeend', `
         <div class="chat-msg">
-            <div class="chat-avatar" style="background:var(--green)">J</div>
+            <div class="chat-avatar" style="background:${color || '#4a9eff'}">${initial}</div>
             <div class="chat-msg-body">
-                <div class="chat-msg-author" style="color:var(--green)">Jij</div>
+                <div class="chat-msg-author" style="color:${color || '#4a9eff'}">${nickname}</div>
                 <div class="chat-msg-text">${text}</div>
             </div>
         </div>
     `);
     chatEl.scrollTop = chatEl.scrollHeight;
-    input.value = '';
+
+    // Keep chat manageable
+    while (chatEl.children.length > 50) {
+        chatEl.removeChild(chatEl.firstChild);
+    }
 }
 
-// Close modal on Escape
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeChannelModal();
+// Enter key for chat
+document.getElementById('broadcast-chat-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') sendBroadcastChat();
 });
 
-// Close on overlay click
-document.getElementById('channel-modal').addEventListener('click', (e) => {
-    if (e.target.classList.contains('modal-overlay')) closeChannelModal();
-});
-
-// Enter key for chat inputs
-document.getElementById('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
-document.getElementById('modal-chat-input').addEventListener('keydown', e => { if (e.key === 'Enter') sendModalChat(); });
+// ---- Init ----
+renderBroadcastGrid();
+startBroadcastDiscovery();
 
 // ============================================================
 // WEBRTC LISTENER - Verbind met een DJ broadcast
