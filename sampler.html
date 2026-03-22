@@ -4921,12 +4921,31 @@ class SamplerApp {
         const range = this._voiceRanges[p.voice];
         const stepMs = (60000 / this.bpm) / 4;
 
+        // Gebruik Speech API als beschikbaar, anders formant
+        const useSpeechAPI = !!window.speechSynthesis;
+        this._loadSpeechVoices();
+        const voices = useSpeechAPI ? (speechSynthesis.getVoices() || []) : [];
+        const selIdx = document.getElementById('speech-voice-select')?.value;
+        const voice = selIdx !== '' && selIdx !== undefined ? voices[+selIdx] : voices.find(v => v.lang.startsWith('nl')) || voices[0];
+
+        // Haal tekst op — als er woorden zijn, gebruik die; anders scat syllaben
+        const textInput = document.getElementById('vocal-text')?.value?.trim();
+        const useWords = textInput && textInput.length > 0;
+        const words = useWords ? textInput.split(/\s+/).filter(w => w.length > 0) : [];
+
         let scalePos = this._soloState?.lastNote || 0;
         let energy = 0.4;
         let energyDir = 0.015;
         let phraseLen = 3 + Math.floor(Math.random() * 5);
         let noteCount = 0;
+        let wordIdx = 0;
         let resting = false;
+
+        // Auto-record
+        if (!this.isRecording) {
+            this.toggleRecord();
+            this._autoRecording = true;
+        }
 
         const improvNext = () => {
             if (!this._vocalImprovising) return;
@@ -4942,9 +4961,14 @@ class SamplerApp {
                 return;
             }
 
-            // Scat syllabe kiezen
-            const syllable = this._scatSyllables[Math.floor(Math.random() * this._scatSyllables.length)];
-            const vowel = this._syllableToVowel(syllable);
+            // Woord of syllabe kiezen
+            let syllable;
+            if (useWords && words.length > 0) {
+                syllable = words[wordIdx % words.length];
+                wordIdx++;
+            } else {
+                syllable = this._scatSyllables[Math.floor(Math.random() * this._scatSyllables.length)];
+            }
 
             // Noot kiezen
             const jump = energy > 0.7 ? Math.floor(Math.random() * 4) - 2 : (Math.random() < 0.5 ? 1 : -1);
@@ -4953,12 +4977,31 @@ class SamplerApp {
 
             const semitones = scale[((scalePos % scale.length) + scale.length) % scale.length] + Math.floor(scalePos / scale.length) * 12;
             const midi = rootMidi + semitones;
-            const freq = this._midiToFreq(Math.max(range.low, Math.min(range.high, midi)));
             const vel = 0.4 + energy * 0.5;
 
-            // Duur varieert: korte noten bij hoge energie
-            const dur = energy > 0.7 ? stepMs / 1000 * 0.5 : stepMs / 1000 * (0.8 + Math.random() * 0.6);
-            this._singFormantNote(freq, dur, vel, vowel);
+            // Toon noot + woord
+            this._showNote(midi, syllable);
+
+            if (useSpeechAPI && voice) {
+                // Speech API: zing met gekozen stem
+                const pitchBase = p.voice === 'bass' ? 0.6 : p.voice === 'tenor' ? 0.9 : p.voice === 'alto' ? 1.0 : 1.3;
+                const pitchOffset = (semitones / 12) * 0.5;
+                const pitch = Math.max(0.3, Math.min(2.0, pitchBase + pitchOffset));
+
+                speechSynthesis.cancel();
+                const utter = new SpeechSynthesisUtterance(syllable);
+                utter.voice = voice;
+                utter.pitch = pitch;
+                utter.rate = 0.7 + (this.bpm / 300);
+                utter.volume = vel;
+                speechSynthesis.speak(utter);
+            } else {
+                // Fallback: formant synthese
+                const freq = this._midiToFreq(Math.max(range.low, Math.min(range.high, midi)));
+                const vowel = this._syllableToVowel(syllable);
+                const dur = energy > 0.7 ? stepMs / 1000 * 0.5 : stepMs / 1000 * (0.8 + Math.random() * 0.6);
+                this._singFormantNote(freq, dur, vel, vowel);
+            }
 
             noteCount++;
             // Pauze na frase
