@@ -715,6 +715,13 @@ select:focus { border-color: var(--accent); }
                 <button class="action-btn" id="btn-improvise" onclick="sampler.toggleImprovise()" style="background:var(--green-dim);border-color:var(--green-dim);color:#fff">
                     <span class="material-icons">auto_awesome</span> Improviseer
                 </button>
+                <button class="action-btn" id="btn-chaos" onclick="sampler.toggleChaos()" style="background:var(--bg-panel);border-color:var(--border);color:var(--text-dim);font-size:11px" title="Random FX per pad hit (reverse, pitch, filter, echo, stutter, half speed)">
+                    <span class="material-icons" style="font-size:14px">casino</span> Chaos
+                </button>
+                <div style="display:flex;align-items:center;gap:4px" id="chaos-slider-wrap" hidden>
+                    <input type="range" min="5" max="100" value="30" id="chaos-chance" oninput="sampler.setChaosChance(+this.value)" style="width:60px;height:4px;accent-color:var(--red)">
+                    <span style="font-size:9px;color:var(--text-dim)" id="chaos-chance-val">30%</span>
+                </div>
             </div>
         </div>
 
@@ -1001,6 +1008,9 @@ select:focus { border-color: var(--accent); }
                     <option value="rock">Rock</option>
                     <option value="afrobeat">Afrobeat</option>
                 </select>
+                <button class="action-btn" onclick="sampler.loadStyleKit()" title="Laad samples passend bij het gekozen genre op de pads">
+                    <span class="material-icons">library_music</span> Laad Kit
+                </button>
             </div>
 
             <button class="action-btn" onclick="sampler.clearPattern()">
@@ -1598,6 +1608,9 @@ class SamplerApp {
         env.connect(panner);
         panner.connect(this.fxInput);
 
+        // Chaos mode: randomly apply an effect
+        this._applyChaosEffect(source, env, panner, p, idx, velocity);
+
         source.start(now);
 
         // MIDI logging: pad index als MIDI noot (36 + idx = GM drum map), pitch offset
@@ -1945,7 +1958,8 @@ class SamplerApp {
 
         this._refreshSequencerView();
         this.selectPad(this.selectedPad);
-        document.getElementById('genre-preset').value = '';
+        // Behoud genre-preset waarde zodat improvisatie engine de stijl kan detecteren
+        document.getElementById('genre-preset').value = name;
         toast(`${name.charAt(0).toUpperCase() + name.slice(1)} pattern geladen`, 'success');
     }
 
@@ -2200,6 +2214,22 @@ class SamplerApp {
                 this.mediaRecorder.onstop = () => {
                     document.getElementById('export-btn').style.display = 'flex';
                     toast(`Opname gestopt (${this._midiLog.length} noten). Kies export formaat.`, 'success');
+
+                    // Auto-save recording to localStorage via LibraryPanel
+                    try {
+                        if (this.recordedChunks.length > 0) {
+                            const blob = new Blob(this.recordedChunks, { type: 'audio/webm' });
+                            const blobUrl = URL.createObjectURL(blob);
+                            const durationSec = (Date.now() - this._recordStartMs) / 1000;
+                            const name = `Sampler ${new Date().toLocaleString('nl-NL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}`;
+                            if (typeof LibraryPanel !== 'undefined' && LibraryPanel.saveRecording) {
+                                LibraryPanel.saveRecording(name, blobUrl, durationSec);
+                                toast(`Opname "${name}" opgeslagen in Library`, 'info');
+                            }
+                        }
+                    } catch(e) {
+                        console.warn('Auto-save opname mislukt:', e);
+                    }
                 };
                 this.mediaRecorder.start();
                 toast('Opname gestart (audio + MIDI)', 'info');
@@ -2729,6 +2759,309 @@ class SamplerApp {
         }
     }
 
+    // ---- Style-specific Sample Kit Loader ----
+    _styleKits = {
+        reggae: [
+            {pad:0, query:'kick drum deep', label:'Kick'},
+            {pad:1, query:'rimshot reggae', label:'Rimshot'},
+            {pad:2, query:'hi-hat closed', label:'Hi-Hat'},
+            {pad:3, query:'hi-hat open', label:'Open Hat'},
+            {pad:4, query:'snare side stick', label:'Side Snare'},
+            {pad:5, query:'bongo high', label:'Bongo Hi'},
+            {pad:6, query:'bongo low', label:'Bongo Lo'},
+            {pad:7, query:'shaker percussion', label:'Shaker'},
+            {pad:8, query:'conga high slap', label:'Conga Hi'},
+            {pad:9, query:'guiro scrape', label:'Guiro'},
+            {pad:10, query:'tambourine shake', label:'Tambourine'},
+            {pad:11, query:'cowbell reggae', label:'Cowbell'},
+            {pad:12, query:'bass guitar reggae', label:'Bass'},
+            {pad:13, query:'guitar skank reggae', label:'Skank'},
+            {pad:14, query:'organ bubble reggae', label:'Organ'},
+            {pad:15, query:'horn stab brass', label:'Horn'},
+        ],
+        reggae_dub: [
+            {pad:0, query:'kick drum deep dub', label:'Kick'},
+            {pad:1, query:'snare dub reggae', label:'Snare'},
+            {pad:2, query:'hi-hat closed tight', label:'Hi-Hat'},
+            {pad:3, query:'hi-hat open', label:'Open Hat'},
+            {pad:4, query:'rimshot stick', label:'Rim'},
+            {pad:5, query:'bongo hand drum', label:'Bongo'},
+            {pad:6, query:'tom low floor', label:'Tom Lo'},
+            {pad:7, query:'shaker egg', label:'Shaker'},
+            {pad:8, query:'conga slap', label:'Conga'},
+            {pad:9, query:'claves wood', label:'Claves'},
+            {pad:10, query:'tambourine hit', label:'Tamb'},
+            {pad:11, query:'spring reverb dub', label:'Spring FX'},
+            {pad:12, query:'bass sub deep dub', label:'Sub Bass'},
+            {pad:13, query:'guitar clean skank', label:'Skank'},
+            {pad:14, query:'melodica reggae', label:'Melodica'},
+            {pad:15, query:'siren dub fx', label:'Siren FX'},
+        ],
+        hiphop: [
+            {pad:0, query:'kick 808 boom', label:'808 Kick'},
+            {pad:1, query:'snare trap snappy', label:'Snare'},
+            {pad:2, query:'hi-hat trap crispy', label:'Hat'},
+            {pad:3, query:'clap hip hop', label:'Clap'},
+            {pad:4, query:'808 bass sub', label:'808 Bass'},
+            {pad:5, query:'vinyl scratch', label:'Scratch'},
+            {pad:6, query:'shaker hip hop', label:'Shaker'},
+            {pad:7, query:'fx hit reverse', label:'FX Hit'},
+            {pad:8, query:'tom low boom', label:'Tom Lo'},
+            {pad:9, query:'tom high', label:'Tom Hi'},
+            {pad:10, query:'crash cymbal', label:'Crash'},
+            {pad:11, query:'vocal chop', label:'Vox Chop'},
+            {pad:12, query:'bass 808 slide', label:'Bass Slide'},
+            {pad:13, query:'piano chord hip hop', label:'Piano'},
+            {pad:14, query:'brass stab hip hop', label:'Brass'},
+            {pad:15, query:'fx riser sweep', label:'Riser'},
+        ],
+        house: [
+            {pad:0, query:'kick house four floor', label:'Kick'},
+            {pad:1, query:'clap house', label:'Clap'},
+            {pad:2, query:'hi-hat closed house', label:'Hat Cl'},
+            {pad:3, query:'hi-hat open house', label:'Hat Op'},
+            {pad:4, query:'snare house', label:'Snare'},
+            {pad:5, query:'rimshot house', label:'Rim'},
+            {pad:6, query:'shaker house', label:'Shaker'},
+            {pad:7, query:'percussion house', label:'Perc'},
+            {pad:8, query:'tom house', label:'Tom'},
+            {pad:9, query:'conga house', label:'Conga'},
+            {pad:10, query:'cowbell house', label:'Cowbell'},
+            {pad:11, query:'crash cymbal', label:'Crash'},
+            {pad:12, query:'bass house deep', label:'Bass'},
+            {pad:13, query:'organ stab house', label:'Organ'},
+            {pad:14, query:'synth chord house', label:'Chord'},
+            {pad:15, query:'vocal house diva', label:'Vox'},
+        ],
+        rock: [
+            {pad:0, query:'kick rock drum', label:'Kick'},
+            {pad:1, query:'snare rock crack', label:'Snare'},
+            {pad:2, query:'hi-hat closed rock', label:'Hat Cl'},
+            {pad:3, query:'hi-hat open rock', label:'Hat Op'},
+            {pad:4, query:'tom high rock', label:'Tom Hi'},
+            {pad:5, query:'tom mid rack', label:'Tom Mid'},
+            {pad:6, query:'tom low floor', label:'Tom Lo'},
+            {pad:7, query:'crash cymbal rock', label:'Crash'},
+            {pad:8, query:'ride cymbal', label:'Ride'},
+            {pad:9, query:'china cymbal', label:'China'},
+            {pad:10, query:'clap snare layer', label:'Clap'},
+            {pad:11, query:'cowbell percussion', label:'Cowbell'},
+            {pad:12, query:'bass guitar rock', label:'Bass'},
+            {pad:13, query:'guitar power chord', label:'Power Chd'},
+            {pad:14, query:'guitar distortion riff', label:'Riff'},
+            {pad:15, query:'guitar feedback', label:'Feedback'},
+        ],
+        jazz: [
+            {pad:0, query:'kick jazz brush', label:'Kick'},
+            {pad:1, query:'snare brush jazz', label:'Brush Snr'},
+            {pad:2, query:'hi-hat jazz', label:'Hat'},
+            {pad:3, query:'ride cymbal jazz', label:'Ride'},
+            {pad:4, query:'snare rim click', label:'Rim'},
+            {pad:5, query:'brush swirl snare', label:'Brush Swl'},
+            {pad:6, query:'tom jazz', label:'Tom'},
+            {pad:7, query:'crash cymbal soft', label:'Crash'},
+            {pad:8, query:'finger snap', label:'Snap'},
+            {pad:9, query:'woodblock', label:'Woodblock'},
+            {pad:10, query:'triangle percussion', label:'Triangle'},
+            {pad:11, query:'shaker soft', label:'Shaker'},
+            {pad:12, query:'upright bass pizzicato', label:'Bass'},
+            {pad:13, query:'piano jazz chord', label:'Piano'},
+            {pad:14, query:'vibraphone jazz', label:'Vibes'},
+            {pad:15, query:'trumpet muted jazz', label:'Trumpet'},
+        ],
+        dnb: [
+            {pad:0, query:'kick drum bass reese', label:'Kick'},
+            {pad:1, query:'snare breakbeat amen', label:'Snare'},
+            {pad:2, query:'hi-hat fast jungle', label:'Hat'},
+            {pad:3, query:'hi-hat open breakbeat', label:'Open Hat'},
+            {pad:4, query:'snare ghost tight', label:'Ghost Snr'},
+            {pad:5, query:'ride cymbal fast', label:'Ride'},
+            {pad:6, query:'crash cymbal', label:'Crash'},
+            {pad:7, query:'shaker fast 16th', label:'Shaker'},
+            {pad:8, query:'tom break fill', label:'Tom'},
+            {pad:9, query:'percussion hit', label:'Perc'},
+            {pad:10, query:'clap breakbeat', label:'Clap'},
+            {pad:11, query:'fx riser sweep', label:'Riser'},
+            {pad:12, query:'bass reese sub', label:'Reese'},
+            {pad:13, query:'bass wobble dubstep', label:'Wobble'},
+            {pad:14, query:'synth stab', label:'Stab'},
+            {pad:15, query:'vocal chop break', label:'Vox'},
+        ],
+        trap: [
+            {pad:0, query:'kick 808 trap hard', label:'808 Kick'},
+            {pad:1, query:'snare trap', label:'Snare'},
+            {pad:2, query:'hi-hat trap roll', label:'Hat'},
+            {pad:3, query:'hi-hat open trap', label:'Open Hat'},
+            {pad:4, query:'clap trap', label:'Clap'},
+            {pad:5, query:'808 bass glide', label:'808 Bass'},
+            {pad:6, query:'percussion trap', label:'Perc'},
+            {pad:7, query:'fx reverse cymbal', label:'Rev Cym'},
+            {pad:8, query:'tom 808', label:'808 Tom'},
+            {pad:9, query:'snap finger', label:'Snap'},
+            {pad:10, query:'crash cymbal', label:'Crash'},
+            {pad:11, query:'vocal tag chant', label:'Tag'},
+            {pad:12, query:'synth bell trap', label:'Bell'},
+            {pad:13, query:'flute melody trap', label:'Flute'},
+            {pad:14, query:'guitar dark trap', label:'Guitar'},
+            {pad:15, query:'fx siren trap', label:'Siren'},
+        ],
+        bossa: [
+            {pad:0, query:'kick bossa nova', label:'Kick'},
+            {pad:1, query:'snare brush bossa', label:'Brush'},
+            {pad:2, query:'hi-hat bossa', label:'Hat'},
+            {pad:3, query:'ride cymbal bossa', label:'Ride'},
+            {pad:4, query:'rim click bossa', label:'Rim'},
+            {pad:5, query:'shaker bossa nova', label:'Shaker'},
+            {pad:6, query:'surdo drum', label:'Surdo'},
+            {pad:7, query:'agogo bell', label:'Agogo'},
+            {pad:8, query:'cuica drum', label:'Cuica'},
+            {pad:9, query:'pandeiro tambourine', label:'Pandeiro'},
+            {pad:10, query:'triangle samba', label:'Triangle'},
+            {pad:11, query:'cabasa', label:'Cabasa'},
+            {pad:12, query:'bass nylon bossa', label:'Bass'},
+            {pad:13, query:'guitar nylon bossa', label:'Guitar'},
+            {pad:14, query:'piano bossa chord', label:'Piano'},
+            {pad:15, query:'flute bossa melody', label:'Flute'},
+        ],
+        funk: [
+            {pad:0, query:'kick funk tight', label:'Kick'},
+            {pad:1, query:'snare funk ghost', label:'Snare'},
+            {pad:2, query:'hi-hat funk 16th', label:'Hat'},
+            {pad:3, query:'hi-hat open funk', label:'Open Hat'},
+            {pad:4, query:'clap funk', label:'Clap'},
+            {pad:5, query:'rimshot funk', label:'Rim'},
+            {pad:6, query:'tom funk', label:'Tom'},
+            {pad:7, query:'conga slap funk', label:'Conga'},
+            {pad:8, query:'cowbell funk', label:'Cowbell'},
+            {pad:9, query:'tambourine funk', label:'Tamb'},
+            {pad:10, query:'shaker funk', label:'Shaker'},
+            {pad:11, query:'crash cymbal', label:'Crash'},
+            {pad:12, query:'bass slap funk', label:'Slap Bass'},
+            {pad:13, query:'guitar funk wah', label:'Wah Gtr'},
+            {pad:14, query:'clavinet funk', label:'Clav'},
+            {pad:15, query:'horn stab funk', label:'Horn'},
+        ],
+        afrobeat: [
+            {pad:0, query:'kick afrobeat', label:'Kick'},
+            {pad:1, query:'snare afrobeat', label:'Snare'},
+            {pad:2, query:'hi-hat afro', label:'Hat'},
+            {pad:3, query:'shekere shaker african', label:'Shekere'},
+            {pad:4, query:'clave african', label:'Clave'},
+            {pad:5, query:'bell agogo african', label:'Bell'},
+            {pad:6, query:'djembe african', label:'Djembe'},
+            {pad:7, query:'talking drum', label:'Talk Drum'},
+            {pad:8, query:'conga african slap', label:'Conga'},
+            {pad:9, query:'bongo african', label:'Bongo'},
+            {pad:10, query:'shaker african', label:'Shaker'},
+            {pad:11, query:'cowbell', label:'Cowbell'},
+            {pad:12, query:'bass afrobeat', label:'Bass'},
+            {pad:13, query:'guitar highlife african', label:'Guitar'},
+            {pad:14, query:'organ afrobeat', label:'Organ'},
+            {pad:15, query:'trumpet afrobeat horn', label:'Horn'},
+        ],
+    };
+
+    async loadStyleKit() {
+        const genre = document.getElementById('genre-preset').value;
+        if (!genre) { toast('Kies eerst een genre preset', 'error'); return; }
+        const kit = this._styleKits[genre];
+        if (!kit) { toast(`Geen sample kit beschikbaar voor "${genre}"`, 'error'); return; }
+
+        this.initAudio();
+        const genreLabel = document.getElementById('genre-preset').selectedOptions[0]?.text || genre;
+        toast(`${genreLabel} kit laden... (${kit.length} samples)`, 'info');
+
+        // Stel pad labels in
+        kit.forEach(({pad, label}) => {
+            if (pad < 16) {
+                this.pads[pad].name = label;
+                document.getElementById(`pad-name-${pad}`).textContent = label;
+            }
+        });
+        this._updateSeqLabels();
+
+        // Laad samples parallel via Freesound API
+        let loadedCount = 0;
+        const loadPromises = kit.map(async ({pad, query, label}) => {
+            if (pad >= 16) return false;
+            try {
+                const result = await this._fetchStyleSample(query);
+                if (result) {
+                    await this._loadBuffer(pad, result.buffer, label);
+                    loadedCount++;
+                    return true;
+                }
+            } catch(e) {
+                console.warn(`Kit pad ${pad} (${label}): ${e.message}`);
+            }
+            return false;
+        });
+
+        await Promise.all(loadPromises);
+
+        if (loadedCount > 0) {
+            toast(`${loadedCount}/${kit.length} ${genreLabel} samples geladen`, 'success');
+        } else {
+            toast(`Geen samples geladen. Probeer opnieuw.`, 'error');
+        }
+    }
+
+    async _fetchStyleSample(query) {
+        // Poging 1: Freesound API
+        try {
+            const url = `https://freesound.org/apiv2/search/text/?query=${encodeURIComponent(query)}&token=${this.FREESOUND_KEY}&page_size=1&fields=id,name,previews&filter=duration:[0.1 TO 10]&sort=rating_desc`;
+
+            // Probeer proxy eerst (localhost), dan direct
+            let resp;
+            try {
+                resp = await fetch(`/api/proxy/audio?url=${encodeURIComponent(url)}`);
+                if (!resp.ok || !(resp.headers.get('content-type')||'').includes('json')) {
+                    throw new Error('proxy failed');
+                }
+            } catch(e) {
+                resp = await fetch(url);
+            }
+
+            const data = await resp.json();
+            const result = (data.results || [])[0];
+            if (result) {
+                const audioUrl = result.previews?.['preview-hq-mp3'] || result.previews?.['preview-lq-mp3'];
+                if (audioUrl) {
+                    let audioResp;
+                    try {
+                        audioResp = await fetch(`/api/proxy/audio?url=${encodeURIComponent(audioUrl)}`);
+                        if (!audioResp.ok) throw new Error();
+                    } catch(e) {
+                        audioResp = await fetch(audioUrl);
+                    }
+                    if (audioResp.ok) {
+                        return { buffer: await audioResp.arrayBuffer(), name: result.name };
+                    }
+                }
+            }
+        } catch(e) {
+            // Freesound mislukt, probeer Jamendo
+        }
+
+        // Poging 2: Jamendo fallback (CORS-friendly, werkt op GitHub Pages)
+        try {
+            const jamUrl = `https://api.jamendo.com/v3.0/tracks/?client_id=${this.JAMENDO_ID}&format=json&limit=3&search=${encodeURIComponent(query)}&order=duration_asc`;
+            const resp = await fetch(jamUrl);
+            const data = await resp.json();
+            const track = (data.results || []).find(t => t.audio && t.duration < 60);
+            if (track) {
+                const audioResp = await fetch(track.audio);
+                if (audioResp.ok) {
+                    return { buffer: await audioResp.arrayBuffer(), name: track.name };
+                }
+            }
+        } catch(e) {
+            // Jamendo ook mislukt
+        }
+
+        return null;
+    }
+
     // ---- Auto-Load Sample Kit ----
     // Category → Freesound zoekterm mapping
     _kitSearchTerms = {
@@ -2905,6 +3238,124 @@ class SamplerApp {
     _improvTimer = null;
     _soloState = null;
 
+    // Chaos mode: random FX per pad hit
+    _chaosMode = false;
+    _chaosChance = 30; // percentage (0-100)
+
+    toggleChaos() {
+        this._chaosMode = !this._chaosMode;
+        const btn = document.getElementById('btn-chaos');
+        const wrap = document.getElementById('chaos-slider-wrap');
+        if (this._chaosMode) {
+            btn.style.background = 'var(--red)';
+            btn.style.borderColor = 'var(--red)';
+            btn.style.color = '#fff';
+            wrap.hidden = false;
+            toast(`Chaos mode AAN (${this._chaosChance}% kans)`, 'success');
+        } else {
+            btn.style.background = 'var(--bg-panel)';
+            btn.style.borderColor = 'var(--border)';
+            btn.style.color = 'var(--text-dim)';
+            wrap.hidden = true;
+            toast('Chaos mode UIT', 'info');
+        }
+    }
+
+    setChaosChance(val) {
+        this._chaosChance = val;
+        document.getElementById('chaos-chance-val').textContent = val + '%';
+    }
+
+    // Apply a random chaos effect to a pad trigger.
+    // Called from triggerPad when chaos mode is active.
+    // Returns modified { source, env, panner } or applies effect inline.
+    _applyChaosEffect(source, env, panner, p, idx, velocity) {
+        if (!this._chaosMode) return;
+        if (Math.random() * 100 > this._chaosChance) return;
+
+        const ctx = this.audioCtx;
+        const now = ctx.currentTime;
+        const effects = ['reverse', 'pitch', 'filter', 'echo', 'halfspeed', 'stutter'];
+        const fx = effects[Math.floor(Math.random() * effects.length)];
+
+        switch (fx) {
+            case 'reverse': {
+                // Swap buffer to reverse version
+                if (p.reverseBuffer) {
+                    source.buffer = p.reverse ? p.buffer : p.reverseBuffer;
+                } else if (p.buffer) {
+                    // Create reverse buffer on-the-fly if not cached
+                    this._createReverseBuffer(idx);
+                    if (this.pads[idx].reverseBuffer) {
+                        source.buffer = p.reverse ? p.buffer : this.pads[idx].reverseBuffer;
+                    }
+                }
+                break;
+            }
+            case 'pitch': {
+                // Random playback rate between 0.5x and 2x
+                const rate = 0.5 + Math.random() * 1.5;
+                source.playbackRate.value = rate;
+                break;
+            }
+            case 'filter': {
+                // Quick lowpass or highpass sweep
+                const filter = ctx.createBiquadFilter();
+                filter.type = Math.random() > 0.5 ? 'lowpass' : 'highpass';
+                const startFreq = filter.type === 'lowpass' ? 8000 : 200;
+                const endFreq = filter.type === 'lowpass' ? 400 : 6000;
+                filter.frequency.setValueAtTime(startFreq, now);
+                filter.frequency.exponentialRampToValueAtTime(endFreq, now + 0.3);
+                filter.Q.value = 4 + Math.random() * 8;
+                // Insert filter between env and panner
+                env.disconnect();
+                env.connect(filter);
+                filter.connect(panner);
+                break;
+            }
+            case 'echo': {
+                // Short delay repeat
+                const delay = ctx.createDelay(1);
+                delay.delayTime.value = 0.08 + Math.random() * 0.15;
+                const fb = ctx.createGain();
+                fb.gain.value = 0.35 + Math.random() * 0.3;
+                const echoGain = ctx.createGain();
+                echoGain.gain.value = 0.6;
+                panner.connect(delay);
+                delay.connect(fb);
+                fb.connect(delay);
+                delay.connect(echoGain);
+                echoGain.connect(this.fxInput);
+                // Auto-cleanup: fade out echo after 0.8s
+                echoGain.gain.setValueAtTime(0.6, now + 0.6);
+                echoGain.gain.linearRampToValueAtTime(0, now + 1.2);
+                break;
+            }
+            case 'halfspeed': {
+                source.playbackRate.value = 0.5;
+                break;
+            }
+            case 'stutter': {
+                // Rapidly retrigger 2-4 times
+                const count = 2 + Math.floor(Math.random() * 3);
+                const interval = 0.06 + Math.random() * 0.06;
+                for (let i = 1; i < count; i++) {
+                    const stSrc = ctx.createBufferSource();
+                    stSrc.buffer = source.buffer;
+                    stSrc.playbackRate.value = source.playbackRate.value;
+                    const stGain = ctx.createGain();
+                    const vol = velocity * p.volume * (1 - i * 0.15);
+                    stGain.gain.setValueAtTime(vol > 0 ? vol : 0.1, now + i * interval);
+                    stSrc.connect(stGain);
+                    stGain.connect(panner);
+                    stSrc.start(now + i * interval);
+                    stSrc.stop(now + i * interval + interval * 0.9);
+                }
+                break;
+            }
+        }
+    }
+
     // Toonladders voor melodische improvisatie
     _melScales = {
         major:      [0,2,4,5,7,9,11],
@@ -3002,8 +3453,13 @@ class SamplerApp {
             strings: 'minor', synth: 'mixolydian', vocal: 'pentatonic'
         };
 
+        // Detecteer genre preset voor stijl-specifiek drumgedrag
+        const genreEl = document.getElementById('genre-preset');
+        const genreStyle = genreEl ? genreEl.value : '';
+
         this._soloState = {
             loaded, padMap, mode,
+            genreStyle, // reggae, hiphop, house, jazz, rock, etc.
             energy: 0.3,
             energyDir: 0.02,
             phase: 'groove',
@@ -3104,7 +3560,12 @@ class SamplerApp {
             }
         };
 
-        // ---- FASE-GEBASEERD GEDRAG ----
+        // ---- STIJL-SPECIFIEKE GROOVE OF DEFAULT ----
+        // Als een genre is geselecteerd, gebruik stijl-specifieke patronen
+        const styleHandled = this._runStyleGroove(s, hit);
+
+        if (!styleHandled) {
+        // ---- FASE-GEBASEERD GEDRAG (default/generiek) ----
         switch (s.phase) {
             case 'groove': {
                 // Basis groove met ghost notes
@@ -3189,6 +3650,7 @@ class SamplerApp {
                 break;
             }
         }
+        } // end !styleHandled
 
         // Volgende stap
         let nextMs = stepMs;
@@ -3199,6 +3661,468 @@ class SamplerApp {
         nextMs *= 0.95 + Math.random() * 0.1;
 
         this._improvTimer = setTimeout(() => this._runSolo(), nextMs);
+    }
+
+    // ---- STIJL-SPECIFIEKE DRUM GROOVES ----
+    // Retourneert true als een stijl-specifiek patroon is afgehandeld
+    _runStyleGroove(s, hit) {
+        if (!s.genreStyle) return false;
+
+        const style = s.genreStyle;
+        const b = s.beat; // 0-15, elke beat = 16th note
+
+        switch (style) {
+            // ========== REGGAE: One-drop groove ==========
+            // Kick + snare ALLEEN op beat 3 (step 8), NIET op beat 1
+            // Hi-hat: offbeat (steps 2,6,10,14)
+            // Rimshot: beats 2 en 4 (steps 4, 12) met ghost notes
+            // Skank: syncopated, sparse
+            case 'reggae':
+            case 'reggae_dub': {
+                switch (s.phase) {
+                    case 'groove':
+                    case 'buildup': {
+                        // ONE-DROP: kick + snare samen op beat 3 (step 8)
+                        if (b === 8) { hit('kick', 1); hit('snare', 0.9); }
+                        // Hi-hat offbeat: steps 2, 6, 10, 14
+                        if (b === 2 || b === 6 || b === 10 || b === 14) {
+                            hit('hihat', 0.5 + Math.random() * 0.2);
+                        }
+                        // Rimshot op beats 2 en 4 (steps 4, 12)
+                        if (b === 4) hit('rim', 0.8 + Math.random() * 0.1);
+                        if (b === 12) hit('rim', 0.85 + Math.random() * 0.1);
+                        // Ghost rim notes
+                        if ((b === 2 || b === 10) && Math.random() < 0.3) hit('rim', 0.2 + Math.random() * 0.15);
+                        // Skank guitar feel: syncopated sparse hits
+                        if ((b === 2 || b === 6 || b === 10 || b === 14) && Math.random() < 0.25) {
+                            hit('other', 0.3 + Math.random() * 0.2);
+                        }
+                        // Percussion: occasional shaker/tambourine
+                        if (Math.random() < 0.12) hit('perc', 0.15 + Math.random() * 0.15);
+                        // Dub variant: extra space, occasional spring reverb feel
+                        if (style === 'reggae_dub' && b === 0 && Math.random() < 0.15) {
+                            hit('perc', 0.2);
+                        }
+                        // Buildup: lichte verdichting
+                        if (s.phase === 'buildup' && s.phaseBar >= 2) {
+                            if (b % 4 === 0 && Math.random() < 0.3) hit('perc', 0.3 + Math.random() * 0.2);
+                            if (s.phaseBar === s.phaseBars - 1 && b >= 12) hit('rim', 0.4 + (b-12)/4 * 0.4);
+                        }
+                        break;
+                    }
+                    case 'solo': {
+                        // Reggae fill: toms, rim rolls, maar behoud one-drop feel
+                        if (b === 8) { hit('kick', 0.9); hit('snare', 0.8); }
+                        if (b === 2 || b === 6 || b === 10 || b === 14) hit('hihat', 0.4);
+                        // Fill elements
+                        if (Math.random() < 0.35) {
+                            const roles = ['tom','rim','perc','snare'];
+                            hit(roles[Math.floor(Math.random() * roles.length)], 0.3 + Math.random() * 0.5);
+                        }
+                        break;
+                    }
+                    case 'climax': {
+                        // Energieker maar nog steeds reggae feel
+                        if (b === 8) { hit('kick', 1); hit('snare', 1); hit('crash', 0.7); }
+                        if (b === 2 || b === 6 || b === 10 || b === 14) hit('hihat', 0.6);
+                        if (b === 4 || b === 12) hit('rim', 1);
+                        if (Math.random() < 0.3) hit('perc', 0.4 + Math.random() * 0.3);
+                        if (b === 0) hit('crash', 0.8);
+                        break;
+                    }
+                    case 'breakdown': {
+                        // Minimaal: alleen rimshot ghosting en occasionele kick
+                        if (b === 8 && Math.random() < 0.6) hit('rim', 0.3);
+                        if (b === 4 && Math.random() < 0.3) hit('rim', 0.15);
+                        if (Math.random() < 0.05) hit('perc', 0.1);
+                        break;
+                    }
+                }
+                return true;
+            }
+
+            // ========== HIP-HOP: Boom-bap / trap groove ==========
+            // Hard kick on 1, snare on 2 and 4, lazy swing feel
+            // 808 bass emphasis, sparse hat patterns with rolls
+            case 'hiphop':
+            case 'trap': {
+                const isTrap = (style === 'trap');
+                switch (s.phase) {
+                    case 'groove':
+                    case 'buildup': {
+                        // Kick: beat 1 (step 0), ghost on step 6/10
+                        if (b === 0) hit('kick', 1);
+                        if (b === 6 && Math.random() < 0.5) hit('kick', 0.7);
+                        if (b === 10 && Math.random() < 0.4) hit('kick', 0.6);
+                        // Snare: beats 2 en 4 (steps 4, 12)
+                        if (b === 4 || b === 12) hit('snare', 0.95 + Math.random() * 0.05);
+                        // Clap layer on snare
+                        if ((b === 4 || b === 12) && Math.random() < 0.4) hit('clap', 0.6);
+                        // Hi-hat: trap = rapid rolls, hiphop = steady 8ths
+                        if (isTrap) {
+                            // Trap hi-hat rolls: triplets en 32nd rolls
+                            if (b % 2 === 0) hit('hihat', 0.5 + Math.random() * 0.2);
+                            if (Math.random() < 0.4) hit('hihat', 0.2 + Math.random() * 0.2); // extra rapid hats
+                            if (b % 4 === 3 && Math.random() < 0.3) hit('hihat', 0.3); // roll effect
+                        } else {
+                            // Boom-bap: 8th note hats
+                            if (b % 2 === 0) hit('hihat', 0.45 + Math.random() * 0.15);
+                            if (b % 2 === 1 && Math.random() < 0.2) hit('hihat', 0.15);
+                        }
+                        // Ghost snares
+                        if (Math.random() < 0.06) hit('snare', 0.12 + Math.random() * 0.1);
+                        // Buildup intensifier
+                        if (s.phase === 'buildup' && s.phaseBar >= 2 && b >= 8) {
+                            if (b % 2 === 0) hit('snare', 0.3 + (b-8)/8 * 0.5);
+                        }
+                        break;
+                    }
+                    case 'solo': {
+                        if (b === 0) hit('kick', 1);
+                        if (b === 4 || b === 12) hit('snare', 0.9);
+                        if (Math.random() < 0.45) {
+                            const roles = ['tom','snare','kick','clap','perc'];
+                            hit(roles[Math.floor(Math.random() * roles.length)], 0.35 + Math.random() * 0.5);
+                        }
+                        break;
+                    }
+                    case 'climax': {
+                        if (b === 0) { hit('kick', 1); hit('crash', 0.9); }
+                        if (b === 4 || b === 12) { hit('snare', 1); hit('clap', 0.8); }
+                        hit('hihat', 0.3 + Math.random() * 0.4);
+                        if (Math.random() < 0.25) hit('tom', 0.5 + Math.random() * 0.4);
+                        break;
+                    }
+                    case 'breakdown': {
+                        if (b === 0 && Math.random() < 0.4) hit('kick', 0.4);
+                        if (b === 4 && Math.random() < 0.3) hit('snare', 0.2);
+                        if (Math.random() < 0.08) hit('hihat', 0.1);
+                        break;
+                    }
+                }
+                return true;
+            }
+
+            // ========== HOUSE: Four-on-the-floor ==========
+            // Kick op elke beat (0,4,8,12), offbeat hats, clap on 2&4
+            case 'house': {
+                switch (s.phase) {
+                    case 'groove':
+                    case 'buildup': {
+                        // Four-on-the-floor kick
+                        if (b % 4 === 0) hit('kick', 0.95 + Math.random() * 0.05);
+                        // Offbeat open hats (steps 2,6,10,14)
+                        if (b === 2 || b === 6 || b === 10 || b === 14) {
+                            hit('hihat', 0.55 + Math.random() * 0.15);
+                        }
+                        // Clap on beats 2 & 4 (steps 4, 12)
+                        if (b === 4 || b === 12) hit('clap', 0.85 + Math.random() * 0.1);
+                        // Closed hat on 16ths for texture
+                        if (b % 2 === 0 && b % 4 !== 0 && Math.random() < 0.3) hit('hihat', 0.2);
+                        // Percussion: shaker, ride
+                        if (Math.random() < 0.15) hit('perc', 0.15 + Math.random() * 0.15);
+                        // Buildup: snare roll
+                        if (s.phase === 'buildup' && s.phaseBar >= 2 && b >= 8) {
+                            hit('snare', 0.3 + (b-8)/8 * 0.6);
+                        }
+                        break;
+                    }
+                    case 'solo': {
+                        if (b % 4 === 0) hit('kick', 1);
+                        if (b === 4 || b === 12) hit('clap', 0.8);
+                        if (Math.random() < 0.4) {
+                            const roles = ['tom','perc','hihat','rim','snare'];
+                            hit(roles[Math.floor(Math.random() * roles.length)], 0.3 + Math.random() * 0.5);
+                        }
+                        break;
+                    }
+                    case 'climax': {
+                        if (b % 4 === 0) hit('kick', 1);
+                        if (b === 0) hit('crash', 1);
+                        if (b === 4 || b === 12) { hit('clap', 1); hit('snare', 0.7); }
+                        if (b === 2 || b === 6 || b === 10 || b === 14) hit('hihat', 0.7);
+                        if (Math.random() < 0.3) hit('perc', 0.4 + Math.random() * 0.3);
+                        break;
+                    }
+                    case 'breakdown': {
+                        // Kick drops out, only hats and perc
+                        if (b === 2 || b === 6 || b === 10 || b === 14) {
+                            if (Math.random() < 0.5) hit('hihat', 0.2 + Math.random() * 0.15);
+                        }
+                        if (Math.random() < 0.05) hit('perc', 0.1);
+                        break;
+                    }
+                }
+                return true;
+            }
+
+            // ========== JAZZ: Swing ride + brush feel ==========
+            // Ride cymbal swing pattern, kick feathering, brush snare comping
+            case 'jazz':
+            case 'bossa': {
+                const isBossa = (style === 'bossa');
+                switch (s.phase) {
+                    case 'groove':
+                    case 'buildup': {
+                        if (isBossa) {
+                            // Bossa nova: syncopated pattern
+                            // Kick: steps 0, 6, 8, 14
+                            if (b === 0 || b === 6 || b === 8 || b === 14) hit('kick', 0.5 + Math.random() * 0.2);
+                            // Rim click: steps 4, 10
+                            if (b === 4 || b === 10) hit('rim', 0.6 + Math.random() * 0.15);
+                            // Cross-stick: steps 2, 8, 12
+                            if ((b === 2 || b === 12) && Math.random() < 0.5) hit('rim', 0.3);
+                            // Hi-hat: steady 8ths with dynamics
+                            if (b % 2 === 0) hit('hihat', 0.3 + Math.random() * 0.15);
+                            // Shaker
+                            if (Math.random() < 0.2) hit('perc', 0.15 + Math.random() * 0.1);
+                        } else {
+                            // Jazz swing: ride pattern (ding-ding-a-ding)
+                            // Ride: steps 0, 4, 6(ghost), 8, 12, 14(ghost)
+                            if (b === 0 || b === 8) hit('ride', 0.7 + Math.random() * 0.2);
+                            if (b === 4 || b === 12) hit('ride', 0.5 + Math.random() * 0.15);
+                            if (b === 6 || b === 14) hit('ride', 0.35 + Math.random() * 0.15); // swing 8th
+                            // Feathered kick: soft on beats 1 en 3
+                            if ((b === 0 || b === 8) && Math.random() < 0.6) hit('kick', 0.2 + Math.random() * 0.15);
+                            // Hi-hat: 2 en 4 (steps 4, 12) - foot pedal
+                            if (b === 4 || b === 12) hit('hihat', 0.3 + Math.random() * 0.1);
+                            // Brush/snare comping: random sparse hits
+                            if (Math.random() < 0.12) hit('snare', 0.1 + Math.random() * 0.2);
+                            // Rim clicks
+                            if (Math.random() < 0.06) hit('rim', 0.2 + Math.random() * 0.15);
+                        }
+                        break;
+                    }
+                    case 'solo': {
+                        // Trading fours feel
+                        if (b === 0 || b === 8) hit('ride', 0.6);
+                        if (Math.random() < 0.35) {
+                            const roles = isBossa ? ['rim','perc','snare','tom'] : ['snare','ride','tom','rim','crash'];
+                            hit(roles[Math.floor(Math.random() * roles.length)], 0.25 + Math.random() * 0.45);
+                        }
+                        if (Math.random() < 0.08) hit('kick', 0.15 + Math.random() * 0.15);
+                        break;
+                    }
+                    case 'climax': {
+                        // Driving swing
+                        if (b === 0) hit('crash', 0.8);
+                        if (b % 2 === 0) hit('ride', 0.5 + Math.random() * 0.3);
+                        if (b === 4 || b === 12) hit('snare', 0.7 + Math.random() * 0.2);
+                        if (Math.random() < 0.25) hit('tom', 0.3 + Math.random() * 0.4);
+                        if ((b === 0 || b === 8) && Math.random() < 0.5) hit('kick', 0.5);
+                        break;
+                    }
+                    case 'breakdown': {
+                        // Solo brushes
+                        if (b === 0 && Math.random() < 0.3) hit('ride', 0.2);
+                        if (Math.random() < 0.06) hit('snare', 0.08 + Math.random() * 0.1);
+                        break;
+                    }
+                }
+                return true;
+            }
+
+            // ========== ROCK: Driving 8th note feel ==========
+            // Kick on 1&3, snare on 2&4, driving 8th hi-hat, fills on toms
+            case 'rock': {
+                switch (s.phase) {
+                    case 'groove':
+                    case 'buildup': {
+                        // Kick: beats 1 en 3 (steps 0, 8) + variaties
+                        if (b === 0 || b === 8) hit('kick', 0.95 + Math.random() * 0.05);
+                        if (b === 6 && Math.random() < 0.35) hit('kick', 0.6); // pre-snare kick
+                        if (b === 14 && Math.random() < 0.3) hit('kick', 0.5); // pickup
+                        // Snare: beats 2 en 4 (steps 4, 12) - hard crack
+                        if (b === 4 || b === 12) hit('snare', 0.95 + Math.random() * 0.05);
+                        // Hi-hat: driving 8th notes
+                        if (b % 2 === 0) hit('hihat', 0.5 + Math.random() * 0.15);
+                        // Ghost hats between
+                        if (b % 2 === 1 && Math.random() < 0.25) hit('hihat', 0.15 + Math.random() * 0.1);
+                        // Buildup: tom rolls
+                        if (s.phase === 'buildup' && s.phaseBar >= 2 && b >= 8) {
+                            if (b % 2 === 0) hit('tom', 0.4 + (b-8)/8 * 0.5);
+                        }
+                        break;
+                    }
+                    case 'solo': {
+                        // Rock fills: toms + snare + crash
+                        if (b === 0) hit('kick', 1);
+                        if (Math.random() < 0.5) {
+                            const roles = ['tom','snare','kick','crash'];
+                            hit(roles[Math.floor(Math.random() * roles.length)], 0.5 + Math.random() * 0.5);
+                        }
+                        if (b === 4 || b === 12) hit('snare', 0.85);
+                        break;
+                    }
+                    case 'climax': {
+                        // Double-time or heavy hits
+                        if (b === 0) { hit('crash', 1); hit('kick', 1); }
+                        if (b % 4 === 0) hit('kick', 0.9);
+                        if (b === 4 || b === 12) { hit('snare', 1); hit('crash', 0.5); }
+                        if (b % 2 === 0) hit('hihat', 0.6);
+                        // Double bass feel
+                        if (b % 2 === 0 && Math.random() < 0.3) hit('kick', 0.6);
+                        break;
+                    }
+                    case 'breakdown': {
+                        // Half-time feel
+                        if (b === 0 && Math.random() < 0.6) hit('kick', 0.5);
+                        if (b === 12 && Math.random() < 0.4) hit('snare', 0.3);
+                        if (b % 4 === 0 && Math.random() < 0.2) hit('hihat', 0.15);
+                        break;
+                    }
+                }
+                return true;
+            }
+
+            // ========== DRUM & BASS: Fast breakbeat ==========
+            // 170+ BPM feel, syncopated kick, snare on 2&4, fast hats
+            case 'dnb': {
+                switch (s.phase) {
+                    case 'groove':
+                    case 'buildup': {
+                        // Kick: syncopated amen-style
+                        if (b === 0) hit('kick', 1);
+                        if (b === 5 && Math.random() < 0.6) hit('kick', 0.7);
+                        if (b === 10 && Math.random() < 0.5) hit('kick', 0.8);
+                        // Snare: beats 2 en 4
+                        if (b === 4 || b === 12) hit('snare', 0.95);
+                        // Fast hats: every 16th
+                        hit('hihat', 0.2 + Math.random() * 0.25);
+                        // Ghost snares
+                        if ((b === 2 || b === 7 || b === 11) && Math.random() < 0.3) hit('snare', 0.2);
+                        // Ride layer
+                        if (b % 4 === 0 && Math.random() < 0.3) hit('ride', 0.3);
+                        break;
+                    }
+                    case 'solo': {
+                        // Amen break fills
+                        if (b === 0) hit('kick', 1);
+                        if (b === 4 || b === 12) hit('snare', 0.9);
+                        hit('hihat', 0.15 + Math.random() * 0.2);
+                        if (Math.random() < 0.4) {
+                            const roles = ['snare','tom','kick','ride'];
+                            hit(roles[Math.floor(Math.random() * roles.length)], 0.4 + Math.random() * 0.5);
+                        }
+                        break;
+                    }
+                    case 'climax': {
+                        if (b === 0) { hit('crash', 1); hit('kick', 1); }
+                        if (b === 4 || b === 12) { hit('snare', 1); }
+                        hit('hihat', 0.35 + Math.random() * 0.3);
+                        if (Math.random() < 0.35) hit(Math.random() < 0.5 ? 'tom' : 'snare', 0.5 + Math.random() * 0.4);
+                        break;
+                    }
+                    case 'breakdown': {
+                        if (Math.random() < 0.15) hit('hihat', 0.1 + Math.random() * 0.1);
+                        if (b === 8 && Math.random() < 0.3) hit('snare', 0.2);
+                        break;
+                    }
+                }
+                return true;
+            }
+
+            // ========== FUNK: 16th note grooves ==========
+            case 'funk': {
+                switch (s.phase) {
+                    case 'groove':
+                    case 'buildup': {
+                        // Kick: syncopated funk
+                        if (b === 0) hit('kick', 1);
+                        if (b === 6 && Math.random() < 0.6) hit('kick', 0.7);
+                        if (b === 10) hit('kick', 0.85);
+                        if (b === 14 && Math.random() < 0.4) hit('kick', 0.5);
+                        // Snare: beats 2 en 4 met ghost notes
+                        if (b === 4 || b === 12) hit('snare', 0.95);
+                        // Ghost snares: funk essential
+                        if ((b === 2 || b === 6 || b === 9 || b === 14) && Math.random() < 0.5) {
+                            hit('snare', 0.15 + Math.random() * 0.15);
+                        }
+                        // Hi-hat: 16th notes with accents
+                        hit('hihat', b % 2 === 0 ? (0.4 + Math.random() * 0.2) : (0.15 + Math.random() * 0.15));
+                        // Open hat for groove
+                        if ((b === 3 || b === 11) && Math.random() < 0.3) hit('hihat', 0.6);
+                        break;
+                    }
+                    case 'solo': {
+                        if (b === 0) hit('kick', 1);
+                        if (b === 4 || b === 12) hit('snare', 0.85);
+                        if (Math.random() < 0.45) {
+                            const roles = ['snare','tom','perc','rim','hihat'];
+                            hit(roles[Math.floor(Math.random() * roles.length)], 0.3 + Math.random() * 0.5);
+                        }
+                        break;
+                    }
+                    case 'climax': {
+                        if (b === 0) { hit('crash', 0.9); hit('kick', 1); }
+                        if (b === 4 || b === 12) { hit('snare', 1); hit('clap', 0.6); }
+                        hit('hihat', 0.3 + Math.random() * 0.35);
+                        if (Math.random() < 0.2) hit('perc', 0.4 + Math.random() * 0.3);
+                        break;
+                    }
+                    case 'breakdown': {
+                        if (b === 0 && Math.random() < 0.4) hit('kick', 0.3);
+                        if (Math.random() < 0.08) hit('snare', 0.1);
+                        if (b % 4 === 0 && Math.random() < 0.2) hit('hihat', 0.12);
+                        break;
+                    }
+                }
+                return true;
+            }
+
+            // ========== AFROBEAT: Polyrhythmic feel ==========
+            case 'afrobeat': {
+                switch (s.phase) {
+                    case 'groove':
+                    case 'buildup': {
+                        // Kick: 4/4 basis met syncopatie
+                        if (b === 0 || b === 8) hit('kick', 0.9 + Math.random() * 0.1);
+                        if (b === 5 && Math.random() < 0.5) hit('kick', 0.6);
+                        if (b === 14 && Math.random() < 0.4) hit('kick', 0.5);
+                        // Snare: beats 2 en 4
+                        if (b === 4 || b === 12) hit('snare', 0.85 + Math.random() * 0.1);
+                        // Bell pattern (12/8 feel over 4/4): afrobeat essential
+                        if (b === 0 || b === 2 || b === 3 || b === 5 || b === 6 || b === 8 || b === 10 || b === 12 || b === 14) {
+                            if (Math.random() < 0.7) hit('perc', 0.35 + Math.random() * 0.25);
+                        }
+                        // Hi-hat: steady pulse
+                        if (b % 2 === 0) hit('hihat', 0.35 + Math.random() * 0.15);
+                        // Shekere/shaker: offbeats
+                        if (b % 2 === 1 && Math.random() < 0.3) hit('perc', 0.15 + Math.random() * 0.1);
+                        break;
+                    }
+                    case 'solo': {
+                        if (b === 0 || b === 8) hit('kick', 0.8);
+                        if (b === 4 || b === 12) hit('snare', 0.8);
+                        if (Math.random() < 0.45) {
+                            const roles = ['perc','tom','snare','rim'];
+                            hit(roles[Math.floor(Math.random() * roles.length)], 0.3 + Math.random() * 0.5);
+                        }
+                        break;
+                    }
+                    case 'climax': {
+                        if (b === 0) { hit('crash', 0.8); hit('kick', 1); }
+                        if (b % 4 === 0) hit('kick', 0.85);
+                        if (b === 4 || b === 12) hit('snare', 1);
+                        hit('perc', 0.25 + Math.random() * 0.3);
+                        if (b % 2 === 0) hit('hihat', 0.4);
+                        break;
+                    }
+                    case 'breakdown': {
+                        // Bell pattern only
+                        if ((b === 0 || b === 3 || b === 6 || b === 10) && Math.random() < 0.5) {
+                            hit('perc', 0.2 + Math.random() * 0.1);
+                        }
+                        if (Math.random() < 0.04) hit('kick', 0.15);
+                        break;
+                    }
+                }
+                return true;
+            }
+
+            default:
+                return false; // Geen stijl-specifiek patroon, gebruik default
+        }
     }
 
     _generateRudimentBar(state) {
