@@ -108,9 +108,9 @@ body {
 .main-layout {
     display: grid;
     grid-template-columns: 380px 1fr;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: 1fr auto;
     gap: 1px;
-    height: calc(100vh - 56px);
+    min-height: calc(100vh - 56px);
     background: var(--border);
 }
 .pad-section {
