@@ -707,6 +707,52 @@ select:focus { border-color: var(--accent); }
             </div>
         </div>
 
+        <!-- Vocal Synthesizer -->
+        <div>
+            <div class="section-header">Zang Synthesizer</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end">
+                <div style="flex:1;min-width:200px">
+                    <div class="control-label">Tekst (woorden gescheiden door spatie)</div>
+                    <input type="text" id="vocal-text" value="la la la do re mi fa sol" placeholder="Typ woorden of lettergrepen..." style="width:100%;background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-size:12px;outline:none">
+                </div>
+                <div>
+                    <div class="control-label">Toonsoort</div>
+                    <select id="vocal-key" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 8px;font-size:11px">
+                        <option value="C">C</option><option value="D">D</option><option value="E">E</option>
+                        <option value="F">F</option><option value="G">G</option><option value="A">A</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="control-label">Toonladder</div>
+                    <select id="vocal-scale" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 8px;font-size:11px">
+                        <option value="major">Major</option><option value="minor">Minor</option>
+                        <option value="pentatonic">Pentatonic</option><option value="blues">Blues</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="control-label">Stem</div>
+                    <select id="vocal-voice" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 8px;font-size:11px">
+                        <option value="soprano">Sopraan</option>
+                        <option value="alto">Alt</option>
+                        <option value="tenor" selected>Tenor</option>
+                        <option value="bass">Bas</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">
+                <button class="action-btn primary" onclick="sampler.singText()" style="font-size:11px">
+                    <span class="material-icons" style="font-size:14px">record_voice_over</span> Zing
+                </button>
+                <button class="action-btn" onclick="sampler.toggleVocalImprov()" id="btn-vocal-improv" style="font-size:11px;background:var(--orange);border-color:var(--orange);color:#fff">
+                    <span class="material-icons" style="font-size:14px">auto_awesome</span> Improviseer Zang
+                </button>
+                <button class="action-btn" onclick="sampler.stopVocal()" style="font-size:11px">
+                    <span class="material-icons" style="font-size:14px">stop</span> Stop
+                </button>
+                <span style="font-size:9px;color:var(--text-dim);align-self:center">Formant synthese + scat improvisatie</span>
+            </div>
+        </div>
+
         <!-- Volume / Pan / Pitch -->
         <div>
             <div class="control-row">
@@ -3274,6 +3320,270 @@ class SamplerApp {
             }
         }
         return new Blob([out], { type: 'audio/wav' });
+    }
+
+    // ============================================================
+    // VOCALE SYNTHESE ENGINE
+    // Formant synthese + tekst naar zang + scat improvisatie
+    // ============================================================
+    _vocalActive = false;
+    _vocalImprovising = false;
+    _vocalTimer = null;
+    _vocalNodes = [];
+
+    // Formant data voor klinkers
+    _vowels = {
+        'a': { f1: 800, f2: 1150, f3: 2800 },
+        'e': { f1: 400, f2: 2000, f3: 2800 },
+        'i': { f1: 300, f2: 2300, f3: 3000 },
+        'o': { f1: 500, f2: 700,  f3: 2500 },
+        'u': { f1: 350, f2: 600,  f3: 2400 },
+    };
+
+    // Stembereik per stemtype (MIDI noten)
+    _voiceRanges = {
+        soprano: { low: 60, high: 84 },  // C4-C6
+        alto:    { low: 53, high: 77 },   // F3-F5
+        tenor:   { low: 48, high: 72 },   // C3-C5
+        bass:    { low: 40, high: 64 },   // E2-E4
+    };
+
+    // Scat syllaben
+    _scatSyllables = ['ba','da','dee','bop','doo','bee','bi','sha','dah','wee','bah','ski','dee','doo','bap','shoo','la','na','di','ya'];
+
+    _getVocalParams() {
+        return {
+            key: document.getElementById('vocal-key')?.value || 'C',
+            scale: document.getElementById('vocal-scale')?.value || 'major',
+            voice: document.getElementById('vocal-voice')?.value || 'tenor',
+            text: document.getElementById('vocal-text')?.value || 'la la la',
+        };
+    }
+
+    _midiToFreq(midi) {
+        return 440 * Math.pow(2, (midi - 69) / 12);
+    }
+
+    _textToVowels(text) {
+        // Extract klinkers uit tekst voor formant synthese
+        return text.toLowerCase().replace(/[^aeiouy ]/g, '').split('').filter(c => c !== ' ' && this._vowels[c]);
+    }
+
+    _syllableToVowel(syllable) {
+        const s = syllable.toLowerCase();
+        for (const v of ['a','e','i','o','u']) {
+            if (s.includes(v)) return v;
+        }
+        return 'a';
+    }
+
+    _singFormantNote(freq, duration, velocity, vowelChar) {
+        this.initAudio();
+        const ctx = this.audioCtx;
+        if (!ctx) return;
+        const vowel = this._vowels[vowelChar] || this._vowels['a'];
+        const now = ctx.currentTime;
+        const end = now + duration;
+
+        // Grondtoon: sawtooth (rijke boventonen)
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.value = freq;
+
+        // Detune voor warmte
+        const osc2 = ctx.createOscillator();
+        osc2.type = 'sawtooth';
+        osc2.frequency.value = freq * 1.003;
+
+        // Vibrato
+        const vibrato = ctx.createOscillator();
+        vibrato.frequency.value = 5.5;
+        const vibratoGain = ctx.createGain();
+        vibratoGain.gain.value = freq * 0.008;
+        vibrato.connect(vibratoGain);
+        vibratoGain.connect(osc.frequency);
+        vibratoGain.connect(osc2.frequency);
+        vibrato.start(now);
+
+        // Formant filters (3 bandpass)
+        const f1 = ctx.createBiquadFilter();
+        f1.type = 'bandpass'; f1.frequency.value = vowel.f1; f1.Q.value = 8;
+        const f2 = ctx.createBiquadFilter();
+        f2.type = 'bandpass'; f2.frequency.value = vowel.f2; f2.Q.value = 10;
+        const f3 = ctx.createBiquadFilter();
+        f3.type = 'bandpass'; f3.frequency.value = vowel.f3; f3.Q.value = 12;
+
+        // Mix formanten
+        const mix = ctx.createGain();
+        mix.gain.value = velocity * 0.4;
+        const g1 = ctx.createGain(); g1.gain.value = 1.0;
+        const g2 = ctx.createGain(); g2.gain.value = 0.7;
+        const g3 = ctx.createGain(); g3.gain.value = 0.4;
+
+        // Merge oscillators
+        const oscMix = ctx.createGain();
+        oscMix.gain.value = 0.6;
+        osc.connect(oscMix);
+        osc2.connect(oscMix);
+
+        // Route door formanten
+        oscMix.connect(f1); f1.connect(g1); g1.connect(mix);
+        oscMix.connect(f2); f2.connect(g2); g2.connect(mix);
+        oscMix.connect(f3); f3.connect(g3); g3.connect(mix);
+
+        // ADSR envelope
+        const env = ctx.createGain();
+        env.gain.setValueAtTime(0, now);
+        env.gain.linearRampToValueAtTime(velocity * 0.4, now + 0.05);
+        env.gain.setValueAtTime(velocity * 0.4, end - 0.1);
+        env.gain.linearRampToValueAtTime(0, end);
+        mix.connect(env);
+        env.connect(this.fxInput);
+
+        osc.start(now); osc.stop(end + 0.1);
+        osc2.start(now); osc2.stop(end + 0.1);
+        vibrato.stop(end + 0.1);
+
+        this._vocalNodes.push(osc, osc2, vibrato);
+        osc.onended = () => {
+            this._vocalNodes = this._vocalNodes.filter(n => n !== osc && n !== osc2 && n !== vibrato);
+        };
+    }
+
+    singText() {
+        this.initAudio();
+        const p = this._getVocalParams();
+        const words = p.text.split(/\s+/).filter(w => w.length > 0);
+        if (!words.length) { toast('Typ tekst om te zingen', 'error'); return; }
+
+        const scale = this._melScales[p.scale] || this._melScales.major;
+        const noteNames = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+        const rootMidi = noteNames.indexOf(p.key) + (p.voice === 'bass' ? 48 : p.voice === 'tenor' ? 60 : p.voice === 'alto' ? 57 : 65);
+        const range = this._voiceRanges[p.voice];
+        const stepMs = (60000 / this.bpm) / 2; // 8th notes
+
+        this._vocalActive = true;
+        let wordIdx = 0;
+        let scalePos = 0;
+
+        const singNext = () => {
+            if (!this._vocalActive || wordIdx >= words.length) {
+                this._vocalActive = false;
+                return;
+            }
+            const word = words[wordIdx];
+            const vowel = this._syllableToVowel(word);
+            const semitones = scale[Math.abs(scalePos) % scale.length] + Math.floor(scalePos / scale.length) * 12;
+            const midi = rootMidi + semitones;
+            const freq = this._midiToFreq(Math.max(range.low, Math.min(range.high, midi)));
+            const dur = stepMs / 1000 * (0.8 + Math.random() * 0.4);
+            const vel = 0.6 + Math.random() * 0.3;
+
+            this._singFormantNote(freq, dur, vel, vowel);
+
+            // Melodie: stepwise motion
+            scalePos += Math.random() < 0.6 ? (Math.random() < 0.5 ? 1 : -1) : Math.floor(Math.random() * 4) - 2;
+            scalePos = Math.max(-4, Math.min(8, scalePos));
+            wordIdx++;
+
+            this._vocalTimer = setTimeout(singNext, stepMs * (0.9 + Math.random() * 0.2));
+        };
+        singNext();
+    }
+
+    toggleVocalImprov() {
+        this._vocalImprovising = !this._vocalImprovising;
+        const btn = document.getElementById('btn-vocal-improv');
+        btn.style.background = this._vocalImprovising ? 'var(--red)' : 'var(--orange)';
+
+        if (this._vocalImprovising) {
+            this.initAudio();
+            this._vocalActive = true;
+            this._runVocalImprov();
+            toast('Scat improvisatie!', 'success');
+        } else {
+            this.stopVocal();
+        }
+    }
+
+    _runVocalImprov() {
+        if (!this._vocalImprovising) return;
+        const p = this._getVocalParams();
+        const scale = this._melScales[p.scale] || this._melScales.major;
+        const noteNames = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+        const rootMidi = noteNames.indexOf(p.key) + (p.voice === 'bass' ? 48 : p.voice === 'tenor' ? 60 : p.voice === 'alto' ? 57 : 65);
+        const range = this._voiceRanges[p.voice];
+        const stepMs = (60000 / this.bpm) / 4;
+
+        let scalePos = this._soloState?.lastNote || 0;
+        let energy = 0.4;
+        let energyDir = 0.015;
+        let phraseLen = 3 + Math.floor(Math.random() * 5);
+        let noteCount = 0;
+        let resting = false;
+
+        const improvNext = () => {
+            if (!this._vocalImprovising) return;
+
+            energy += energyDir;
+            if (energy >= 1.0) { energy = 1.0; energyDir = -0.01; }
+            if (energy <= 0.2) { energy = 0.2; energyDir = 0.015; }
+
+            // Rust tussen frases
+            if (resting) {
+                resting = false;
+                this._vocalTimer = setTimeout(improvNext, stepMs * (2 + Math.random() * 4));
+                return;
+            }
+
+            // Scat syllabe kiezen
+            const syllable = this._scatSyllables[Math.floor(Math.random() * this._scatSyllables.length)];
+            const vowel = this._syllableToVowel(syllable);
+
+            // Noot kiezen
+            const jump = energy > 0.7 ? Math.floor(Math.random() * 4) - 2 : (Math.random() < 0.5 ? 1 : -1);
+            scalePos += jump;
+            scalePos = Math.max(-5, Math.min(10, scalePos));
+
+            const semitones = scale[((scalePos % scale.length) + scale.length) % scale.length] + Math.floor(scalePos / scale.length) * 12;
+            const midi = rootMidi + semitones;
+            const freq = this._midiToFreq(Math.max(range.low, Math.min(range.high, midi)));
+            const vel = 0.4 + energy * 0.5;
+
+            // Duur varieert: korte noten bij hoge energie
+            const dur = energy > 0.7 ? stepMs / 1000 * 0.5 : stepMs / 1000 * (0.8 + Math.random() * 0.6);
+            this._singFormantNote(freq, dur, vel, vowel);
+
+            noteCount++;
+            // Pauze na frase
+            if (noteCount >= phraseLen) {
+                noteCount = 0;
+                phraseLen = 3 + Math.floor(Math.random() * 6);
+                resting = true;
+            }
+
+            // Timing: sneller bij hoge energie, swing
+            let nextMs = stepMs * (0.8 + Math.random() * 0.4);
+            if (energy > 0.8) nextMs *= 0.6;
+            // Triplet feel soms
+            if (Math.random() < 0.2) nextMs *= 0.67;
+
+            this._vocalTimer = setTimeout(improvNext, nextMs);
+        };
+        improvNext();
+    }
+
+    stopVocal() {
+        this._vocalActive = false;
+        this._vocalImprovising = false;
+        if (this._vocalTimer) {
+            clearTimeout(this._vocalTimer);
+            this._vocalTimer = null;
+        }
+        this._vocalNodes.forEach(n => { try { n.stop(); } catch(e) {} });
+        this._vocalNodes = [];
+        const btn = document.getElementById('btn-vocal-improv');
+        if (btn) { btn.style.background = 'var(--orange)'; }
     }
 
     // ---- State Persistence ----
