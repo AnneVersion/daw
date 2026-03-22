@@ -101,6 +101,33 @@ PostgreSQL database `daw`, user `postgres`, pw `postgres`:
 ### Sampler categorieën (via Freesound/Jamendo/Archive)
 Kick, Snare, Hi-Hat, Clap, Bass, Gitaar, Piano, Trompet, Sax, Strings, Synth, Vocals, Vogels, Dieren, Natuur, FX, Reggae, Conga
 
+## Supabase Community Platform
+Alles wat gebruikers maken is beschikbaar voor iedereen. Geen login nodig.
+
+### Supabase tabellen
+| Tabel | Wat | Opslag | SQL |
+|-------|-----|--------|-----|
+| `community_samples` | Samples, one-shots, loops | `samples/` bucket | `sql/03_community_samples.sql` |
+| `community_tracks` | Nummers, mixes, DJ sets, opnames | `samples/tracks/` | `sql/04_supabase_community.sql` |
+| `community_patterns` | Step sequencer patterns (JSON) | — (alleen metadata) | `sql/04_supabase_community.sql` |
+| `community_presets` | Synth/FX/mixer presets (JSON) | — (alleen metadata) | `sql/04_supabase_community.sql` |
+| `community_projects` | DAW projecten (JSON) | `samples/previews/` | `sql/04_supabase_community.sql` |
+| `community_likes` | Likes per content item | — | `sql/04_supabase_community.sql` |
+
+### Storage buckets (Supabase Dashboard)
+- `samples` — community samples + tracks + previews (public)
+
+### Delen vanuit Sampler
+- **Upload Pad** — huidige pad sample → WAV → Supabase Storage + community_samples
+- **Upload Opname** — recording → .webm → Supabase Storage + community_tracks
+- **Deel Pattern** — step sequencer pattern → community_patterns (JSON)
+- **Deel FX Preset** — FX + pad settings → community_presets (JSON)
+
+### Kit loader fallback
+1. Localhost: `/api/sounds` (lokale PostgreSQL library)
+2. GitHub Pages: Jamendo API (CORS OK)
+3. Laatste fallback: Freesound API (CORS-blocked, alleen via proxy)
+
 ## Audio Scanner (maart 2026)
 - `/api/scan-audio` - Scant alle schijven (C:/Users, D:/, E:/, F:/) voor audio bestanden
 - `/api/local-audio?path=...` - Serveert lokale audio bestanden naar browser

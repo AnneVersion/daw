@@ -828,6 +828,24 @@ select:focus { border-color: var(--accent); }
                 <button onclick="sampler.browserSearch()">Zoek</button>
             </div>
             <div class="community-results" id="browser-results" style="max-height:300px"></div>
+            <!-- Community Upload / Share -->
+            <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px">
+                <div style="font-size:10px;font-weight:700;color:var(--purple);margin-bottom:6px">Delen met Community</div>
+                <div style="display:flex;gap:4px;flex-wrap:wrap">
+                    <button class="action-btn" onclick="sampler.shareSelectedPad()" style="font-size:10px">
+                        <span class="material-icons" style="font-size:13px">upload</span> Upload Pad
+                    </button>
+                    <button class="action-btn" onclick="sampler.shareRecording()" style="font-size:10px">
+                        <span class="material-icons" style="font-size:13px">mic</span> Upload Opname
+                    </button>
+                    <button class="action-btn" onclick="sampler.sharePattern()" style="font-size:10px">
+                        <span class="material-icons" style="font-size:13px">grid_on</span> Deel Pattern
+                    </button>
+                    <button class="action-btn" onclick="sampler.sharePreset()" style="font-size:10px">
+                        <span class="material-icons" style="font-size:13px">tune</span> Deel FX Preset
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- Master FX -->
@@ -2579,6 +2597,195 @@ class SamplerApp {
             clearTimeout(this._improvTimer);
             this._improvTimer = null;
         }
+    }
+
+    // ---- Community Sharing ----
+    async shareSelectedPad() {
+        const p = this.pads[this.selectedPad];
+        if (!p.buffer) { toast('Geen sample geladen op deze pad', 'error'); return; }
+        const sb = this.getSupabase();
+        if (!sb) { toast('Supabase niet beschikbaar', 'error'); return; }
+
+        const name = prompt('Naam voor de sample:', p.name);
+        if (!name) return;
+        const category = prompt('Categorie (drums, bass, guitar, keys, synth, brass, strings, vocals, fx, nature):', 'drums');
+
+        toast('Sample uploaden...', 'info');
+        try {
+            // Convert AudioBuffer to WAV
+            const wav = this._audioBufferToWav(p.buffer);
+            const fileName = `${Date.now()}_${name.replace(/[^a-z0-9]/gi, '_')}.wav`;
+            const filePath = `community/${fileName}`;
+
+            // Upload to Supabase Storage
+            const { error: uploadError } = await sb.storage.from('samples').upload(filePath, wav, {
+                contentType: 'audio/wav'
+            });
+            if (uploadError) throw uploadError;
+
+            // Insert metadata
+            const { error: dbError } = await sb.from('community_samples').insert({
+                name,
+                file_path: filePath,
+                category: category || 'overig',
+                tags: [category, 'sampler'],
+                size_bytes: wav.byteLength,
+                format: 'wav',
+                duration_ms: Math.round(p.buffer.duration * 1000),
+                uploader: 'DAW Sampler'
+            });
+            if (dbError) throw dbError;
+
+            toast(`"${name}" gedeeld met de community!`, 'success');
+        } catch(e) {
+            toast('Upload mislukt: ' + e.message, 'error');
+        }
+    }
+
+    async shareRecording() {
+        if (!this.recordedChunks?.length) {
+            toast('Geen opname beschikbaar. Neem eerst iets op met de Record knop.', 'error');
+            return;
+        }
+        const sb = this.getSupabase();
+        if (!sb) { toast('Supabase niet beschikbaar', 'error'); return; }
+
+        const title = prompt('Titel voor de opname:', `Sampler Mix ${new Date().toLocaleDateString('nl')}`);
+        if (!title) return;
+        const genre = prompt('Genre:', 'electronic');
+
+        toast('Opname uploaden...', 'info');
+        try {
+            const blob = new Blob(this.recordedChunks, { type: 'audio/webm' });
+            const fileName = `${Date.now()}_${title.replace(/[^a-z0-9]/gi, '_')}.webm`;
+            const filePath = `tracks/${fileName}`;
+
+            const { error: uploadError } = await sb.storage.from('samples').upload(filePath, blob, {
+                contentType: 'audio/webm'
+            });
+            if (uploadError) throw uploadError;
+
+            const { error: dbError } = await sb.from('community_tracks').insert({
+                title,
+                file_path: filePath,
+                genre: genre || 'electronic',
+                tags: [genre, 'sampler'],
+                format: 'webm',
+                size_bytes: blob.size,
+                source: 'sampler',
+                artist: 'DAW User'
+            });
+            if (dbError) throw dbError;
+
+            toast(`"${title}" gedeeld!`, 'success');
+        } catch(e) {
+            toast('Upload mislukt: ' + e.message, 'error');
+        }
+    }
+
+    async sharePattern() {
+        const sb = this.getSupabase();
+        if (!sb) { toast('Supabase niet beschikbaar', 'error'); return; }
+
+        const name = prompt('Naam voor het pattern:', `Pattern ${['A','B','C','D'][this.currentPattern]}`);
+        if (!name) return;
+        const genre = prompt('Genre:', 'electronic');
+
+        toast('Pattern delen...', 'info');
+        try {
+            const patternData = {
+                steps: this.patterns[this.currentPattern],
+                padNames: this.pads.map(p => p.name)
+            };
+
+            const { error } = await sb.from('community_patterns').insert({
+                name,
+                genre: genre || 'electronic',
+                tags: [genre, 'sampler'],
+                bpm: this.bpm,
+                swing: this.swing,
+                pattern_data: patternData,
+                pad_names: this.pads.map(p => p.name),
+                creator: 'DAW User'
+            });
+            if (error) throw error;
+
+            toast(`Pattern "${name}" gedeeld!`, 'success');
+        } catch(e) {
+            toast('Delen mislukt: ' + e.message, 'error');
+        }
+    }
+
+    async sharePreset() {
+        const sb = this.getSupabase();
+        if (!sb) { toast('Supabase niet beschikbaar', 'error'); return; }
+
+        const name = prompt('Naam voor de preset:', 'Mijn FX Preset');
+        if (!name) return;
+
+        toast('Preset delen...', 'info');
+        try {
+            const presetData = {
+                fx: {
+                    reverb: { on: this.fx.reverb.on, mix: this.fx.reverb.mix, decay: this.fx.reverb.decay },
+                    delay: { on: this.fx.delay.on, time: this.fx.delay.time, feedback: this.fx.delay.feedback, mix: this.fx.delay.mix },
+                    filter: { on: this.fx.filter.on, frequency: this.fx.filter.frequency, Q: this.fx.filter.Q, type: this.fx.filter.type },
+                    compressor: { on: this.fx.compressor.on, threshold: this.fx.compressor.threshold, ratio: this.fx.compressor.ratio }
+                },
+                padSettings: this.pads.map(p => ({
+                    volume: p.volume, pan: p.pan, pitch: p.pitch,
+                    chokeGroup: p.chokeGroup, attack: p.attack, decay: p.decay,
+                    sustain: p.sustain, release: p.release, mode: p.mode, reverse: p.reverse
+                }))
+            };
+
+            const { error } = await sb.from('community_presets').insert({
+                name,
+                type: 'sampler_kit',
+                tags: ['sampler', 'fx'],
+                preset_data: presetData,
+                creator: 'DAW User'
+            });
+            if (error) throw error;
+
+            toast(`Preset "${name}" gedeeld!`, 'success');
+        } catch(e) {
+            toast('Delen mislukt: ' + e.message, 'error');
+        }
+    }
+
+    // AudioBuffer → WAV converter
+    _audioBufferToWav(buffer) {
+        const numCh = buffer.numberOfChannels;
+        const rate = buffer.sampleRate;
+        const length = buffer.length * numCh * 2 + 44;
+        const out = new ArrayBuffer(length);
+        const view = new DataView(out);
+        const writeStr = (off, str) => { for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i)); };
+
+        writeStr(0, 'RIFF');
+        view.setUint32(4, length - 8, true);
+        writeStr(8, 'WAVE');
+        writeStr(12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, numCh, true);
+        view.setUint32(24, rate, true);
+        view.setUint32(28, rate * numCh * 2, true);
+        view.setUint16(32, numCh * 2, true);
+        view.setUint16(34, 16, true);
+        writeStr(36, 'data');
+        view.setUint32(40, buffer.length * numCh * 2, true);
+
+        let offset = 44;
+        for (let i = 0; i < buffer.length; i++) {
+            for (let ch = 0; ch < numCh; ch++) {
+                const sample = Math.max(-1, Math.min(1, buffer.getChannelData(ch)[i]));
+                view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+                offset += 2;
+            }
+        }
+        return new Blob([out], { type: 'audio/wav' });
     }
 
     // ---- State Persistence ----
