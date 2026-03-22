@@ -769,8 +769,8 @@ select:focus { border-color: var(--accent); }
         <div>
             <div class="section-header">Afspeelmodus</div>
             <div class="toggle-row">
-                <button class="toggle-btn active" id="btn-oneshot" onclick="sampler.setPadParam('mode','oneshot')">One-Shot</button>
-                <button class="toggle-btn loop" id="btn-loop" onclick="sampler.setPadParam('mode','loop')">Loop</button>
+                <button class="toggle-btn active" id="btn-oneshot" onclick="sampler.toggleMode('oneshot')">One-Shot</button>
+                <button class="toggle-btn loop" id="btn-loop" onclick="sampler.toggleMode('loop')">Loop</button>
                 <button class="toggle-btn reverse" id="btn-reverse" onclick="sampler.toggleReverse()">Reverse</button>
             </div>
         </div>
@@ -1202,6 +1202,13 @@ class SamplerApp {
         if (['attack','decay','sustain','release'].includes(key)) {
             this.drawADSR();
         }
+    }
+
+    toggleMode(mode) {
+        const p = this.pads[this.selectedPad];
+        // Als dezelfde mode opnieuw geklikt wordt, schakel terug naar oneshot
+        p.mode = (p.mode === mode) ? 'oneshot' : mode;
+        this.updateControls();
     }
 
     toggleReverse() {
