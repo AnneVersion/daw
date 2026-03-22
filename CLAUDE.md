@@ -4,6 +4,7 @@
 Web-based muziekproductie platform met 6 pagina's.
 Locatie: `E:\scripts\webscraper\CBSbuurt\daw\`
 GitHub: AnneVersion/daw
+GitHub Pages: https://anneversion.github.io/daw/
 
 ## Starten
 ```bash
@@ -11,135 +12,126 @@ python serve.py  # Start Flask API + static files: http://localhost:8086
 ```
 
 ## Branch-strategie
-- **main** = stabiel/productie
+- **main** = stabiel/productie + GitHub Pages
 - **develop** = dagelijkse ontwikkeling (standaard werkbranch)
 - **feature/*** = nieuwe features, maak aan vanuit develop
+- Na elke commit: push develop → merge naar main → push main
 
 ## Pagina's
 | Pagina | URL | Beschrijving |
 |--------|-----|-------------|
-| `index.html` | `/` | DAW - Multi-track timeline, mixer, recording, export |
-| `dj.html` | `/dj.html` | DJ App - Twee decks, crossfader, effects, Jamendo/Freesound streaming |
-| `editor.html` | `/editor.html` | Audio Editor - 31 effects, cut/copy/paste, spectrum, spectrogram, WAV export |
-| `contests.html` | `/contests.html` | Producer Contests - Battles, voting, leaderboard |
-| `live.html` | `/live.html` | Live Kanalen - Streaming channels, chat |
+| `index.html` | `/` | DAW Studio - Multi-track timeline, mixer, improvisatie, library |
+| `dj.html` | `/dj.html` | DJ App - Twee decks, crossfader, FX, broadcasting, muziek streaming |
+| `editor.html` | `/editor.html` | Audio Editor - 31 effects, cut/copy/paste, spectrum, WAV export |
 | `sampler.html` | `/sampler.html` | MPC Sampler - 16 pads, step sequencer, ADSR, master FX |
+| `contests.html` | `/contests.html` | Producer Contests - Battles, voting, leaderboard |
+| `live.html` | `/live.html` | Live - WebRTC luisteren, Twitch/YouTube embed, broadcast chat |
 
 ## Architectuur
-- `index.html` - DAW frontend (single-file)
-  - `AudioEngine` class - Web Audio API, scheduling, opname
-  - `TimelineRenderer` class - Canvas 2D rendering
-  - `DAWController` class - Hoofd controller, events, state management
-- `dj.html` - DJ App met dual decks, crossfader, effecten, muziek streaming
-- `editor.html` - Audio editor met 31 effects, volledige bewerkingsmogelijkheden
-- `contests.html` - Producer battles met stemmen en leaderboard
-- `live.html` - Live streaming kanalen met chat
-- `sampler.html` - MPC-style sampler met `SamplerApp` class
-  - 16 pads (4x4 grid), elk met eigen sample, ADSR, volume, pan, pitch
-  - Step sequencer (16 steps), 4 patterns (A/B/C/D), BPM, swing
-  - Choke groups, reverse, one-shot/loop modes
-  - Master FX: Reverb, Delay, Filter, Compressor
-  - Keyboard mapping: Q/W/E/R, A/S/D/F, Z/X/C/V, 1/2/3/4
-  - Drag & drop samples, PC scan, Community Samples (Supabase)
-  - Opname naar .webm, pattern opslag in localStorage
+
+### Bestanden
+- `index.html` - DAW Studio (single-file, ~10.000 regels)
+- `dj.html` - DJ App (single-file, ~3.900 regels)
+- `editor.html` - Audio Editor (single-file, ~1.200 regels)
+- `sampler.html` - MPC Sampler (single-file, ~3.800 regels)
+- `contests.html` - Producer Contests
+- `live.html` - Live Streaming + WebRTC listener
+- `audio-browser.js` - **Herbruikbare module**: sample zoeken in Freesound, Jamendo, Archive, Community, lokaal
+- `library-panel.js` - **Herbruikbare module**: library met tabs (Library, Opnames, Zoek Online), filters, categorieën
+- `dc-logo.svg` - Data Consultants logo (in alle nav bars)
 - `serve.py` - Flask server (start API + static files)
 - `api_server.py` - Flask API voor projecten en sound library
 - `freesound_import.py` - Freesound API import tool
 - `worklets/` - AudioWorklet processors (meter, gain)
-- `sql/` - PostgreSQL schema
+- `sql/` - PostgreSQL schema + migraties
 - `audio/` - Audio bestanden (gitignored)
+
+### Classes
+| Pagina | Class | Verantwoordelijkheid |
+|--------|-------|---------------------|
+| index.html | `AudioEngine` | Web Audio API, scheduling, opname |
+| index.html | `TimelineRenderer` | Canvas 2D timeline rendering |
+| index.html | `DAWController` | Hoofd controller, events, state |
+| dj.html | `DJApp` | Decks, mixer, FX, broadcast, opname |
+| sampler.html | `SamplerApp` | Pads, sequencer, ADSR, FX |
+| - | `AudioBrowser` | Multi-source sample zoeken (module) |
+| - | `LibraryPanel` | Library UI met filters (module) |
 
 ## Database
 PostgreSQL database `daw`, user `postgres`, pw `postgres`:
-- `categories` - Sound categorieen
+- `categories` - Sound categorieën
 - `sounds` - Audio metadata (tags, BPM, key, waveform peaks)
 - `projects` - DAW sessies (project_data als JSONB)
 
 ## Key Features (maart 2026)
-- **DAW**: Timeline, transport, mixer met VU meters, rotary knobs, 3-band EQ, master channel
-- **Mixer**: Drag & drop van library naar timeline met positie-gebaseerde plaatsing, ghost preview, grid snap
-- **DJ App**: Twee decks, crossfader, effecten, Jamendo/Freesound/Internet Archive muziek, audio proxy voor CORS
-- **Audio Editor**: 31 effects, cut/copy/paste, spectrum, spectrogram, WAV export
-- **Contests**: Producer battles, voting, leaderboard
-- **Live**: Streaming kanalen, chat
-- **Improvisatie-engine**: 18 toonladders, 12 progressies, muziektheorie (voice leading, motivic development, chord-scale theory, tension/resolution)
-- **Ensemble Improvisatie**: 7 instrumenten (drums, bass, gitaar, piano, lead, strings, brass) spelen samen met solo/mute per instrument
-- **Library**: Metadata filters (BPM, toonsoort, formaat, duur), categorie chips, sorteren
-- **Audio Proxy**: `/api/proxy/audio` voor CORS-vrij laden van externe audio (localhost), fallback naar directe URL (GitHub Pages)
-- **DJ SFX**: Toeter (5 types: airhorn/foghorn/sirene/laser/buzzer), witte ruis, master FX knoppen (phaser/flanger/crush/dist)
-- **DJ FX per deck**: Echo, Reverb, Flanger, Filter, Phaser, Bitcrusher, Distortion
-- **Track laden op GitHub Pages**: proxy fallback → directe URL (Jamendo/Archive werken, Freesound niet wegens CORS)
-- **DJ FX Presets**: opslaan/laden van effect combinaties (localStorage)
-- **DJ Rad van Fortuin**: random FX + EQ + genre selectie met spin animatie
-- **DJ Sampler**: upload sample, 8 pitch pads (C-C+), play via master
-- **DJ Opname**: record master output als .webm, pulserend rood tijdens opname
-- **DJ Scratch**: sleep over plaat om te scratchen (mouse + touch), -3x tot +3x rate
-- **DJ FX Presets**: opslaan/laden effect combinaties (localStorage), Reset FX knop
-- **Community Samples**: Supabase Storage + PostgreSQL, upload/download/zoek gedeelde samples
-- **Community SQL**: `sql/03_community_samples.sql` — tabel + RLS policies + storage bucket
-- **Supabase credentials**: worden gevraagd bij eerste gebruik, opgeslagen in localStorage
-- **API Keys**: Jamendo `d14314a3` in dj.html, Freesound in `.env`
-- **Synth Keyboard**: 2-octaaf piano in Synth tab, klik + drag + PC keyboard (A-L)
-- **Synth Improvisatie**: key, scale (12 soorten), style (legato/staccato/arpeggio/random/jazz/ambient), BPM, octaaf, density
-- **Synth Record**: opname naar .webm tijdens (improvisatie-)spelen
-- **DJ Browser inklapbaar**: klik op "Track Browser" balk om in/uit te klappen
-- **Sampler Sample Browser**: multi-source zoeken met aan/uit per API
-- **Sampler Drum Kit**: auto-laden van drums/percussion uit library
-- **Sampler Improvisatie**: ghost notes + fills tijdens sequencer playback
 
-## Externe Audio API's
+### Navigatie & Branding
+- **DC logo** in alle 6 pagina's navigatie (dc-logo.svg)
+- **Material Icons** per nav link (piano, radio, graphic_eq, library_music, emoji_events, live_tv)
+- **Consistent styling** met active state markering
+- **Responsieve nav** met hamburger menu (contests, live, sampler)
 
-| API | Type | Key | CORS | Proxy nodig | Beschikbaar op |
-|-----|------|-----|------|-------------|----------------|
-| **Freesound** | Samples, loops, FX, natuur, dieren | `.env` FREESOUND_API_KEY | Nee | Ja (localhost) | DJ, Sampler |
-| **Jamendo** | Volledige tracks, muziek | `d14314a3` hardcoded | Ja | Nee | DJ, Sampler |
-| **Internet Archive** | CC muziek, audio | Geen | Ja | Nee | DJ, Sampler |
-| **Free Music Archive** | CC tracks | Geen (via Archive) | Ja | Nee | DJ |
-| **Supabase Community** | Gedeelde samples | anon key in code | Ja | Nee | DJ, Sampler |
-| **Lokale bestanden** | PC audio scan | Geen | N/A | N/A | DJ, Sampler, Editor |
+### DAW Studio (index.html)
+- Timeline, transport, mixer met VU meters, rotary knobs, 3-band EQ, master channel
+- Drag & drop van library naar timeline met positie-gebaseerde plaatsing, ghost preview, grid snap
+- Library rechts: metadata filters (BPM, toonsoort, formaat, duur), categorie chips, sorteren, favorieten
+- Synth keyboard: 2-octaaf piano, klik + drag + PC keyboard (A-L)
+- Synth improvisatie: key, scale (12 soorten), style, BPM, octaaf, density
+- MIDI export: opnemen → download .mid
+- Audio opname: MediaRecorder → download .webm
 
-### Sampler categorieën (via Freesound/Jamendo/Archive)
-Kick, Snare, Hi-Hat, Clap, Bass, Gitaar, Piano, Trompet, Sax, Strings, Synth, Vocals, Vogels, Dieren, Natuur, FX, Reggae, Conga
+### DJ App (dj.html)
+- Twee decks, crossfader, 3-band EQ per deck
+- FX per deck: Echo, Reverb, Flanger, Filter, Phaser, Bitcrusher, Distortion
+- Master FX knoppen: phaser, flanger, crush, dist
+- SFX: Toeter (5 types), witte ruis
+- Scratch: sleep over plattenspeler (mouse + touch)
+- FX Presets: opslaan/laden/reset (localStorage)
+- Rad van Fortuin: random FX + EQ + genre
+- DJ Sampler: upload sample, 8 pitch pads
+- Record: master output als .webm
+- **WebRTC Broadcast**: stream master audio naar luisteraars (P2P via Supabase Realtime signaling)
+- **ON AIR bar**: broadcast code, luisteraar teller, kopieer link, stop knop
+- **Broadcast modal**: 6-letter code + deelbare link bij start
 
-## Supabase Community Platform
-Alles wat gebruikers maken is beschikbaar voor iedereen. Geen login nodig.
+### Audio Editor (editor.html)
+- Waveform display, transport, loop
+- 31 audio effecten
+- Cut/copy/paste selectie
+- Spectrum & spectrogram visualisatie
+- WAV export
+- **Browse knop**: AudioBrowser module in modal
+- **Library knop**: LibraryPanel module in modal
+- Scan PC: zoek en laad lokale audio
 
-### Supabase tabellen
-| Tabel | Wat | Opslag | SQL |
-|-------|-----|--------|-----|
-| `community_samples` | Samples, one-shots, loops | `samples/` bucket | `sql/03_community_samples.sql` |
-| `community_tracks` | Nummers, mixes, DJ sets, opnames | `samples/tracks/` | `sql/04_supabase_community.sql` |
-| `community_patterns` | Step sequencer patterns (JSON) | — (alleen metadata) | `sql/04_supabase_community.sql` |
-| `community_presets` | Synth/FX/mixer presets (JSON) | — (alleen metadata) | `sql/04_supabase_community.sql` |
-| `community_projects` | DAW projecten (JSON) | `samples/previews/` | `sql/04_supabase_community.sql` |
-| `community_likes` | Likes per content item | — | `sql/04_supabase_community.sql` |
+### Sampler (sampler.html)
+- 16 pads (4x4 grid), ADSR envelope, volume, pan, pitch per pad
+- Step sequencer: 8/16/32/64 steps, 4 patterns (A/B/C/D), BPM, swing
+- Choke groups, reverse, one-shot/loop modes
+- Keyboard mapping: Q/W/E/R, A/S/D/F, Z/X/C/V, 1/2/3/4
+- Pad context menu: opnemen (mic), geluid kiezen (file), sample browser, pad wissen
+- Genre presets: reggae, dub, hiphop, house, dnb, trap, bossa, funk, rock, afrobeat
+- Master FX: Reverb, Delay, Filter, Compressor
+- Drag & drop audiobestand op pad
+- Scratch: sleep over waveform panel
+- **Community knop**: AudioBrowser module (Freesound/Jamendo/Archive/Community)
+- **Library knop**: LibraryPanel module (lokale sounds, opnames, online zoeken)
+- Export: WebM, WAV, MIDI
+- Community delen: Upload Pad, Upload Opname, Deel Pattern, Deel FX Preset
 
-### Storage buckets (Supabase Dashboard)
-- `samples` — community samples + tracks + previews (public)
+### Live (live.html)
+- **WebRTC luisteren**: voer broadcast code in of gebruik ?listen=CODE link
+- **Twitch/YouTube embed**: plak URL → embedded player
+- **Actieve Broadcasts grid**: ontdekt echte WebRTC broadcasts via Supabase
+- **"Start je eigen broadcast"** kaart → linkt naar DJ pagina
+- **Realtime chat** per broadcast via Supabase channel
+- **Geen dummy data** — alles is echt
 
-### Delen vanuit Sampler
-- **Upload Pad** — huidige pad sample → WAV → Supabase Storage + community_samples
-- **Upload Opname** — recording → .webm → Supabase Storage + community_tracks
-- **Deel Pattern** — step sequencer pattern → community_patterns (JSON)
-- **Deel FX Preset** — FX + pad settings → community_presets (JSON)
-
-### Kit loader fallback
-1. Localhost: `/api/sounds` (lokale PostgreSQL library)
-2. GitHub Pages: Jamendo API (CORS OK)
-3. Laatste fallback: Freesound API (CORS-blocked, alleen via proxy)
-
-## Audio Scanner (maart 2026)
-- `/api/scan-audio` - Scant alle schijven (C:/Users, D:/, E:/, F:/) voor audio bestanden
-- `/api/local-audio?path=...` - Serveert lokale audio bestanden naar browser
-- 34 audio formaten ondersteund (mp3, wav, flac, midi, aac, etc.)
-- Geen limiet op resultaten, 2 minuten timeout
-- Beschikbaar op: Studio (Scan PC knop in library), DJ (BESTANDEN tab), Editor (Scan PC in toolbar)
-
-## Improvisatie Engine (index.html regels 4875-6700)
+### Improvisatie Engine (index.html)
 - **18 toonladders**: major, minor, dorian, mixolydian, pentatonic, blues, phrygian, lydian, locrian, harmonic_minor, melodic_minor, whole_tone, diminished, bebop, hungarian, japanese, minor_pent, altered
 - **12 progressies**: pop, jazz, jazz2, jazz3, blues, funk, sad, spanish, rock, neosoul, gospel, bossa
 - **Chord-Scale mapping**: welke toonladders passen bij welk akkoordtype
-- **Voice leading**: stepwise motion, avoid augmented intervals, chord tone emphasis, leading tone resolution, tritone resolution, phrase arc, register management
+- **Voice leading**: stepwise motion, chord tone emphasis, leading tone resolution, tritone resolution, phrase arc
 - **Tension/resolution**: 4-fase arc (intro→development→climax→outro)
 - **Motief development**: repeat, transpose, inversion, augmentation, diminution, sequence
 - **17 ensemble instrumenten** in 6 categorieën:
@@ -149,18 +141,102 @@ Alles wat gebruikers maken is beschikbaar voor iedereen. Geen login nodig.
   - Melodie: lead synth, fluit, saxofoon
   - Strijkers & Blazers: strings, brass
   - Vocaal: koor (formant), scat
-- **Unified panel**: Solo + Ensemble samengevoegd — vink instrumenten aan, druk play
-- **Sampler**: upload eigen sample, pitch per toets via playbackRate, improvisatie
-- **MIDI export**: opnemen tijdens improvisatie → download .mid bestand
-- **Audio opname**: MediaRecorder → download .webm bestand
-- **Rad van Fortuin**: random stijl/toonsoort/toonladder/instrumenten, geanimeerd wiel, auto-start
-- **Mixer FX**: EQ, Compressor, Reverb, Delay, Filter (LP/HP/BP/Notch), Distortion, Bitcrusher, Phaser, Flanger
-- **Formant synthese**: vocale klanken via bandpass filters (F1/F2/F3 per klinker: A/O/E/I/U)
-- **Scat vocals**: bebop scat improvisatie met syllaben (ba/da/dee/bop/doo/bee/bi/sha), voice leading, call & response
-- **Per instrument**: on/off, solo, mute, volume
-- **Style-specific**: swing, triplets, syncopation, density, ghost notes per stijl
+- **Formant synthese**: vocale klanken via bandpass filters (F1/F2/F3 per klinker)
+- **Scat vocals**: bebop scat met syllaben, voice leading, call & response
+- **Rad van Fortuin**: random stijl/toonsoort/toonladder/instrumenten
+
+### Herbruikbare Modules
+
+#### audio-browser.js (AudioBrowser)
+Multi-source sample zoeken, preview, en laden.
+```javascript
+new AudioBrowser({
+    container: document.getElementById('my-container'),
+    onSelect: (audioBuffer, name) => { /* gebruik het */ },
+    compact: false
+});
+```
+- **Bronnen**: Freesound, Jamendo, Internet Archive, Community (Supabase), Lokaal
+- **18 categorie knoppen**: Kick, Snare, Hi-Hat, Clap, Bass, Gitaar, Piano, Trompet, Sax, Strings, Synth, Vocals, Vogels, Dieren, Natuur, FX, Reggae, Conga
+- **Preview**: luister voor je laadt (5s auto-stop)
+- **Source toggles**: elke API aan/uit
+- **Geïntegreerd in**: sampler.html, editor.html
+
+#### library-panel.js (LibraryPanel)
+Lokale library met 3 tabs en filters.
+```javascript
+new LibraryPanel({
+    container: document.getElementById('my-container'),
+    onSelect: (url, name, metadata) => { /* gebruik het */ },
+    onSelectBuffer: (audioBuffer, name) => { /* voor sampler */ },
+    showFilters: true, showCategories: true, showRecordings: true
+});
+```
+- **Tab Library**: lokale sounds uit PostgreSQL (/api/sounds), filters (categorie, BPM, duur)
+- **Tab Opnames**: eigen opnames uit localStorage, beheer (verwijderen)
+- **Tab Zoek Online**: AudioBrowser module embedded
+- **Scan PC**: zoek audio op alle schijven
+- **Auto-save**: `LibraryPanel.saveRecording(name, url, duration)` vanuit elke pagina
+- **Geïntegreerd in**: editor.html, sampler.html (Studio heeft eigen ingebouwde library)
+
+## WebRTC Broadcast Systeem
+
+### Hoe het werkt
+1. **DJ** opent `dj.html` → klikt **Live** knop
+2. Master audio output wordt gestreamd via `MediaStreamDestination`
+3. **Supabase Realtime** channel `broadcast-{CODE}` voor signaling (offer/answer/ICE)
+4. **ON AIR bar** verschijnt met code, luisteraar count, stop knop
+5. **Luisteraar** opent `live.html` → voert code in of gebruikt `?listen=CODE` link
+6. WebRTC peer connection → audio stream → `<audio>` element
+7. **Chat** via Supabase Realtime channel `broadcast-chat-{CODE}`
+
+### Technisch
+- **STUN servers**: stun.l.google.com:19302, stun1.l.google.com:19302
+- **Signaling**: Supabase Realtime (gratis tier)
+- **Max luisteraars**: ~10-20 (P2P, elke luisteraar = aparte connection)
+- **Geen TURN server**: werkt alleen op zelfde netwerk of als NAT traversal lukt
+
+## Externe Audio API's
+
+| API | Type | Key | CORS | Proxy nodig | Beschikbaar op |
+|-----|------|-----|------|-------------|----------------|
+| **Freesound** | Samples, loops, FX | `.env` FREESOUND_API_KEY | Nee | Ja (localhost) | Studio, DJ, Sampler, Editor |
+| **Jamendo** | Volledige tracks | `d14314a3` hardcoded | Ja | Nee | DJ, Sampler, Editor |
+| **Internet Archive** | CC muziek, audio | Geen | Ja | Nee | DJ, Sampler, Editor |
+| **Free Music Archive** | CC tracks | Geen (via Archive) | Ja | Nee | DJ |
+| **Supabase Community** | Gedeelde samples | anon key in code | Ja | Nee | DJ, Sampler, Editor |
+| **Lokale bestanden** | PC audio scan | Geen | N/A | N/A | Alle pagina's |
+
+## Supabase Community Platform
+Alles wat gebruikers maken is beschikbaar voor iedereen. Geen login nodig.
+
+### Supabase tabellen
+| Tabel | Wat | Opslag | SQL |
+|-------|-----|--------|-----|
+| `community_samples` | Samples, one-shots, loops | `samples/` bucket | `sql/03_community_samples.sql` |
+| `community_tracks` | Nummers, mixes, DJ sets | `samples/tracks/` | `sql/04_supabase_community.sql` |
+| `community_patterns` | Step sequencer patterns (JSON) | — | `sql/04_supabase_community.sql` |
+| `community_presets` | Synth/FX/mixer presets (JSON) | — | `sql/04_supabase_community.sql` |
+| `community_projects` | DAW projecten (JSON) | `samples/previews/` | `sql/04_supabase_community.sql` |
+| `community_likes` | Likes per content item | — | `sql/04_supabase_community.sql` |
+
+### Supabase Realtime Channels
+| Channel | Gebruik | Pagina |
+|---------|---------|--------|
+| `broadcast-{CODE}` | WebRTC signaling (offer/answer/ICE) | DJ, Live |
+| `broadcast-chat-{CODE}` | Live chat tijdens broadcast | Live |
+| `broadcast-discovery` | Announce/signoff voor actieve broadcasts | Live |
+
+## Audio Scanner
+- `/api/scan-audio` - Scant alle schijven (C:/Users, D:/, E:/, F:/)
+- `/api/local-audio?path=...` - Serveert lokale audio bestanden
+- 34 audio formaten (mp3, wav, flac, midi, aac, etc.)
+- Beschikbaar op alle pagina's via LibraryPanel of direct
+
+---
 
 ## Startup Checklist
+
 Bij het opstarten van de website, controleer het volgende:
 
 ### 1. Server & API
@@ -170,28 +246,40 @@ Bij het opstarten van de website, controleer het volgende:
 - [ ] `/api/projects` retourneert JSON (200 OK)
 - [ ] `/api/sounds` retourneert JSON (200 OK)
 - [ ] `/api/categories` retourneert JSON (200 OK)
-- [ ] `/api/scan-audio?path=audio` retourneert resultaten (104+ bestanden)
+- [ ] `/api/scan-audio?path=audio` retourneert resultaten
 - [ ] `/api/local-audio?path=...` serveert audio bestand (200 OK)
 - [ ] `/api/proxy/audio?url=...` proxyt externe audio
 
-### 2. Pagina's laden (geen console errors)
-- [ ] `/` — DAW Studio: timeline, mixer, transport zichtbaar
-- [ ] `/dj.html` — DJ App: 2 decks, crossfader, browser tabs
-- [ ] `/editor.html` — Audio Editor: toolbar, waveform canvas
-- [ ] `/sampler.html` — Sampler: 16 pads, sequencer, genre preset dropdown
-- [ ] `/contests.html` — Contests: battle cards, voting UI
-- [ ] `/live.html` — Live: channel cards, chat panel
+**Test commando's:**
+```bash
+curl -s http://localhost:8086/api/sounds | python -c "import sys,json;d=json.load(sys.stdin);print(f'{len(d)} sounds')"
+curl -s http://localhost:8086/api/categories | python -c "import sys,json;d=json.load(sys.stdin);print(f'{len(d)} categories')"
+curl -s http://localhost:8086/api/scan-audio?path=audio | python -c "import sys,json;d=json.load(sys.stdin);print(f'{len(d.get(\"results\",[]))} files')"
+```
 
-### 3. Navigatie
-- [ ] Elke pagina heeft "Sampler" link in de nav bar
-- [ ] Alle 6 nav links werken en verwijzen naar de juiste pagina
-- [ ] Actieve pagina is gehighlight in de nav
+### 2. Pagina's laden (geen JS console errors)
+- [ ] `/` — Studio: timeline, mixer, transport, library zichtbaar
+- [ ] `/dj.html` — DJ: 2 decks, crossfader, Live broadcast knop, browser tabs
+- [ ] `/editor.html` — Editor: toolbar (incl. Browse + Library knoppen), waveform canvas
+- [ ] `/sampler.html` — Sampler: 16 pads, sequencer, Community + Library knoppen
+- [ ] `/contests.html` — Contests: battle cards, voting UI
+- [ ] `/live.html` — Live: broadcast luister-panel, Twitch/YouTube embed, actieve broadcasts grid
+
+**Test:** Open elke pagina in browser → F12 → Console → geen rode errors
+
+### 3. Navigatie & Branding
+- [ ] Alle 6 pagina's hebben DC logo (dc-logo.svg) in nav bar
+- [ ] Alle 6 pagina's hebben Material Icons per nav link
+- [ ] Alle 6 nav links werken en verwijzen naar juiste pagina
+- [ ] Actieve pagina is gehighlight (accent kleur + achtergrond)
+
+**Test:** Klik door alle 6 pagina's, controleer logo + highlighting
 
 ### 4. DAW Studio (index.html)
 - [ ] AudioContext initialiseert na eerste klik
 - [ ] Timeline rendert (Canvas)
 - [ ] Mixer: VU meters, rotary knobs, 3-band EQ werken
-- [ ] Library: categorieen laden uit database
+- [ ] Library panel rechts: categorieën laden, filters werken
 - [ ] Drag & drop van library naar timeline
 - [ ] Improvisatie: kies stijl/toonsoort → play → instrumenten spelen
 - [ ] Ensemble: meerdere instrumenten tegelijk (solo/mute per instrument)
@@ -199,6 +287,7 @@ Bij het opstarten van de website, controleer het volgende:
 - [ ] MIDI export: opname → download .mid
 - [ ] Audio opname: record → download .webm
 - [ ] Scan PC knop in library vindt audio bestanden
+- [ ] Synth keyboard: noten klikbaar + PC keyboard (A-L)
 
 ### 5. DJ App (dj.html)
 - [ ] Deck A en B laden tracks (Jamendo, Internet Archive)
@@ -210,58 +299,99 @@ Bij het opstarten van de website, controleer het volgende:
 - [ ] FX Presets: opslaan, laden, reset
 - [ ] Rad van Fortuin: spin → random FX/EQ/genre
 - [ ] DJ Sampler tab: upload sample, 8 pitch pads
-- [ ] Community Samples tab: zoeken, laden via Supabase
 - [ ] Opname: record knop → pulserend rood → download .webm
-- [ ] BESTANDEN tab: scan PC, laad lokale bestanden
+- [ ] **Broadcast**: Live knop → ON AIR bar verschijnt → code + link
+- [ ] **Broadcast stop**: Stop knop → bar verdwijnt
+- [ ] **Luisteraar count**: wordt bijgewerkt in bar + status
+
+**Broadcast test:**
+1. Open dj.html, klik Live → noteer code
+2. Open live.html in ander tabblad → voer code in → Verbinden
+3. Speel muziek op DJ → hoor je het op Live?
+4. Stop broadcast → bar verdwijnt
 
 ### 6. Audio Editor (editor.html)
 - [ ] Waveform display na laden audio bestand
 - [ ] Transport: play, stop, loop
-- [ ] Effects toepassen (31 effecten)
+- [ ] Effects toepassen (31 effecten beschikbaar)
 - [ ] Cut/copy/paste selectie
 - [ ] Spectrum & spectrogram visualisatie
 - [ ] WAV export
+- [ ] **Browse knop**: opent AudioBrowser modal → zoek + laad audio
+- [ ] **Library knop**: opent LibraryPanel modal → 3 tabs werken
 - [ ] Scan PC: zoek en laad audio bestanden
 
 ### 7. Sampler (sampler.html)
 - [ ] 16 pads renderen (4x4 grid)
-- [ ] Keyboard mapping: Q/W/E/R, A/S/D/F, Z/X/C/V, 1/2/3/4
+- [ ] Keyboard: Q/W/E/R, A/S/D/F, Z/X/C/V, 1/2/3/4 triggeren pads
 - [ ] Laad Sample: file picker → pad krijgt naam + waveform
-- [ ] Library knop: laadt uit daw/audio folder (snel)
-- [ ] Scan PC: scant alle schijven (duurt langer)
 - [ ] Drag & drop audiobestand op pad
 - [ ] Pad klikken → sample speelt af
-- [ ] ADSR envelope: attack/decay/sustain/release sliders + visualisatie
+- [ ] ADSR envelope: sliders + visualisatie
 - [ ] Volume, pan, pitch controls per pad
 - [ ] Choke groups: pads in zelfde groep stoppen elkaar
 - [ ] One-shot / Loop / Reverse modes
 - [ ] Scratch: sleep over waveform panel
 - [ ] Step sequencer: klik steps aan/uit, rechtermuisklik = velocity
+- [ ] 8/16/32/64 steps selecteerbaar
 - [ ] BPM, swing instelbaar
-- [ ] Play/stop sequencer (spatie = play/stop)
+- [ ] Play/stop sequencer (spatie)
 - [ ] 4 patterns (A/B/C/D) wisselen
 - [ ] Genre presets: reggae, dub, hiphop, house, dnb, trap, bossa, funk, rock, afrobeat
-- [ ] Master FX: reverb, delay, filter, compressor (toggle + sliders)
-- [ ] Opname: record → export .webm
-- [ ] Opslaan: state naar localStorage
-- [ ] Community samples: zoeken via Supabase
+- [ ] Master FX: reverb, delay, filter, compressor
+- [ ] **Community knop**: AudioBrowser panel → zoeken in alle bronnen → laad op pad
+- [ ] **Library knop**: LibraryPanel → 3 tabs → laad op pad
+- [ ] Export: WebM / WAV / MIDI dropdown werkt
+- [ ] Pad context menu: rechtermuisklik → opnemen, kiezen, browser, wissen
 
-### 8. Contests (contests.html)
-- [ ] Battle cards laden
-- [ ] Voting UI werkt (stemknoppen)
-- [ ] Leaderboard toont scores
-- [ ] Nieuwe contest aanmaken (modal)
+### 8. Live (live.html)
+- [ ] **Broadcast luisteren**: code invoer + Verbinden knop
+- [ ] **Auto-connect**: `?listen=CODE` in URL → auto-verbinding
+- [ ] **Twitch embed**: plak twitch.tv/kanaal → video speelt
+- [ ] **YouTube embed**: plak youtube.com/watch URL → video speelt
+- [ ] **Actieve broadcasts**: grid toont beschikbare streams (of "geen broadcasts")
+- [ ] **Broadcast chat**: berichten versturen/ontvangen tijdens verbinding
+- [ ] **Geen dummy data**: alles is echt, geen fake kanalen
 
-### 9. Live (live.html)
-- [ ] Channel cards tonen
-- [ ] Chat panel zichtbaar
-- [ ] Stream controls aanwezig
-
-### 10. Externe diensten
+### 9. Externe diensten
 - [ ] Supabase: community samples ophaalbaar (anon key in dj.html + sampler.html)
-- [ ] Jamendo API: tracks zoeken vanuit DJ (`d14314a3`)
-- [ ] Freesound API: zoeken werkt (key in `.env`)
+- [ ] Jamendo API: tracks zoeken vanuit DJ/Sampler/Editor (`d14314a3`)
+- [ ] Freesound API: zoeken werkt (key in `.env`, alleen via proxy op localhost)
+- [ ] Internet Archive: zoeken werkt (geen key nodig)
 - [ ] Audio proxy: `/api/proxy/audio` voor CORS-blocked bronnen
+
+### 10. Herbruikbare Modules
+- [ ] `audio-browser.js` laadt zonder errors (check: `typeof AudioBrowser === 'function'`)
+- [ ] `library-panel.js` laadt zonder errors (check: `typeof LibraryPanel === 'function'`)
+- [ ] AudioBrowser in sampler: Community knop → panel opent → categorieën klikbaar → preview werkt
+- [ ] AudioBrowser in editor: Browse knop → modal opent → zoeken werkt
+- [ ] LibraryPanel in sampler: Library knop → panel opent → 3 tabs zichtbaar
+- [ ] LibraryPanel in editor: Library knop → modal opent → 3 tabs zichtbaar
+
+### 11. GitHub Pages (anneversion.github.io/daw)
+- [ ] Alle pagina's laden (geen 404)
+- [ ] Navigatie werkt tussen pagina's
+- [ ] DC logo zichtbaar op alle pagina's
+- [ ] Jamendo zoeken werkt (CORS OK)
+- [ ] Internet Archive zoeken werkt (CORS OK)
+- [ ] Freesound zoeken WERKT NIET (CORS blocked, verwacht gedrag)
+- [ ] Lokale API's niet beschikbaar (verwacht: fallback meldingen)
+- [ ] Broadcast Live knop werkt (Supabase signaling is extern)
+
+---
+
+## TODO
+- [ ] Drum improvisatie verbeteren: rudiments, fills, energie, stijl-specifiek
+- [ ] Stijl-specifieke sample kits: bij keuze reggae → laad reggae instrumenten op pads
+- [ ] Random FX per pad: reverse, echo, pitch shift, filter, stutter, half speed
+- [ ] Opnames opslaan en terugluisteren (localStorage + Supabase)
+- [ ] Reggae improvisatie stijl toevoegen (one-drop, skank, etc.)
+- [ ] Zang met woorden en melodie (text-to-singing) + improvisatie
+- [ ] Camera + mic in broadcast (video boven chat, commentaar)
+- [ ] Loop langer/korter maken in Studio timeline
+- [ ] Rechtermuisklik MIDI regio tekenen op MIDI track
+- [ ] DJ tracks laden fixen op GitHub Pages (Freesound CORS)
+- [ ] Supabase tabellen aanmaken: sql/04_supabase_community.sql uitvoeren
 
 ## Let op
 - Audio bestanden staan in .gitignore
@@ -270,3 +400,4 @@ Bij het opstarten van de website, controleer het volgende:
 - Port 8086 (geen conflict met andere projecten)
 - Freesound API key in `.env`
 - NOOIT de improvisatie wiskunde (voice leading, chord-scale theory, tension arc) verwijderen of versimpelen
+- GitHub Pages draait op `main` branch — altijd mergen na develop push
