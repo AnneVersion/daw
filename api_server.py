@@ -343,7 +343,10 @@ def scan_audio():
     ]
 
     if scan_path:
-        search_dirs = [Path(scan_path)]
+        p = Path(scan_path)
+        if not p.is_absolute():
+            p = Path(os.path.dirname(os.path.abspath(__file__))) / p
+        search_dirs = [p]
     else:
         search_dirs = [p for p in default_paths if p.exists()]
 
