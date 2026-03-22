@@ -623,7 +623,7 @@ select:focus { border-color: var(--accent); }
      ============================================================ -->
 <nav class="nav-bar">
     <a href="index.html" class="nav-logo">
-        <span class="material-icons">graphic_eq</span>
+        <img src="dc-logo.svg" alt="DC" style="height:24px;vertical-align:middle;margin-right:4px">
         DAW
     </a>
     <ul class="nav-links">
@@ -961,6 +961,16 @@ select:focus { border-color: var(--accent); }
             </div>
 
             <div style="display:flex;gap:6px;align-items:center">
+                <span class="control-label">Steps</span>
+                <select id="step-count" onchange="sampler.setStepCount(+this.value)" style="width:60px">
+                    <option value="8">8</option>
+                    <option value="16" selected>16</option>
+                    <option value="32">32</option>
+                    <option value="64">64</option>
+                </select>
+            </div>
+
+            <div style="display:flex;gap:6px;align-items:center">
                 <span class="control-label">Pattern</span>
                 <div class="pattern-btns" id="pattern-btns"></div>
             </div>
@@ -996,6 +1006,27 @@ select:focus { border-color: var(--accent); }
 </div>
 
 <div class="toast-container" id="toast-container"></div>
+
+<!-- Pad Context Menu -->
+<div id="pad-context-menu" style="display:none;position:fixed;z-index:9999;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.5);min-width:180px;padding:4px 0;font-size:12px">
+    <div class="ctx-item" onclick="sampler.ctxRecord()" style="padding:8px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--text)">
+        <span class="material-icons" style="font-size:16px;color:var(--red)">mic</span> Opnemen naar pad
+    </div>
+    <div class="ctx-item" onclick="sampler.ctxChooseFile()" style="padding:8px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--text)">
+        <span class="material-icons" style="font-size:16px;color:var(--accent)">folder_open</span> Geluid kiezen...
+    </div>
+    <div class="ctx-item" onclick="sampler.ctxBrowse()" style="padding:8px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--text)">
+        <span class="material-icons" style="font-size:16px;color:var(--green)">library_music</span> Sample Browser
+    </div>
+    <div style="height:1px;background:var(--border);margin:4px 0"></div>
+    <div class="ctx-item" onclick="sampler.ctxClear()" style="padding:8px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--text-dim)">
+        <span class="material-icons" style="font-size:16px">delete</span> Pad wissen
+    </div>
+</div>
+<style>
+.ctx-item:hover { background: var(--bg-hover); }
+</style>
+<input type="file" id="pad-file-input" accept="audio/*" style="display:none">
 
 <script>
 // ============================================================
@@ -1035,10 +1066,11 @@ class SamplerApp {
             activeSources: []
         }));
 
-        // 4 patterns, each 16 pads x 16 steps
+        // 4 patterns, each 16 pads x N steps (default 16)
+        this.numSteps = 16;
         this.patterns = Array.from({length: 4}, () =>
             Array.from({length: 16}, () =>
-                Array.from({length: 16}, () => ({ on: false, velocity: 1.0 }))
+                Array.from({length: 64}, () => ({ on: false, velocity: 1.0 }))
             )
         );
 
@@ -1180,8 +1212,116 @@ class SamplerApp {
             `;
             el.onclick = () => this.selectPad(i);
             el.ondblclick = () => { this.selectPad(i); this.loadSampleFile(); };
+            el.oncontextmenu = (e) => { e.preventDefault(); this._showPadMenu(e, i); };
             grid.appendChild(el);
         });
+    }
+
+    // ---- Pad Context Menu ----
+    _ctxPadIdx = 0;
+    _showPadMenu(e, idx) {
+        this._ctxPadIdx = idx;
+        this.selectPad(idx);
+        const menu = document.getElementById('pad-context-menu');
+        menu.style.display = 'block';
+        menu.style.left = e.clientX + 'px';
+        menu.style.top = e.clientY + 'px';
+        // Close on click elsewhere
+        setTimeout(() => {
+            const close = () => { menu.style.display = 'none'; document.removeEventListener('click', close); };
+            document.addEventListener('click', close);
+        }, 50);
+    }
+
+    ctxRecord() {
+        document.getElementById('pad-context-menu').style.display = 'none';
+        const idx = this._ctxPadIdx;
+        this.initAudio();
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+            toast('Opname gestart... klik pad om te stoppen', 'info');
+            const recorder = new MediaRecorder(stream);
+            const chunks = [];
+            recorder.ondataavailable = e => chunks.push(e.data);
+            recorder.onstop = async () => {
+                stream.getTracks().forEach(t => t.stop());
+                const blob = new Blob(chunks, { type: 'audio/webm' });
+                const arrayBuf = await blob.arrayBuffer();
+                const audioBuffer = await this.audioCtx.decodeAudioData(arrayBuf);
+                const p = this.pads[idx];
+                p.buffer = audioBuffer;
+                p.reverseBuffer = null;
+                p.name = 'Rec ' + (idx + 1);
+                document.getElementById(`pad-${idx}`).classList.add('loaded');
+                document.getElementById(`pad-name-${idx}`).textContent = p.name;
+                this._drawPadWaveform(idx);
+                this.drawWaveform();
+                document.getElementById('selected-pad-name').textContent = p.name;
+                this._updateSeqLabels();
+                toast(`Opgenomen op Pad ${idx + 1}`, 'success');
+            };
+            recorder.start();
+            // Stop on pad click or after 10 seconds
+            const padEl = document.getElementById(`pad-${idx}`);
+            padEl.style.border = '2px solid var(--red)';
+            padEl.style.animation = 'pulse 0.5s infinite alternate';
+            const stopRec = () => {
+                recorder.stop();
+                padEl.style.border = '';
+                padEl.style.animation = '';
+                padEl.removeEventListener('click', stopRec);
+            };
+            padEl.addEventListener('click', stopRec, { once: true });
+            setTimeout(() => { if (recorder.state === 'recording') stopRec(); }, 10000);
+        }).catch(() => toast('Microfoon niet beschikbaar', 'error'));
+    }
+
+    ctxChooseFile() {
+        document.getElementById('pad-context-menu').style.display = 'none';
+        const input = document.getElementById('pad-file-input');
+        input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            this.initAudio();
+            const arrayBuf = await file.arrayBuffer();
+            const audioBuffer = await this.audioCtx.decodeAudioData(arrayBuf);
+            const idx = this._ctxPadIdx;
+            const p = this.pads[idx];
+            p.buffer = audioBuffer;
+            p.reverseBuffer = null;
+            p.name = file.name.replace(/\.[^.]+$/, '').substring(0, 20);
+            document.getElementById(`pad-${idx}`).classList.add('loaded');
+            document.getElementById(`pad-name-${idx}`).textContent = p.name;
+            this._drawPadWaveform(idx);
+            this.drawWaveform();
+            document.getElementById('selected-pad-name').textContent = p.name;
+            this._updateSeqLabels();
+            toast(`"${p.name}" geladen op Pad ${idx + 1}`, 'success');
+            input.value = '';
+        };
+        input.click();
+    }
+
+    ctxBrowse() {
+        document.getElementById('pad-context-menu').style.display = 'none';
+        // Open the community panel (sample browser)
+        const panel = document.getElementById('community-panel');
+        if (panel.style.display === 'none') panel.style.display = 'block';
+    }
+
+    ctxClear() {
+        document.getElementById('pad-context-menu').style.display = 'none';
+        const idx = this._ctxPadIdx;
+        const p = this.pads[idx];
+        p.buffer = null;
+        p.reverseBuffer = null;
+        p.name = `Pad ${idx + 1}`;
+        document.getElementById(`pad-${idx}`).classList.remove('loaded');
+        document.getElementById(`pad-name-${idx}`).textContent = p.name;
+        this._drawPadWaveform(idx);
+        this.drawWaveform();
+        document.getElementById('selected-pad-name').textContent = p.name;
+        this._updateSeqLabels();
+        toast(`Pad ${idx + 1} gewist`, 'info');
     }
 
     selectPad(idx) {
@@ -1634,9 +1774,16 @@ class SamplerApp {
     }
 
     // ---- Step Sequencer ----
+    setStepCount(n) {
+        this.numSteps = n;
+        this.buildSequencer();
+        this._restoreStepVisuals();
+    }
+
     buildSequencer() {
         const grid = document.getElementById('seq-grid');
         grid.innerHTML = '';
+        const stepW = this.numSteps > 16 ? 'min-width:14px' : '';
         for (let padIdx = 0; padIdx < 16; padIdx++) {
             const row = document.createElement('div');
             row.className = 'seq-row';
@@ -1647,16 +1794,25 @@ class SamplerApp {
             label.onclick = () => this.selectPad(padIdx);
             row.appendChild(label);
 
-            for (let step = 0; step < 16; step++) {
+            for (let step = 0; step < this.numSteps; step++) {
                 const stepEl = document.createElement('div');
                 stepEl.className = 'seq-step';
                 stepEl.id = `step-${padIdx}-${step}`;
+                if (stepW) stepEl.style.cssText = stepW;
                 if (step % 4 === 0) stepEl.classList.add('beat-marker');
                 stepEl.onclick = () => this.toggleStep(padIdx, step);
                 stepEl.oncontextmenu = (e) => { e.preventDefault(); this.cycleVelocity(padIdx, step); };
                 row.appendChild(stepEl);
             }
             grid.appendChild(row);
+        }
+    }
+
+    _restoreStepVisuals() {
+        for (let p = 0; p < 16; p++) {
+            for (let s = 0; s < this.numSteps; s++) {
+                this._updateStepVisual(p, s);
+            }
         }
     }
 
@@ -1957,7 +2113,7 @@ class SamplerApp {
                 }
             }
 
-            this.currentStep = (this.currentStep + 1) % 16;
+            this.currentStep = (this.currentStep + 1) % this.numSteps;
 
             // Highlight current step
             for (let p = 0; p < 16; p++) {
