@@ -1010,6 +1010,24 @@ body {
     </div>
 </div>
 
+<!-- Broadcast Bar (zichtbaar als je live bent) -->
+<div id="broadcast-bar" style="display:none;background:linear-gradient(90deg,#1a1a2e,#16213e);border-bottom:1px solid var(--border);padding:8px 16px;display:none;align-items:center;gap:12px">
+    <div style="display:flex;align-items:center;gap:8px">
+        <span id="bb-dot" style="width:10px;height:10px;border-radius:50%;background:#f44336;animation:pulse-broadcast 1.5s infinite"></span>
+        <span style="font-size:13px;font-weight:700;color:#f44336">ON AIR</span>
+        <span id="bb-code" style="font-size:14px;font-weight:800;color:var(--accent);letter-spacing:3px;background:var(--bg-darkest);padding:4px 12px;border-radius:6px;border:1px solid var(--border)"></span>
+        <span id="bb-listeners" style="font-size:11px;color:var(--text-dim)">0 luisteraars</span>
+    </div>
+    <div style="flex:1"></div>
+    <button onclick="navigator.clipboard?.writeText(document.getElementById('bb-link').value)" style="background:var(--bg-darkest);border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--text-dim);font-size:10px;cursor:pointer;display:flex;align-items:center;gap:4px">
+        <span class="material-icons" style="font-size:14px">content_copy</span>Kopieer link
+    </button>
+    <input type="text" id="bb-link" readonly style="width:0;height:0;opacity:0;position:absolute">
+    <button onclick="djApp.stopBroadcast()" style="background:#f44336;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px">
+        <span class="material-icons" style="font-size:14px">stop</span>Stop Broadcast
+    </button>
+</div>
+
 <!-- App -->
 <div id="app">
     <!-- Decks + Mixer -->
@@ -3715,6 +3733,15 @@ class DJApp {
         status.textContent = `Code: ${this._broadcastId} | 0 luisteraars`;
         status.style.color = '#4caf50';
 
+        // Toon broadcast bar
+        const bar = document.getElementById('broadcast-bar');
+        if (bar) {
+            bar.style.display = 'flex';
+            document.getElementById('bb-code').textContent = this._broadcastId;
+            const listenUrl = `${window.location.origin}${window.location.pathname.replace('dj.html', 'live.html')}?listen=${this._broadcastId}`;
+            document.getElementById('bb-link').value = listenUrl;
+        }
+
         // Toon share link
         this._showBroadcastModal();
 
@@ -3757,9 +3784,15 @@ class DJApp {
         const status = document.getElementById('broadcast-status');
         status.style.display = 'none';
 
+        // Verberg broadcast bar
+        const bar = document.getElementById('broadcast-bar');
+        if (bar) bar.style.display = 'none';
+
         // Sluit modal
         const modal = document.getElementById('broadcast-modal');
         if (modal) modal.remove();
+        const backdrop = document.getElementById('broadcast-backdrop');
+        if (backdrop) backdrop.remove();
     }
 
     async _handleListenerJoin(payload) {
@@ -3835,6 +3868,11 @@ class DJApp {
         const status = document.getElementById('broadcast-status');
         if (status) {
             status.textContent = `Code: ${this._broadcastId} | ${connected} luisteraar${connected !== 1 ? 's' : ''}`;
+        }
+        // Update broadcast bar
+        const bbListeners = document.getElementById('bb-listeners');
+        if (bbListeners) {
+            bbListeners.textContent = `${connected} luisteraar${connected !== 1 ? 's' : ''}`;
         }
     }
 
