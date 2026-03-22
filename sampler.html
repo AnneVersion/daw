@@ -2562,6 +2562,14 @@ function toast(msg, type = 'info') {
 // ---- Init ----
 const sampler = new SamplerApp();
 
+// Auto-load drums on first click (AudioContext needs user gesture)
+document.addEventListener('click', () => {
+    if (!sampler._autoLoaded && sampler.pads.every(p => !p.buffer)) {
+        sampler._autoLoaded = true;
+        sampler.autoLoadKit('Drums');
+    }
+}, { once: true });
+
 // Resize handler for waveform
 window.addEventListener('resize', () => {
     sampler.drawWaveform();
