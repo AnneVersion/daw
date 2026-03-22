@@ -670,7 +670,10 @@ select:focus { border-color: var(--accent); }
                 <button class="action-btn primary" onclick="sampler.loadSampleFile()">
                     <span class="material-icons">folder_open</span> Laad Sample
                 </button>
-                <button class="action-btn" onclick="sampler.loadFromScan()">
+                <button class="action-btn" onclick="sampler.loadFromScan('library')">
+                    <span class="material-icons">library_music</span> Library
+                </button>
+                <button class="action-btn" onclick="sampler.loadFromScan('full')">
                     <span class="material-icons">computer</span> Scan PC
                 </button>
                 <button class="action-btn" onclick="sampler.toggleCommunity()">
@@ -1214,11 +1217,13 @@ class SamplerApp {
         }
     }
 
-    async loadFromScan() {
+    async loadFromScan(mode = 'library') {
         this.initAudio();
-        toast('Audio bestanden scannen...', 'info');
+        const isLibrary = mode === 'library';
+        toast(isLibrary ? 'Library laden...' : 'Alle schijven scannen (kan even duren)...', 'info');
         try {
-            const resp = await fetch('/api/scan-audio');
+            const url = isLibrary ? '/api/scan-audio?path=audio' : '/api/scan-audio';
+            const resp = await fetch(url);
             const data = await resp.json();
             const files = data.results || data;
             if (!files.length) { toast('Geen audio bestanden gevonden', 'error'); return; }
