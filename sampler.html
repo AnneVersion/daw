@@ -2429,25 +2429,37 @@ class SamplerApp {
                         selected = [];
                         const perCat = Math.max(1, Math.floor(16 / cats.length));
                         for (const cat of cats) {
-                            selected.push(...allSounds.filter(s => s.category_name === cat).slice(0, perCat));
+                            // Filter: alleen korte samples (< 6s), kleinste eerst
+                            const catSounds = allSounds
+                                .filter(s => s.category_name === cat && (!s.duration_ms || s.duration_ms < 6000))
+                                .sort((a, b) => (a.file_size || 0) - (b.file_size || 0));
+                            selected.push(...catSounds.slice(0, perCat));
                         }
                         selected = selected.slice(0, 16);
                     } else {
-                        selected = allSounds.filter(s => s.category_name === category).slice(0, 16);
+                        // Filter: alleen korte samples (< 6s voor drums/perc, < 10s voor melodisch)
+                        const maxDur = ['Drums','Percussion','One-shots','FX'].includes(category) ? 6000 : 10000;
+                        selected = allSounds
+                            .filter(s => s.category_name === category && (!s.duration_ms || s.duration_ms < maxDur))
+                            .sort((a, b) => (a.file_size || 0) - (b.file_size || 0))
+                            .slice(0, 16);
                     }
                     if (selected.length) {
-                        let loaded = 0;
-                        for (let i = 0; i < Math.min(selected.length, 16); i++) {
+                        // Parallel laden (veel sneller)
+                        const promises = selected.slice(0, 16).map(async (s, i) => {
                             try {
-                                const audioResp = await fetch(`/api/sounds/${selected[i].id}/file`);
+                                const audioResp = await fetch(`/api/sounds/${s.id}/file`);
                                 if (audioResp.ok) {
-                                    await this._loadBuffer(i, await audioResp.arrayBuffer(), selected[i].name);
-                                    loaded++;
+                                    await this._loadBuffer(i, await audioResp.arrayBuffer(), s.name);
+                                    return true;
                                 }
                             } catch(e) {}
-                        }
+                            return false;
+                        });
+                        const results = await Promise.all(promises);
+                        const loaded = results.filter(Boolean).length;
                         if (loaded > 0) {
-                            toast(`${loaded} ${label} samples geladen (library)`, 'success');
+                            toast(`${loaded} ${label} samples geladen`, 'success');
                             return;
                         }
                     }
@@ -2472,31 +2484,34 @@ class SamplerApp {
         const query = this._kitJamendoTerms[category] || category.toLowerCase();
         toast(`${label} laden via Jamendo...`, 'info');
         try {
-            const url = `https://api.jamendo.com/v3.0/tracks/?client_id=${this.JAMENDO_ID}&format=json&limit=16&search=${encodeURIComponent(query)}&include=musicinfo`;
+            // Sorteer op kortste duur, zoek meer dan nodig om te filteren
+            const url = `https://api.jamendo.com/v3.0/tracks/?client_id=${this.JAMENDO_ID}&format=json&limit=30&search=${encodeURIComponent(query)}&include=musicinfo&order=duration_asc`;
             const resp = await fetch(url);
             const data = await resp.json();
-            const tracks = data.results || [];
+            // Filter: alleen tracks < 30s (previews zijn ~30s), neem de kortste
+            const tracks = (data.results || []).filter(t => t.duration && t.duration < 60).slice(0, 16);
 
             if (!tracks.length) {
-                // Fallback naar Freesound als Jamendo ook niks heeft
                 await this._loadKitFromFreesound(category, label);
                 return;
             }
 
-            let loaded = 0;
-            for (let i = 0; i < Math.min(tracks.length, 16); i++) {
-                const t = tracks[i];
-                const audioUrl = t.audio || t.audiodownload;
-                if (!audioUrl) continue;
+            // Parallel laden
+            const promises = tracks.map(async (t, i) => {
+                const audioUrl = t.audio;
+                if (!audioUrl) return false;
                 try {
                     const audioResp = await fetch(audioUrl);
                     if (audioResp.ok) {
                         const name = `${t.artist_name} - ${t.name}`.substring(0, 25);
                         await this._loadBuffer(i, await audioResp.arrayBuffer(), name);
-                        loaded++;
+                        return true;
                     }
                 } catch(e) {}
-            }
+                return false;
+            });
+            const results = await Promise.all(promises);
+            const loaded = results.filter(Boolean).length;
             toast(`${loaded} ${label} samples geladen (Jamendo)`, loaded > 0 ? 'success' : 'error');
         } catch(e) {
             toast('Jamendo laden mislukt: ' + e.message, 'error');
