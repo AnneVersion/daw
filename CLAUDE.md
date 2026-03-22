@@ -112,6 +112,109 @@ PostgreSQL database `daw`, user `postgres`, pw `postgres`:
 - **Per instrument**: on/off, solo, mute, volume
 - **Style-specific**: swing, triplets, syncopation, density, ghost notes per stijl
 
+## Startup Checklist
+Bij het opstarten van de website, controleer het volgende:
+
+### 1. Server & API
+- [ ] `python serve.py` start zonder errors op port 8086
+- [ ] PostgreSQL draait (`daw` database bereikbaar)
+- [ ] `http://localhost:8086/` laadt index.html
+- [ ] `/api/projects` retourneert JSON (200 OK)
+- [ ] `/api/sounds` retourneert JSON (200 OK)
+- [ ] `/api/categories` retourneert JSON (200 OK)
+- [ ] `/api/scan-audio?path=audio` retourneert resultaten (104+ bestanden)
+- [ ] `/api/local-audio?path=...` serveert audio bestand (200 OK)
+- [ ] `/api/proxy/audio?url=...` proxyt externe audio
+
+### 2. Pagina's laden (geen console errors)
+- [ ] `/` — DAW Studio: timeline, mixer, transport zichtbaar
+- [ ] `/dj.html` — DJ App: 2 decks, crossfader, browser tabs
+- [ ] `/editor.html` — Audio Editor: toolbar, waveform canvas
+- [ ] `/sampler.html` — Sampler: 16 pads, sequencer, genre preset dropdown
+- [ ] `/contests.html` — Contests: battle cards, voting UI
+- [ ] `/live.html` — Live: channel cards, chat panel
+
+### 3. Navigatie
+- [ ] Elke pagina heeft "Sampler" link in de nav bar
+- [ ] Alle 6 nav links werken en verwijzen naar de juiste pagina
+- [ ] Actieve pagina is gehighlight in de nav
+
+### 4. DAW Studio (index.html)
+- [ ] AudioContext initialiseert na eerste klik
+- [ ] Timeline rendert (Canvas)
+- [ ] Mixer: VU meters, rotary knobs, 3-band EQ werken
+- [ ] Library: categorieen laden uit database
+- [ ] Drag & drop van library naar timeline
+- [ ] Improvisatie: kies stijl/toonsoort → play → instrumenten spelen
+- [ ] Ensemble: meerdere instrumenten tegelijk (solo/mute per instrument)
+- [ ] Rad van Fortuin: draait, kiest random instellingen, auto-start
+- [ ] MIDI export: opname → download .mid
+- [ ] Audio opname: record → download .webm
+- [ ] Scan PC knop in library vindt audio bestanden
+
+### 5. DJ App (dj.html)
+- [ ] Deck A en B laden tracks (Jamendo, Internet Archive)
+- [ ] Crossfader mengt tussen decks
+- [ ] FX per deck: echo, reverb, flanger, filter, phaser, bitcrusher, distortion
+- [ ] Master FX knoppen: phaser, flanger, crush, dist
+- [ ] Toeter (5 types) en witte ruis werken
+- [ ] Scratch: sleep over plattenspeler
+- [ ] FX Presets: opslaan, laden, reset
+- [ ] Rad van Fortuin: spin → random FX/EQ/genre
+- [ ] DJ Sampler tab: upload sample, 8 pitch pads
+- [ ] Community Samples tab: zoeken, laden via Supabase
+- [ ] Opname: record knop → pulserend rood → download .webm
+- [ ] BESTANDEN tab: scan PC, laad lokale bestanden
+
+### 6. Audio Editor (editor.html)
+- [ ] Waveform display na laden audio bestand
+- [ ] Transport: play, stop, loop
+- [ ] Effects toepassen (31 effecten)
+- [ ] Cut/copy/paste selectie
+- [ ] Spectrum & spectrogram visualisatie
+- [ ] WAV export
+- [ ] Scan PC: zoek en laad audio bestanden
+
+### 7. Sampler (sampler.html)
+- [ ] 16 pads renderen (4x4 grid)
+- [ ] Keyboard mapping: Q/W/E/R, A/S/D/F, Z/X/C/V, 1/2/3/4
+- [ ] Laad Sample: file picker → pad krijgt naam + waveform
+- [ ] Library knop: laadt uit daw/audio folder (snel)
+- [ ] Scan PC: scant alle schijven (duurt langer)
+- [ ] Drag & drop audiobestand op pad
+- [ ] Pad klikken → sample speelt af
+- [ ] ADSR envelope: attack/decay/sustain/release sliders + visualisatie
+- [ ] Volume, pan, pitch controls per pad
+- [ ] Choke groups: pads in zelfde groep stoppen elkaar
+- [ ] One-shot / Loop / Reverse modes
+- [ ] Scratch: sleep over waveform panel
+- [ ] Step sequencer: klik steps aan/uit, rechtermuisklik = velocity
+- [ ] BPM, swing instelbaar
+- [ ] Play/stop sequencer (spatie = play/stop)
+- [ ] 4 patterns (A/B/C/D) wisselen
+- [ ] Genre presets: reggae, dub, hiphop, house, dnb, trap, bossa, funk, rock, afrobeat
+- [ ] Master FX: reverb, delay, filter, compressor (toggle + sliders)
+- [ ] Opname: record → export .webm
+- [ ] Opslaan: state naar localStorage
+- [ ] Community samples: zoeken via Supabase
+
+### 8. Contests (contests.html)
+- [ ] Battle cards laden
+- [ ] Voting UI werkt (stemknoppen)
+- [ ] Leaderboard toont scores
+- [ ] Nieuwe contest aanmaken (modal)
+
+### 9. Live (live.html)
+- [ ] Channel cards tonen
+- [ ] Chat panel zichtbaar
+- [ ] Stream controls aanwezig
+
+### 10. Externe diensten
+- [ ] Supabase: community samples ophaalbaar (anon key in dj.html + sampler.html)
+- [ ] Jamendo API: tracks zoeken vanuit DJ (`d14314a3`)
+- [ ] Freesound API: zoeken werkt (key in `.env`)
+- [ ] Audio proxy: `/api/proxy/audio` voor CORS-blocked bronnen
+
 ## Let op
 - Audio bestanden staan in .gitignore
 - Web Audio API vereist user interaction voordat AudioContext start
