@@ -3403,21 +3403,32 @@ class TimelineRenderer {
             rctx.stroke();
         }
 
-        // Loop region on ruler
+        // Loop region on ruler (brede handles voor makkelijk slepen)
         if (state.transport.loopEnabled) {
             const lx1 = beatsToPixels(state.transport.loopStart) - scrollX;
             const lx2 = beatsToPixels(state.transport.loopEnd) - scrollX;
-            rctx.fillStyle = 'rgba(74, 127, 255, 0.2)';
+            // Loop achtergrond
+            rctx.fillStyle = 'rgba(74, 127, 255, 0.15)';
             rctx.fillRect(lx1, 0, lx2 - lx1, rh);
-            // Loop handles
+            // Linker handle (breed, goed zichtbaar)
             rctx.fillStyle = '#4a7fff';
-            rctx.fillRect(lx1, 0, 3, rh);
-            rctx.fillRect(lx2 - 3, 0, 3, rh);
-            // Handle arrows
-            rctx.fillStyle = '#fff';
-            rctx.font = '8px sans-serif';
-            rctx.fillText('\u25B6', lx1 + 1, 20);
-            rctx.fillText('\u25C0', lx2 - 9, 20);
+            rctx.fillRect(lx1, 0, 6, rh);
+            rctx.beginPath();
+            rctx.moveTo(lx1, 0); rctx.lineTo(lx1 + 12, 0); rctx.lineTo(lx1, 12); rctx.closePath();
+            rctx.fill();
+            // Rechter handle
+            rctx.fillRect(lx2 - 6, 0, 6, rh);
+            rctx.beginPath();
+            rctx.moveTo(lx2, 0); rctx.lineTo(lx2 - 12, 0); rctx.lineTo(lx2, 12); rctx.closePath();
+            rctx.fill();
+            // Tekst "loop" in het midden
+            if (lx2 - lx1 > 40) {
+                rctx.fillStyle = 'rgba(255,255,255,0.5)';
+                rctx.font = 'bold 8px sans-serif';
+                rctx.textAlign = 'center';
+                rctx.fillText('LOOP', (lx1 + lx2) / 2, 18);
+                rctx.textAlign = 'left';
+            }
         }
 
         // Playhead on ruler
@@ -10147,8 +10158,8 @@ class DAWController {
                     return;
                 }
             }
-            // Klik + sleep maakt nieuwe loop (geen shift meer nodig)
-            if (e.shiftKey || !state.transport.loopEnabled) {
+            // Klik + sleep maakt nieuwe loop
+            if (e.shiftKey || state.transport.loopEnabled) {
                 loopDrag = 'create';
                 loopDragOrigin = snapBeat(beat);
                 state.transport.loopStart = loopDragOrigin;
@@ -10496,9 +10507,12 @@ class DAWController {
             <div id="piano-roll">
                 <div id="piano-roll-header">
                     <h3>${track.name} — ${region.name}</h3>
-                    <div class="header-control">
-                        <label>Lengte (beats)</label>
-                        <input type="number" class="header-input" id="pr-length" value="${totalBeats}" min="1" max="64" style="width:50px">
+                    <div class="header-control" style="display:flex;align-items:center;gap:4px">
+                        <label>LENGTE</label>
+                        <button onclick="daw._prChangeLength(-4)" style="background:#333;color:#fff;border:none;border-radius:3px;width:22px;height:22px;cursor:pointer;font-weight:700">-</button>
+                        <input type="number" class="header-input" id="pr-length" value="${totalBeats}" min="1" max="64" style="width:44px;text-align:center">
+                        <button onclick="daw._prChangeLength(4)" style="background:#4a7fff;color:#fff;border:none;border-radius:3px;width:22px;height:22px;cursor:pointer;font-weight:700">+</button>
+                        <span style="font-size:9px;color:var(--text-dim)">beats</span>
                     </div>
                     <div class="header-control">
                         <label>Grid</label>
@@ -10684,6 +10698,22 @@ class DAWController {
             this._prState.region.notes = [];
             this._prRender();
         }
+    }
+
+    _prChangeLength(delta) {
+        const input = document.getElementById('pr-length');
+        if (!input || !this._prState?.region) return;
+        let newLen = Math.max(1, Math.min(64, (this._prState.region.lengthBeats || 4) + delta));
+        this._prState.region.lengthBeats = newLen;
+        input.value = newLen;
+        // Resize canvas en herteken
+        const beatW = 40;
+        const canvas = document.getElementById('piano-roll-canvas');
+        if (canvas) {
+            canvas.width = newLen * beatW * (window.devicePixelRatio || 1);
+            canvas.style.width = newLen * beatW + 'px';
+        }
+        this._prRender();
     }
 
     // ---- MIDI Playback ----
