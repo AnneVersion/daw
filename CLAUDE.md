@@ -380,18 +380,161 @@ curl -s http://localhost:8086/api/scan-audio?path=audio | python -c "import sys,
 
 ---
 
-## TODO
-- [ ] Drum improvisatie verbeteren: rudiments, fills, energie, stijl-specifiek
-- [ ] Stijl-specifieke sample kits: bij keuze reggae → laad reggae instrumenten op pads
-- [ ] Random FX per pad: reverse, echo, pitch shift, filter, stutter, half speed
-- [ ] Opnames opslaan en terugluisteren (localStorage + Supabase)
-- [ ] Reggae improvisatie stijl toevoegen (one-drop, skank, etc.)
-- [ ] Zang met woorden en melodie (text-to-singing) + improvisatie
+## TODO — Bugs & Issues (prioriteit)
+
+### Studio (index.html)
+- [ ] **BUG: MIDI noten vallen boven het blokje** — noten die je tekent in piano roll verschijnen buiten/boven de MIDI regio op de timeline
+- [ ] **BUG: Loop kan niet breder gemaakt worden** — sleep de loop-randen in de ruler om de loop langer te maken werkt niet
+- [ ] **Library sidebar opent niet bij eerste klik** — knop werkt pas na tweede klik (AudioContext init blokkeert eerste event)
+- [ ] **Library sidebar: op GitHub Pages toont "geen geluiden"** — sidebar moet fallback naar Jamendo/Archive als /api/sounds faalt
+- [ ] **Gitaarhals panel** — het Instrumenten tab toont piano keyboard + gitaarhals, maar gitaarhals rendering/interactie checken
+- [ ] **Piano keyboard** — controleer of alle noten klikbaar zijn en geluid produceren via synth/soundfont
+
+### Sampler (sampler.html)
+- [ ] **"Laad Sample" knop** — checken of file picker correct opent en sample op geselecteerde pad laadt
+- [ ] **Library knop** — opent LibraryPanel, controleer of 3 tabs werken (Library, Opnames, Online)
+- [ ] **Opname workflow** — Neem Op → Stop → klik pad = sample op pad. Testen volledige flow
+
+### DJ (dj.html)
+- [ ] DJ tracks laden fixen op GitHub Pages (Freesound CORS, Jamendo als fallback)
+
+### Algemeen
 - [ ] Camera + mic in broadcast (video boven chat, commentaar)
-- [ ] Loop langer/korter maken in Studio timeline
-- [ ] Rechtermuisklik MIDI regio tekenen op MIDI track
-- [ ] DJ tracks laden fixen op GitHub Pages (Freesound CORS)
+- [ ] Opnames opslaan en terugluisteren (localStorage + Supabase)
 - [ ] Supabase tabellen aanmaken: sql/04_supabase_community.sql uitvoeren
+
+### Afgerond (maart 2026)
+- [x] Drum improvisatie: rudiments (flam/drag), meerdere fill varianten per stijl
+- [x] Reggae improvisatie: walking bass, muted chika skank, dubbele piano bubble
+- [x] Random FX per pad: 9 effecten (reverse, pitch, filter, echo, halfspeed, stutter, bitcrush, ringmod, tapestop)
+- [x] MIDI regio tekenen: dubbelklik op MIDI track maakt region + opent piano roll
+- [x] Library sidebar rechts in studio met zoeken + categorie chips
+- [x] Sampler: community knop weg, dubbele library weg, context menu met afspelen/stoppen
+
+---
+
+## Testscript — Handmatige Testprocedure
+
+### Test 1: Studio laden (index.html)
+```
+1. Open http://localhost:8086/ (of GitHub Pages)
+2. VERWACHT: 4 tracks (Audio 1, Audio 2, Piano, Drums), mixer onderaan, Library sidebar rechts
+3. Klik ergens op de pagina → AudioContext initialiseert
+4. VERWACHT: "DAW geladen" toast, Library sidebar toont geluiden (lokaal) of "geen geluiden" (GitHub Pages)
+5. CHECK: Library knop rechtsboven is groen highlighted
+6. Klik Library knop → sidebar sluit. Klik opnieuw → sidebar opent
+```
+
+### Test 2: MIDI regio tekenen
+```
+1. Dubbelklik op de Piano track timeline (ergens bij beat 1-2)
+2. VERWACHT: groene MIDI regio verschijnt (4 beats breed), piano roll opent onderaan
+3. Klik noten in de piano roll
+4. VERWACHT: noten verschijnen IN de MIDI regio op de timeline (niet erboven/erbuiten!)
+5. Druk Play → VERWACHT: noten klinken op het juiste moment
+6. BUG CHECK: als noten boven de regio verschijnen → MIDI note Y-positie berekening is fout
+```
+
+### Test 3: Loop resize
+```
+1. Klik en sleep in de ruler bovenaan om een loop te maken (blauw gebied)
+2. VERWACHT: blauwe loop markers verschijnen
+3. Sleep de rechter loop-rand naar rechts om de loop breder te maken
+4. VERWACHT: loop wordt langer, playback herhaalt het nieuwe bereik
+5. BUG CHECK: als de rand niet versleepbaar is → loop resize event handler ontbreekt
+```
+
+### Test 4: Library sidebar drag & drop
+```
+1. Open Library sidebar (klik Library knop)
+2. VERWACHT: geluiden lijst met naam, categorie, duur
+3. Klik een categorie chip (bijv. "Drums") → VERWACHT: gefilterde lijst
+4. Sleep een geluid van de sidebar naar de Audio 1 track timeline
+5. VERWACHT: audio region verschijnt op de timeline waar je loslaat
+6. Druk Play → VERWACHT: geluid speelt op het juiste moment
+```
+
+### Test 5: Improvisatie engine
+```
+1. Klik tab "Improvisatie" onderaan
+2. Kies stijl: Jazz, toonsoort: C, toonladder: Major
+3. Zet instrumenten aan: drums, bass, piano, gitaar
+4. Klik Play
+5. VERWACHT: complete band speelt samen, stijl-specifiek (jazz = ride cymbal, walking bass)
+6. Wissel naar Reggae → VERWACHT: one-drop drums, skank gitaar, bubble piano
+7. Typ tekst in het "Zang tekst" veld → VERWACHT: koor/scat zingt de woorden
+8. Klik "Rad van Fortuin" → VERWACHT: random stijl/toonsoort/instrumenten
+```
+
+### Test 6: Instrumenten panel
+```
+1. Klik tab "Instrumenten" onderaan
+2. VERWACHT: Piano keyboard (2 octaven) + gitaarhals zichtbaar
+3. Klik piano toetsen → VERWACHT: noten klinken (soundfont of synth)
+4. PC keyboard A-L → VERWACHT: noten klinken
+5. Gitaar strum patterns (Funk, Reggae, Pop, Rock) → klik een pattern → VERWACHT: gitaar speelt
+```
+
+### Test 7: Sampler (sampler.html)
+```
+1. Open http://localhost:8086/sampler.html
+2. VERWACHT: 16 lege pads, pad controls (Laad Sample, Library, Scan PC, Wis)
+3. Klik "Laad Sample Kit..." dropdown → kies "Drums"
+4. VERWACHT: samples laden via API (lokaal) of Jamendo (GitHub Pages)
+5. Klik pad 1 → VERWACHT: sample speelt af
+6. Klik "Chaos" → klik pads → VERWACHT: random FX (pitch, reverse, echo, etc.)
+7. Rechtermuisklik pad → VERWACHT: context menu met "Afspelen", "Stoppen", "Opnemen", etc.
+8. Klik "Neem Op" → sta mic toe → spreek in → klik "Stop" → klik een pad
+9. VERWACHT: opname geladen op pad, pad naam = "Opname HH:MM:SS"
+```
+
+### Test 8: DJ App (dj.html)
+```
+1. Open http://localhost:8086/dj.html
+2. VERWACHT: 2 decks, crossfader, FX knoppen
+3. Zoek een track (Jamendo tab) → dubbelklik om te laden op deck A
+4. Klik Play op deck A → VERWACHT: muziek speelt
+5. Scratch: sleep over de draaitafel → VERWACHT: scratch geluid
+6. FX: klik Echo aan → VERWACHT: echo effect hoorbaar
+7. Live knop → VERWACHT: broadcast code verschijnt in ON AIR bar
+```
+
+### Test 9: Audio Editor (editor.html)
+```
+1. Open http://localhost:8086/editor.html
+2. Klik Browse/Library → VERWACHT: modal opent met zoeken
+3. Laad een audio bestand
+4. VERWACHT: waveform verschijnt
+5. Selecteer een gedeelte → klik Cut → VERWACHT: selectie verwijderd
+6. Klik effect (bijv. Reverb) → Apply → VERWACHT: effect toegepast
+```
+
+### Test 10: Live + Broadcast (live.html + dj.html)
+```
+1. Open dj.html → klik Live knop → noteer broadcast code
+2. Open live.html in nieuw tabblad → voer code in → klik Verbinden
+3. Speel muziek op DJ → VERWACHT: muziek hoorbaar op Live pagina
+4. VERWACHT: chat berichten kunnen verstuurd worden
+5. Stop broadcast op DJ → VERWACHT: ON AIR bar verdwijnt
+```
+
+### Test 11: Navigatie (alle pagina's)
+```
+1. Open elke pagina: Studio, DJ, Editor, Sampler, Contests, Live
+2. VERWACHT: DC logo in navbar, alle 6 links werken, actieve pagina highlighted
+3. Hamburger menu op mobiel (< 768px) → VERWACHT: menu opent/sluit
+```
+
+### Test 12: GitHub Pages
+```
+1. Open https://anneversion.github.io/daw/
+2. VERWACHT: Studio laadt zonder errors
+3. CHECK: Library sidebar toont "geen geluiden" (normaal, geen backend)
+4. CHECK: Improvisatie werkt volledig (browser-only, geen API nodig)
+5. CHECK: Sampler laadt, Jamendo samples beschikbaar via "Laad Sample Kit"
+6. CHECK: DJ app kan Jamendo tracks zoeken en afspelen
+7. CHECK: Navigatie tussen alle 6 pagina's werkt
+```
 
 ## Let op
 - Audio bestanden staan in .gitignore
