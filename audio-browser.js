@@ -303,26 +303,38 @@ class AudioBrowser {
     }
 
     _miniWave(color) {
-        // Genereer random CSS mini-waveform (20 bars)
         const bars = [];
-        for (let i = 0; i < 20; i++) {
+        for (let i = 0; i < 16; i++) {
             const h = 20 + Math.random() * 60 + Math.sin(i * 0.5) * 20;
             bars.push(`<div style="width:2px;height:${h}%;background:${color};border-radius:1px;opacity:.6"></div>`);
         }
-        return `<div style="display:flex;align-items:center;gap:1px;height:20px;min-width:50px">${bars.join('')}</div>`;
+        return `<div style="display:flex;align-items:center;gap:1px;height:16px;min-width:40px">${bars.join('')}</div>`;
+    }
+
+    _miniPianoRoll(color) {
+        // MIDI: toon kleine noot-balkjes i.p.v. waveform
+        const notes = [];
+        for (let i = 0; i < 8; i++) {
+            const y = 2 + Math.floor(Math.random() * 10);
+            const w = 3 + Math.floor(Math.random() * 8);
+            const x = i * 5 + Math.floor(Math.random() * 2);
+            notes.push(`<div style="position:absolute;left:${x}px;top:${y}px;width:${w}px;height:2px;background:${color};border-radius:1px;opacity:.7"></div>`);
+        }
+        return `<div style="position:relative;height:16px;min-width:40px;background:rgba(255,255,255,.03);border-radius:2px;overflow:hidden">${notes.join('')}</div>`;
     }
 
     _renderResultsHTML(results) {
         if (!results.length) return '<div style="color:var(--text-dim,#8b949e);font-size:10px;padding:8px;text-align:center">Geen resultaten</div>';
         return results.map((r, i) => {
             const dur = this._fmtDur(r.duration);
+            const visual = r.isMidi ? this._miniPianoRoll(r.sourceColor || '#ff69b4') : this._miniWave(r.sourceColor || '#4a9eff');
             return `
-            <div class="ab-item" data-idx="${i}" style="display:flex;align-items:center;gap:6px;padding:4px 5px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;font-size:10px;transition:background .15s">
+            <div class="ab-item" draggable="true" data-idx="${i}" style="display:flex;align-items:center;gap:6px;padding:4px 5px;border-bottom:1px solid rgba(255,255,255,.04);cursor:grab;font-size:10px;transition:background .15s">
                 <span style="cursor:pointer;font-size:16px;color:${r.sourceColor};flex-shrink:0" data-preview="${i}">&#9654;</span>
                 <div style="flex:1;min-width:0">
                     <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text,#e0e0ee)" title="${r.name}">${r.name}</div>
                     <div style="display:flex;align-items:center;gap:6px;margin-top:1px">
-                        ${this._miniWave(r.sourceColor || '#4a9eff')}
+                        ${visual}
                         <span style="font-size:7px;color:${r.sourceColor};opacity:.7">${r.source}</span>
                         ${dur ? `<span style="font-size:7px;color:var(--text-dim,#8b949e)">${dur}</span>` : ''}
                     </div>
@@ -336,6 +348,19 @@ class AudioBrowser {
         container.querySelectorAll('.ab-item').forEach(el => {
             el.onmouseover = () => { el.style.background = 'var(--bg-hover,#242d3d)'; };
             el.onmouseout = () => { el.style.background = 'transparent'; };
+            // Drag & drop
+            el.ondragstart = (e) => {
+                const r = this._results[+el.dataset.idx];
+                if (!r) return;
+                e.dataTransfer.setData('application/json', JSON.stringify({
+                    name: r.name, url: r.url, isMidi: !!r.isMidi,
+                    source: r.source, needsProxy: r.needsProxy, _idbName: r._idbName
+                }));
+                e.dataTransfer.setData('text/plain', r.name);
+                e.dataTransfer.effectAllowed = 'copy';
+                el.style.opacity = '0.5';
+            };
+            el.ondragend = () => { el.style.opacity = '1'; };
             el.onclick = async (e) => {
                 if (e.target.dataset.preview !== undefined) {
                     this._preview(this._results[+e.target.dataset.preview]);
