@@ -10585,6 +10585,8 @@ class DAWController {
             track.regions.push(region);
         }
 
+        console.log('Piano Roll opent voor:', track.name, 'Region:', region.name, 'Noten:', region.notes.length, 'Lengte:', region.lengthBeats);
+
         // Build piano roll modal
         const overlay = document.createElement('div');
         overlay.id = 'piano-roll-overlay';
@@ -10730,6 +10732,7 @@ class DAWController {
 
         // Draw notes
         const color = s.track.color || '#4a7fff';
+        if (s.region.notes.length > 0) console.log('Drawing', s.region.notes.length, 'notes, first:', s.region.notes[0]);
         s.region.notes.forEach(note => {
             const midi = this.renderer._noteNameToMidi(note.note);
             const rowFromTop = (s.maxOct * 12 + 11) - midi;
@@ -10737,10 +10740,11 @@ class DAWController {
             const x = note.startBeat * s.beatW;
             const w2 = Math.max(4, note.lengthBeats * s.beatW - 1);
 
-            // Note block
-            const vel = (note.velocity || 100) / 127;
+            // Note block - velocity kan 0-1 (import) of 0-127 (handmatig) zijn
+            const rawVel = note.velocity || 0.8;
+            const vel = rawVel > 1 ? rawVel / 127 : rawVel;
             ctx.fillStyle = color;
-            ctx.globalAlpha = 0.5 + vel * 0.5;
+            ctx.globalAlpha = 0.4 + vel * 0.6;
             ctx.fillRect(x, y + 1, w2, s.noteH - 2);
             ctx.globalAlpha = 1;
 
