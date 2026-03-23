@@ -148,6 +148,12 @@ class AudioBrowser {
                 { q: 'explosion', l: 'Explosie' }, { q: 'bell clock', l: 'Bel' }, { q: 'footsteps', l: 'Stappen' },
                 { q: 'ocean sea wave', l: 'Zee' }, { q: 'fire', l: 'Vuur' }, { q: 'telephone', l: 'Telefoon' },
               ]},
+            { sid: 'ccmixter', label: 'ccMixter', color: '#00cc88', icon: '🎼',
+              cats: [
+                { q: 'drums', l: 'Drums' }, { q: 'bass', l: 'Bass' }, { q: 'guitar', l: 'Gitaar' },
+                { q: 'piano', l: 'Piano' }, { q: 'vocals', l: 'Vocals' }, { q: 'ambient', l: 'Ambient' },
+                { q: 'hiphop', l: 'HipHop' }, { q: 'jazz', l: 'Jazz' }, { q: 'electronic', l: 'Electronic' },
+              ]},
             { sid: 'deezer', label: 'Deezer', color: '#a238ff', icon: '🎧',
               cats: [
                 { q: 'jazz', l: 'Jazz' }, { q: 'reggae', l: 'Reggae' }, { q: 'hip hop', l: 'HipHop' },
@@ -251,6 +257,7 @@ class AudioBrowser {
             else if (sid === 'jamendo') results = await this._searchJamendo(query);
             else if (sid === 'archive') results = await this._searchArchive(query);
             else if (sid === 'bbc') results = await this._searchBBC(query);
+            else if (sid === 'ccmixter') results = await this._searchCCMixter(query);
             else if (sid === 'deezer') results = await this._searchDeezer(query);
             else if (sid === 'community') results = await this._searchCommunity(query);
         } catch(e) {}
@@ -501,6 +508,7 @@ class AudioBrowser {
         if (isOn('jamendo')) promises.push(this._searchJamendo(query).then(r => allResults.push(...r)).catch(() => {}));
         if (isOn('archive')) promises.push(this._searchArchive(query).then(r => allResults.push(...r)).catch(() => {}));
         if (isOn('bbc')) promises.push(this._searchBBC(query).then(r => allResults.push(...r)).catch(() => {}));
+        if (isOn('ccmixter')) promises.push(this._searchCCMixter(query).then(r => allResults.push(...r)).catch(() => {}));
         if (isOn('deezer')) promises.push(this._searchDeezer(query).then(r => allResults.push(...r)).catch(() => {}));
         if (isOn('community')) promises.push(this._searchCommunity(query).then(r => allResults.push(...r)).catch(() => {}));
         if (isOn('recordings')) promises.push(this._searchRecordings(query).then(r => allResults.push(...r)).catch(() => {}));
@@ -772,41 +780,55 @@ class AudioBrowser {
     }
 
     async _searchBBC(query) {
-        // BBC Sound Effects via Internet Archive collection
-        const url = `https://archive.org/advancedsearch.php?q=collection:bbcsoundeffects+${encodeURIComponent(query)}&fl[]=identifier&fl[]=title&fl[]=description&output=json&rows=15&sort[]=downloads+desc`;
+        // Geluidseffecten zoeken op Archive.org (BBC + andere bronnen)
+        const url = `https://archive.org/advancedsearch.php?q=title:"sound+effects"+${encodeURIComponent(query)}+mediatype:audio&fl[]=identifier&fl[]=title&output=json&rows=12&sort[]=downloads+desc`;
         const resp = await fetch(url);
         const data = await resp.json();
         return (data.response?.docs || []).map(item => ({
-            name: (item.title || item.identifier).replace(/^BBC Sound Effects - /, ''),
-            source: 'BBC',
+            name: (item.title || item.identifier).substring(0, 60),
+            source: 'BBC/Archive',
             sourceColor: '#ff6b6b',
-            sourceIcon: 'radio',
-            url: `https://archive.org/download/${item.identifier}/${item.identifier}.mp3`,
+            url: `https://archive.org/download/${item.identifier}/${item.identifier}_vbr.mp3`,
             needsProxy: false
         }));
     }
 
     async _searchDeezer(query) {
-        // Deezer API - geen auth nodig, 30s previews
-        // CORS: Deezer blokkeert directe browser requests, gebruik CORS proxy
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://api.deezer.com/search?q=${encodeURIComponent(query)}&limit=10`)}`;
-        let resp;
-        try {
-            resp = await fetch(proxyUrl);
-        } catch(e) {
-            // Fallback: directe request (werkt op sommige browsers/servers)
-            resp = await fetch(`https://api.deezer.com/search?q=${encodeURIComponent(query)}&limit=10`);
+        // Deezer: 30s previews, geen auth. CORS proxy nodig voor search API
+        const proxies = [
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://api.deezer.com/search?q=${encodeURIComponent(query)}&limit=12`)}`,
+            `https://corsproxy.io/?${encodeURIComponent(`https://api.deezer.com/search?q=${encodeURIComponent(query)}&limit=12`)}`,
+        ];
+        let data = null;
+        for (const p of proxies) {
+            try { const r = await fetch(p); if (r.ok) { data = await r.json(); break; } } catch(e) {}
         }
-        const data = await resp.json();
+        if (!data) try { const r = await fetch(`/api/proxy/audio?url=${encodeURIComponent(`https://api.deezer.com/search?q=${encodeURIComponent(query)}&limit=12`)}`); if (r.ok) data = await r.json(); } catch(e) {}
+        if (!data) return [];
         return (data.data || []).map(t => ({
             name: `${t.artist?.name || ''} - ${t.title || ''}`.trim(),
-            source: 'Deezer',
+            source: 'Deezer · 30s',
             sourceColor: '#a238ff',
-            sourceIcon: 'headphones',
-            url: t.preview, // 30s MP3 preview, CORS OK
+            url: t.preview,
             needsProxy: false,
             duration: 30
         }));
+    }
+
+    async _searchCCMixter(query) {
+        // ccMixter: CC-licensed muziek, geen auth nodig
+        const url = `https://ccmixter.org/api/query?datasource=uploads&f=json&limit=10&tags=${encodeURIComponent(query)}`;
+        let data = null;
+        try { const r = await fetch(url); if (r.ok) data = await r.json(); } catch(e) {}
+        if (!data) try { const r = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`); if (r.ok) data = await r.json(); } catch(e) {}
+        if (!data) return [];
+        return (data || []).map(t => ({
+            name: `${t.user_name} - ${t.upload_name}`,
+            source: 'ccMixter',
+            sourceColor: '#00cc88',
+            url: t.files?.[0]?.download_url || '',
+            needsProxy: false,
+        })).filter(r => r.url);
     }
 
     _getSupabase() {
