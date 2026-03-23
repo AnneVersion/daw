@@ -3293,8 +3293,7 @@ class TimelineRenderer {
                 ctx.stroke();
 
                 if (isMidi && region.notes && region.notes.length > 0) {
-                    // ---- MIDI: draw note blocks ----
-                    // Find note range for scaling
+                    // ---- MIDI: draw note blocks in regio ----
                     let minNote = 127, maxNote = 0;
                     region.notes.forEach(n => {
                         const midi = this._noteNameToMidi(n.note);
@@ -3302,21 +3301,25 @@ class TimelineRenderer {
                         if (midi > maxNote) maxNote = midi;
                     });
                     const noteRange = Math.max(maxNote - minNote, 1) + 2;
-                    const innerH = regionH - 16; // ruimte binnen regio (padding 8px boven/onder naam)
-                    const noteH = Math.max(2, Math.min(6, innerH / noteRange));
+                    const innerH = regionH - 12;
+                    const noteH = Math.max(2, innerH / noteRange);
+                    const lenBeats = region.lengthBeats || 4;
 
-                    ctx.fillStyle = color + 'dd';
+                    ctx.fillStyle = color;
+                    ctx.globalAlpha = 0.8;
                     region.notes.forEach(n => {
                         const midi = this._noteNameToMidi(n.note);
-                        const noteX = x + (n.startBeat / (region.lengthBeats || 4)) * regionW;
-                        const noteW = Math.max(2, (n.lengthBeats / (region.lengthBeats || 4)) * regionW);
-                        // Noot Y-positie: genormaliseerd binnen de regio (hoog=boven, laag=onder)
+                        const noteX = x + (n.startBeat / lenBeats) * regionW;
+                        const noteW = Math.max(3, (n.lengthBeats / lenBeats) * regionW);
                         const normY = noteRange > 1 ? (maxNote - midi) / noteRange : 0.5;
-                        const noteY = y + 10 + normY * innerH; // 10px padding voor naam
-                        // Clamp binnen regio
-                        const clampedY = Math.max(y + 10, Math.min(y + regionH - noteH - 2, noteY));
-                        ctx.fillRect(noteX, clampedY, noteW - 0.5, noteH - 0.5);
+                        const noteY = y + 8 + normY * innerH;
+                        ctx.fillRect(noteX, noteY, noteW - 0.5, Math.max(2, noteH - 0.5));
                     });
+                    ctx.globalAlpha = 1;
+                    // Toon noot-count
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '8px sans-serif';
+                    ctx.fillText(`${region.notes.length} noten`, x + 4, y + regionH - 3);
                 } else if (!isMidi && region.peaks && region.peaks.length > 0) {
                     // ---- Audio: draw waveform ----
                     const peaks = region.peaks;
@@ -10585,8 +10588,6 @@ class DAWController {
             track.regions.push(region);
         }
 
-        console.log('Piano Roll opent voor:', track.name, 'Region:', region.name, 'Noten:', region.notes.length, 'Lengte:', region.lengthBeats);
-
         // Build piano roll modal
         const overlay = document.createElement('div');
         overlay.id = 'piano-roll-overlay';
@@ -10732,7 +10733,6 @@ class DAWController {
 
         // Draw notes
         const color = s.track.color || '#4a7fff';
-        if (s.region.notes.length > 0) console.log('Drawing', s.region.notes.length, 'notes, first:', s.region.notes[0]);
         s.region.notes.forEach(note => {
             const midi = this.renderer._noteNameToMidi(note.note);
             const rowFromTop = (s.maxOct * 12 + 11) - midi;
