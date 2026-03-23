@@ -10406,71 +10406,51 @@ class DAWController {
                 }
                 return;
             }
-            // AudioBrowser library drop (application/json)
-            const jsonData = e.dataTransfer.getData('application/json');
-            if (jsonData) {
+            // AudioBrowser library drop — gebruik pre-fetched buffer
+            const abIdx = e.dataTransfer.getData('application/x-ab-idx');
+            if (abIdx !== '' && this._librarySidebarBrowser) {
+                const ab = this._librarySidebarBrowser;
+                const dragData = ab._dragBuffer;
                 try {
-                    const data = JSON.parse(jsonData);
-                    toast(`Laden: ${data.name}...`, 'info');
-
-                    // Zorg dat AudioContext actief is
                     if (this.engine.ctx?.state === 'suspended') await this.engine.ctx.resume();
 
-                    if (data.isMidi) {
-                        // MIDI: fetch, parse, maak tracks
-                        let buf;
-                        try {
-                            if (data.needsProxy) {
-                                try { buf = await (await fetch(`/api/proxy/audio?url=${encodeURIComponent(data.url)}`)).arrayBuffer(); }
-                                catch(e) { buf = await (await fetch(data.url)).arrayBuffer(); }
-                            } else {
-                                buf = await (await fetch(data.url)).arrayBuffer();
-                            }
-                        } catch(fetchErr) {
-                            // Probeer via CORS proxy
-                            try { buf = await (await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(data.url)}`)).arrayBuffer(); }
-                            catch(e2) { throw new Error('Kan MIDI niet laden: ' + fetchErr.message); }
+                    if (dragData && dragData.buffer) {
+                        // Pre-fetched data beschikbaar
+                        const { buffer, result } = dragData;
+                        if (result.isMidi) {
+                            const notes = ab._parseMidiNotes(new Uint8Array(buffer));
+                            this._loadMidiToTimeline(result.name, notes);
+                        } else {
+                            const audioBuffer = await this.engine.ctx.decodeAudioData(buffer.slice(0));
+                            let track = state.tracks[trackIdx];
+                            if (!track || track.type !== 'audio') track = state.tracks.find(t => t.type === 'audio');
+                            if (!track) { this.addTrack('Audio', 'audio'); track = state.tracks.find(t => t.type === 'audio'); }
+                            const sid = uuid();
+                            this.engine.audioBuffers.set(sid, audioBuffer);
+                            track.regions.push({
+                                id: uuid(), soundId: sid, startBeat: dropBeat, offset: 0,
+                                duration: audioBuffer.duration, name: result.name,
+                                peaks: this.engine.computePeaks(audioBuffer)
+                            });
+                            this.renderer.render();
+                            toast(`"${result.name}" op ${track.name} @ beat ${Math.round(dropBeat)}`, 'success');
                         }
-                        const notes = this._librarySidebarBrowser?._parseMidiNotes(new Uint8Array(buf)) || [];
-                        this._loadMidiToTimeline(data.name, notes);
                     } else {
-                        // Audio: fetch, decode, drop op track
-                        let resp;
-                        try {
-                            if (data.needsProxy) {
-                                try { resp = await fetch(`/api/proxy/audio?url=${encodeURIComponent(data.url)}`); if (!resp.ok) throw 0; }
-                                catch(e) { resp = await fetch(data.url); }
-                            } else if (data._idbName) {
-                                const rec = await AudioBrowser.getFromIndexedDB(data._idbName);
-                                if (rec?.blob) resp = new Response(rec.blob);
-                            } else {
-                                resp = await fetch(data.url);
-                            }
-                        } catch(fetchErr) {
-                            // CORS proxy fallback
-                            try { resp = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(data.url)}`); }
-                            catch(e2) { throw new Error('Kan audio niet laden'); }
+                        // Fallback: laad via _loadResult (klik-methode)
+                        const result = ab._results[+abIdx];
+                        if (result) {
+                            toast(`Laden: ${result.name}...`, 'info');
+                            ab._loadResult(result);
                         }
-                        if (!resp || !resp.ok) throw new Error('Download mislukt');
-                        const arrayBuf = await resp.arrayBuffer();
-                        const audioBuffer = await this.engine.ctx.decodeAudioData(arrayBuf);
-                        let track = state.tracks[trackIdx];
-                        if (!track || track.type !== 'audio') track = state.tracks.find(t => t.type === 'audio');
-                        if (!track) { this.addTrack('Audio', 'audio'); track = state.tracks.find(t => t.type === 'audio'); }
-                        const sid = uuid();
-                        this.engine.audioBuffers.set(sid, audioBuffer);
-                        track.regions.push({
-                            id: uuid(), soundId: sid, startBeat: dropBeat, offset: 0,
-                            duration: audioBuffer.duration, name: data.name,
-                            peaks: this.engine.computePeaks(audioBuffer)
-                        });
-                        this.renderer.render();
-                        toast(`"${data.name}" op ${track.name} @ beat ${Math.round(dropBeat)}`, 'success');
                     }
                 } catch(err) {
-                    console.error('Library drop error:', err);
-                    toast(`Fout: ${err.message || 'Laden mislukt'}`, 'error');
+                    console.error('Drop error:', err);
+                    // Fallback: gebruik klik-methode
+                    const result = ab._results[+abIdx];
+                    if (result) ab._loadResult(result);
+                    else toast('Laden mislukt. Klik op het item.', 'error');
                 }
+                ab._dragBuffer = null;
                 return;
             }
 

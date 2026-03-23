@@ -348,17 +348,22 @@ class AudioBrowser {
         container.querySelectorAll('.ab-item').forEach(el => {
             el.onmouseover = () => { el.style.background = 'var(--bg-hover,#242d3d)'; };
             el.onmouseout = () => { el.style.background = 'transparent'; };
-            // Drag & drop
-            el.ondragstart = (e) => {
+            // Drag & drop: pre-fetch audio zodat CORS geen probleem is
+            el.ondragstart = async (e) => {
                 const r = this._results[+el.dataset.idx];
                 if (!r) return;
-                e.dataTransfer.setData('application/json', JSON.stringify({
-                    name: r.name, url: r.url, isMidi: !!r.isMidi,
-                    source: r.source, needsProxy: r.needsProxy, _idbName: r._idbName
-                }));
-                e.dataTransfer.setData('text/plain', r.name);
+                // Sla result index op voor de drop handler
+                e.dataTransfer.setData('text/plain', el.dataset.idx);
+                e.dataTransfer.setData('application/x-ab-idx', el.dataset.idx);
                 e.dataTransfer.effectAllowed = 'copy';
                 el.style.opacity = '0.5';
+                // Pre-fetch de audio data in de achtergrond
+                try {
+                    const buf = await this._fetchResultBuffer(r);
+                    this._dragBuffer = { buffer: buf, result: r };
+                } catch(e) {
+                    this._dragBuffer = null;
+                }
             };
             el.ondragend = () => { el.style.opacity = '1'; };
             el.onclick = async (e) => {
