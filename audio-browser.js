@@ -288,17 +288,39 @@ class AudioBrowser {
         this._bindResultClicks(el);
     }
 
+    _fmtDur(d) {
+        if (!d || typeof d !== 'number') return '';
+        if (d < 60) return Math.round(d) + 's';
+        return Math.floor(d/60) + ':' + String(Math.round(d%60)).padStart(2,'0');
+    }
+
+    _miniWave(color) {
+        // Genereer random CSS mini-waveform (20 bars)
+        const bars = [];
+        for (let i = 0; i < 20; i++) {
+            const h = 20 + Math.random() * 60 + Math.sin(i * 0.5) * 20;
+            bars.push(`<div style="width:2px;height:${h}%;background:${color};border-radius:1px;opacity:.6"></div>`);
+        }
+        return `<div style="display:flex;align-items:center;gap:1px;height:20px;min-width:50px">${bars.join('')}</div>`;
+    }
+
     _renderResultsHTML(results) {
-        if (!results.length) return '<div style="color:var(--text-dim,#8b949e);font-size:10px;padding:4px">Geen resultaten</div>';
-        return results.map((r, i) => `
-            <div class="ab-item" data-idx="${i}" style="padding:3px 4px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;font-size:10px;transition:background .15s">
-                <div style="display:flex;align-items:center;gap:4px">
-                    <span style="cursor:pointer;font-size:14px" data-preview="${i}">&#9654;</span>
-                    <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text,#e0e0ee)" title="${r.name}">${r.name}</span>
+        if (!results.length) return '<div style="color:var(--text-dim,#8b949e);font-size:10px;padding:8px;text-align:center">Geen resultaten</div>';
+        return results.map((r, i) => {
+            const dur = this._fmtDur(r.duration);
+            return `
+            <div class="ab-item" data-idx="${i}" style="display:flex;align-items:center;gap:6px;padding:4px 5px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;font-size:10px;transition:background .15s">
+                <span style="cursor:pointer;font-size:16px;color:${r.sourceColor};flex-shrink:0" data-preview="${i}">&#9654;</span>
+                <div style="flex:1;min-width:0">
+                    <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text,#e0e0ee)" title="${r.name}">${r.name}</div>
+                    <div style="display:flex;align-items:center;gap:6px;margin-top:1px">
+                        ${this._miniWave(r.sourceColor || '#4a9eff')}
+                        <span style="font-size:7px;color:${r.sourceColor};opacity:.7">${r.source}</span>
+                        ${dur ? `<span style="font-size:7px;color:var(--text-dim,#8b949e)">${dur}</span>` : ''}
+                    </div>
                 </div>
-                <div style="font-size:7px;color:${r.sourceColor};opacity:.8;margin-left:18px">${r.source}${r.duration ? ' · ' + (typeof r.duration === 'number' ? (r.duration < 60 ? Math.round(r.duration) + 's' : Math.floor(r.duration/60) + ':' + String(Math.round(r.duration%60)).padStart(2,'0')) : r.duration) : ''}</div>
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
     }
 
     _bindResultClicks(container) {
