@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DAW - Community</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='none' stroke='%2339ff14' stroke-width='1.5'/><circle cx='16' cy='16' r='3' fill='%2339ff14' opacity='.4'/><ellipse cx='16' cy='16' rx='14' ry='5' fill='none' stroke='%2339ff14' stroke-width='.7' opacity='.4' transform='rotate(-8 16 16)'/></svg>">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg-darkest:#0a0a0f;--bg-dark:#0d1117;--bg-panel:#161b22;--bg-card:#1a1f2e;--bg-hover:#242d3d;--bg-selected:#2d3548;--border:#30363d;--border-light:#484f58;--text:#e0e0ee;--text-dim:#8b949e;--text-bright:#fff;--accent:#4a9eff;--accent-hover:#5aafff;--purple:#a855f7;--purple-dim:#7c3aed;--green:#39ff14;--green-dim:#22c55e;--red:#ff4a5a;--yellow:#ffd24a;--orange:#ff8a4a;--gold:#fbbf24;--silver:#94a3b8;--bronze:#d97706}
+*{margin:0;padding:0;box-sizing:border-box}html{scroll-behavior:smooth}
+body{font-family:-apple-system,'SF Pro Display','Segoe UI',system-ui,sans-serif;font-size:14px;color:var(--text);background:var(--bg-dark);min-height:100vh;overflow-x:hidden;user-select:none}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-track{background:var(--bg-dark)}::-webkit-scrollbar-thumb{background:#484f58;border-radius:4px}::-webkit-scrollbar-thumb:hover{background:var(--border-light)}
+.nav-bar{position:sticky;top:0;z-index:1000;background:rgba(13,17,23,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;height:56px;gap:8px}
+.nav-logo{font-size:18px;font-weight:800;color:var(--accent);letter-spacing:2px;text-decoration:none;margin-right:24px;display:flex;align-items:center;gap:8px}
+.nav-logo .material-icons{font-size:24px;color:var(--green)}
+.nav-links{display:flex;gap:4px;list-style:none}
+.nav-links a{color:var(--text-dim);text-decoration:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;transition:all .2s;display:flex;align-items:center;gap:6px}
+.nav-links a:hover{color:var(--text);background:var(--bg-hover)}.nav-links a.active{color:var(--accent);background:rgba(74,158,255,.1)}
+.nav-links .material-icons{font-size:18px}.nav-spacer{flex:1}
+.tab-bar{max-width:1400px;margin:0 auto;padding:20px 24px 0;display:flex;gap:4px;border-bottom:1px solid var(--border)}
+.tab-btn{padding:12px 24px;background:none;border:none;color:var(--text-dim);font-size:14px;font-weight:600;cursor:pointer;border-radius:8px 8px 0 0;display:flex;align-items:center;gap:8px;transition:all .2s;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab-btn:hover{color:var(--text);background:var(--bg-hover)}.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(74,158,255,.06)}
+.tab-btn .material-icons{font-size:20px}.tab-content{display:none}.tab-content.active{display:block}
+.badge-soon{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:rgba(255,138,74,.15);border:1px solid rgba(255,138,74,.3);border-radius:6px;font-size:10px;font-weight:600;color:var(--orange);text-transform:uppercase;letter-spacing:.5px}
+.section{max-width:1400px;margin:0 auto;padding:32px 24px}
+.section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+.section-title{font-size:20px;font-weight:700;color:var(--text-bright);display:flex;align-items:center;gap:10px}
+.section-title .material-icons{font-size:24px;color:var(--purple)}.section-subtitle{font-size:13px;color:var(--text-dim);margin-top:4px}
+.contest-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:20px}
+.contest-card{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:24px;transition:all .3s;position:relative;overflow:hidden;cursor:pointer}
+.contest-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--purple),var(--accent));opacity:0;transition:opacity .3s}
+.contest-card:hover{border-color:var(--border-light);transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,.3)}.contest-card:hover::before{opacity:1}
+.card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.card-status{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600}
+.card-status.active{background:rgba(57,255,20,.1);border:1px solid rgba(57,255,20,.2);color:var(--green)}
+.card-status .pulse-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s ease-in-out infinite}
+.card-tags{display:flex;gap:6px}.tag{padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.tag.lofi{background:rgba(168,85,247,.15);color:var(--purple)}.tag.synthwave{background:rgba(74,158,255,.15);color:var(--accent)}
+.tag.challenge{background:rgba(255,138,74,.15);color:var(--orange)}.tag.remix{background:rgba(57,255,20,.15);color:var(--green)}.tag.battle{background:rgba(255,74,90,.15);color:var(--red)}
+.card-title{font-size:18px;font-weight:700;color:var(--text-bright);margin-bottom:8px}
+.card-desc{font-size:13px;color:var(--text-dim);line-height:1.5;margin-bottom:16px}
+.card-meta{display:flex;gap:16px;margin-bottom:16px;font-size:12px;color:var(--text-dim)}
+.card-meta-item{display:flex;align-items:center;gap:4px}.card-meta-item .material-icons{font-size:16px}
+.card-prize{display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.15);border-radius:10px;margin-bottom:16px}
+.card-prize .material-icons{color:var(--gold);font-size:20px}.card-prize-text{font-size:13px;font-weight:600;color:var(--gold)}
+.card-actions{display:flex;gap:8px}
+.upload-area{background:var(--bg-panel);border:2px dashed var(--border-light);border-radius:16px;padding:40px;text-align:center;transition:all .3s;cursor:pointer;margin-bottom:24px}
+.upload-area:hover{border-color:var(--accent);background:rgba(74,158,255,.04)}
+.upload-area .material-icons{font-size:48px;color:var(--accent);margin-bottom:12px;display:block}
+.upload-area h3{font-size:16px;font-weight:700;color:var(--text-bright);margin-bottom:4px}.upload-area p{font-size:12px;color:var(--text-dim)}
+.leaderboard{background:var(--bg-panel);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.leaderboard-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;color:var(--text-bright)}
+.leaderboard-header .material-icons{font-size:22px;color:var(--gold)}
+.lb-item{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid rgba(48,54,61,.4);transition:background .2s}.lb-item:last-child{border-bottom:none}.lb-item:hover{background:var(--bg-hover)}
+.lb-rank{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.lb-rank.r1{background:rgba(251,191,36,.2);color:var(--gold)}.lb-rank.r2{background:rgba(148,163,184,.2);color:var(--silver)}.lb-rank.r3{background:rgba(217,119,6,.2);color:var(--bronze)}.lb-rank.r-other{background:var(--bg-darkest);color:var(--text-dim)}
+.lb-info{flex:1;min-width:0}.lb-name{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lb-track{font-size:11px;color:var(--text-dim)}.lb-score{font-size:13px;font-weight:700;color:var(--accent)}
+.vote-stars{display:flex;gap:2px}.vote-star{background:none;border:none;cursor:pointer;padding:2px;color:var(--border-light);font-size:18px;transition:color .2s}.vote-star:hover,.vote-star.active{color:var(--gold)}
+.broadcast-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.broadcast-card{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:all .3s}
+.broadcast-card:hover{border-color:var(--border-light);transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,.3)}
+.broadcast-card-header{padding:20px;display:flex;align-items:center;gap:14px}
+.broadcast-card-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}.broadcast-card-icon .material-icons{font-size:26px;color:#fff}
+.broadcast-card-info{flex:1;min-width:0}.broadcast-card-name{font-size:15px;font-weight:700;color:var(--text-bright)}.broadcast-card-meta{font-size:12px;color:var(--text-dim);margin-top:2px}
+.broadcast-card-live{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:rgba(255,74,90,.15);border-radius:6px;font-size:11px;font-weight:700;color:var(--red)}
+.broadcast-card-live .pulse-dot{width:6px;height:6px;background:var(--red);border-radius:50%;animation:pulse 1.5s ease-in-out infinite}
+.broadcast-card-body{padding:0 20px 20px}
+.broadcast-listen-btn{width:100%;padding:10px;background:linear-gradient(135deg,var(--accent),var(--purple));border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .2s}
+.broadcast-listen-btn:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(74,158,255,.3)}
+.broadcast-card-start{border-style:dashed;border-color:var(--border-light);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;text-align:center;cursor:pointer;text-decoration:none;min-height:180px}
+.broadcast-card-start:hover{border-color:var(--accent);background:rgba(74,158,255,.04)}
+.broadcast-card-start .material-icons{font-size:40px;color:var(--accent);margin-bottom:12px}
+.broadcast-card-start h3{font-size:15px;font-weight:700;color:var(--text-bright);margin-bottom:4px}.broadcast-card-start p{font-size:12px;color:var(--text-dim)}
+.broadcast-empty{grid-column:1/-1;text-align:center;padding:48px 20px;color:var(--text-dim)}.broadcast-empty .material-icons{font-size:48px;opacity:.3;display:block;margin:0 auto 12px}.broadcast-empty .sub{font-size:12px;opacity:.6}
+.chat-panel{background:var(--bg-panel);border:1px solid var(--border);border-radius:14px;overflow:hidden;max-height:400px;display:flex;flex-direction:column}
+.chat-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.chat-header-left{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:var(--text-bright)}.chat-header-left .material-icons{font-size:18px;color:var(--accent)}
+.chat-disconnect{padding:6px 14px;background:rgba(255,74,90,.15);border:1px solid rgba(255,74,90,.3);color:var(--red);border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;display:flex;align-items:center;gap:4px}
+.chat-messages{flex:1;padding:12px 16px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;min-height:200px}
+.chat-msg{display:flex;gap:8px;animation:chatIn .3s ease}
+.chat-avatar{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
+.chat-msg-author{font-size:12px;font-weight:600;margin-bottom:1px}.chat-msg-text{font-size:12px;color:var(--text-dim);line-height:1.4}
+.chat-input-wrap{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px}
+.chat-input{flex:1;background:var(--bg-darkest);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:12px;outline:none}.chat-input:focus{border-color:var(--accent)}
+.chat-send{width:36px;height:36px;border:none;background:var(--accent);color:#fff;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center}.chat-send:hover{background:var(--accent-hover)}.chat-send .material-icons{font-size:18px}
+.listen-panel{background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px}
+.listen-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}.listen-header .material-icons{font-size:28px;color:var(--accent)}
+.listen-header h3{font-size:16px;color:var(--text-bright);margin:0}.listen-header p{font-size:11px;color:var(--text-dim);margin:0}
+.listen-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.listen-code-input{background:var(--bg-darkest);border:1px solid var(--border);border-radius:8px;padding:10px 16px;color:var(--text);font-size:16px;font-weight:700;letter-spacing:4px;text-transform:uppercase;width:200px;text-align:center;outline:none}
+.listen-connect-btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px}
+.dj-card{background:linear-gradient(135deg,rgba(168,85,247,.08),rgba(74,158,255,.06));border:1px solid var(--border);border-radius:20px;padding:48px;text-align:center;max-width:600px;margin:0 auto}
+.dj-card .material-icons.big{font-size:64px;color:var(--accent);margin-bottom:16px;display:block}
+.dj-card h2{font-size:24px;font-weight:800;color:var(--text-bright);margin-bottom:12px}
+.dj-card p{font-size:14px;color:var(--text-dim);line-height:1.6;margin-bottom:24px}
+.dj-features{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:24px}
+.dj-feat{padding:6px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--text-dim);display:flex;align-items:center;gap:6px}.dj-feat .material-icons{font-size:16px;color:var(--accent)}
+.btn-primary{padding:10px 16px;background:linear-gradient(135deg,var(--purple),var(--accent));border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;transition:all .3s;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(168,85,247,.4)}
+.btn-secondary{padding:10px 16px;background:transparent;border:1px solid var(--border);color:var(--text);border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;transition:all .2s;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn-secondary:hover{background:var(--bg-hover);border-color:var(--border-light)}
+.btn-primary .material-icons,.btn-secondary .material-icons{font-size:18px}
+.footer{border-top:1px solid var(--border);padding:24px;text-align:center;font-size:12px;color:var(--text-dim)}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+@keyframes chatIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse-broadcast{0%,100%{opacity:1}50%{opacity:.6}}
+@media(max-width:900px){.contest-grid{grid-template-columns:1fr}.broadcast-grid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}}
+@media(max-width:600px){.nav-links a span.nav-label{display:none}.section{padding:24px 16px}.tab-bar{padding:16px 16px 0}.tab-btn{padding:10px 16px;font-size:13px}.broadcast-grid{grid-template-columns:1fr}.dj-card{padding:32px 20px}}
+</style>
+</head>
+<body>
+<nav class="nav-bar">
+    <a href="index.html" class="nav-logo"><img src="dc-logo.svg" alt="DC" style="height:24px"> DAW</a>
+    <ul class="nav-links">
+        <li><a href="index.html"><span class="material-icons">piano</span><span class="nav-label">Studio</span></a></li>
+        <li><a href="editor.html"><span class="material-icons">graphic_eq</span><span class="nav-label">Editor</span></a></li>
+        <li><a href="sampler.html"><span class="material-icons">library_music</span><span class="nav-label">Sampler</span></a></li>
+        <li><a href="improv.html"><span class="material-icons">music_note</span><span class="nav-label">Improvisator</span></a></li>
+        <li><a href="vocals.html"><span class="material-icons">mic</span><span class="nav-label">Vocals</span></a></li>
+        <li><a href="community.html" class="active"><span class="material-icons">groups</span><span class="nav-label">Community</span></a></li>
+    </ul>
+    <div class="nav-spacer"></div>
+</nav>
+
+<div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('contests')"><span class="material-icons">emoji_events</span> Contests</button>
+    <button class="tab-btn" onclick="switchTab('live')"><span class="material-icons">live_tv</span> Live</button>
+    <button class="tab-btn" onclick="switchTab('dj')"><span class="material-icons">radio</span> DJ</button>
+</div>
+
+<!-- TAB 1: CONTESTS -->
+<div class="tab-content active" id="tab-contests">
+<div class="section">
+    <div class="upload-area" id="contest-upload">
+        <span class="material-icons">cloud_upload</span>
+        <h3>Upload je Beat / Productie <span class="badge-soon">binnenkort</span></h3>
+        <p>Sleep een WAV of MP3 bestand hierheen, of klik om te kiezen. Max 10MB.</p>
+    </div>
+    <div class="section-header"><div>
+        <div class="section-title"><span class="material-icons">local_fire_department</span> Actieve Contests</div>
+        <div class="section-subtitle">Doe mee en laat je talent zien</div>
+    </div></div>
+    <div class="contest-grid" id="contest-grid"></div>
+    <div style="margin-top:32px">
+        <div class="section-header"><div>
+            <div class="section-title"><span class="material-icons">leaderboard</span> Leaderboard</div>
+            <div class="section-subtitle">Top producers deze maand</div>
+        </div></div>
+        <div class="leaderboard" id="leaderboard"></div>
+    </div>
+    <div style="margin-top:32px">
+        <div class="section-header"><div>
+            <div class="section-title"><span class="material-icons">how_to_vote</span> Stem op Inzendingen <span class="badge-soon">binnenkort</span></div>
+            <div class="section-subtitle">Luister en geef een rating aan je favorieten</div>
+        </div></div>
+        <div id="voting-list"></div>
+    </div>
+</div>
+</div>
+
+<!-- TAB 2: LIVE -->
+<div class="tab-content" id="tab-live">
+<div class="section">
+    <div class="listen-panel">
+        <div class="listen-header">
+            <span class="material-icons">cell_tower</span>
+            <div><h3>Luister naar een DJ Broadcast</h3><p>Voer de broadcast code in of gebruik een gedeelde link</p></div>
+        </div>
+        <div class="listen-row">
+            <input type="text" id="listen-code" class="listen-code-input" placeholder="CODE" maxlength="6" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">
+            <button class="listen-connect-btn" id="listen-connect-btn" onclick="connectToBroadcast()"><span class="material-icons" style="font-size:18px">headphones</span> Verbinden</button>
+            <span id="listen-status" style="font-size:11px;color:var(--text-dim)"></span>
+        </div>
+        <div id="listen-player" style="display:none;margin-top:16px;background:var(--bg-darkest);border-radius:8px;padding:16px;text-align:center">
+            <div style="display:flex;align-items:center;justify-content:center;gap:12px">
+                <span class="material-icons" style="font-size:32px;color:#4caf50;animation:pulse-broadcast 1.5s infinite">cell_tower</span>
+                <div>
+                    <div style="font-size:14px;font-weight:700;color:var(--text)" id="listen-title">Verbonden met broadcast</div>
+                    <div style="font-size:11px;color:var(--text-dim)" id="listen-info">Bezig met luisteren...</div>
+                </div>
+                <button onclick="disconnectBroadcast()" style="background:#f44336;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:11px;cursor:pointer;margin-left:16px"><span class="material-icons" style="font-size:14px;vertical-align:middle">stop</span> Stop</button>
+            </div>
+            <audio id="listen-audio" autoplay style="display:none"></audio>
+        </div>
+    </div>
+    <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+            <span class="material-icons" style="font-size:28px;color:#9146ff">live_tv</span>
+            <div><h3 style="font-size:16px;color:var(--text-bright);margin:0">Externe Stream</h3><p style="font-size:11px;color:var(--text-dim);margin:0">Bekijk een Twitch of YouTube stream</p></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input type="text" id="embed-url" style="flex:1;min-width:250px;background:var(--bg-darkest);border:1px solid var(--border);border-radius:8px;padding:10px 16px;color:var(--text);font-size:12px;outline:none" placeholder="Twitch/YouTube URL...">
+            <button onclick="embedStream()" style="background:#9146ff;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer"><span class="material-icons" style="font-size:16px;vertical-align:middle">play_circle</span> Kijk</button>
+        </div>
+        <div id="embed-container" style="display:none;margin-top:16px;border-radius:8px;overflow:hidden;aspect-ratio:16/9;max-height:500px"></div>
+    </div>
+    <div class="section-header"><div>
+        <div class="section-title" style="color:var(--red)"><span class="material-icons" style="color:var(--red)">cell_tower</span> Actieve Broadcasts</div>
+    </div></div>
+    <div class="broadcast-grid" id="broadcast-grid"></div>
+    <div id="broadcast-chat-section" style="display:none;margin-top:24px">
+        <div class="chat-panel">
+            <div class="chat-header">
+                <div class="chat-header-left"><span class="material-icons">chat</span><span id="broadcast-chat-title">Live Chat</span></div>
+                <button class="chat-disconnect" onclick="leaveBroadcastChat()"><span class="material-icons" style="font-size:14px">close</span> Verlaat chat</button>
+            </div>
+            <div class="chat-messages" id="broadcast-chat-messages"></div>
+            <div class="chat-input-wrap">
+                <input class="chat-input" placeholder="Stuur een bericht..." id="broadcast-chat-input">
+                <button class="chat-send" onclick="sendBroadcastChat()"><span class="material-icons">send</span></button>
+            </div>
+        </div>
+    </div>
+    <div style="margin-top:24px;text-align:center">
+        <a href="dj.html" style="color:var(--accent);font-size:13px;text-decoration:none;display:inline-flex;align-items:center;gap:6px"><span class="material-icons" style="font-size:18px">podcasts</span> Start je eigen broadcast vanuit de DJ App</a>
+    </div>
+</div>
+</div>
+
+<!-- TAB 3: DJ -->
+<div class="tab-content" id="tab-dj">
+<div class="section">
+    <div class="dj-card">
+        <span class="material-icons big">radio</span>
+        <h2>Open DJ App</h2>
+        <p>Mix tracks, voeg effecten toe, scratch en broadcast live naar je luisteraars. De volledige DJ ervaring in je browser.</p>
+        <div class="dj-features">
+            <div class="dj-feat"><span class="material-icons">album</span> 2 Decks</div>
+            <div class="dj-feat"><span class="material-icons">tune</span> Crossfader & EQ</div>
+            <div class="dj-feat"><span class="material-icons">blur_on</span> 7 FX per Deck</div>
+            <div class="dj-feat"><span class="material-icons">touch_app</span> Scratch</div>
+            <div class="dj-feat"><span class="material-icons">cell_tower</span> Live Broadcast</div>
+            <div class="dj-feat"><span class="material-icons">fiber_manual_record</span> Opname</div>
+        </div>
+        <a href="dj.html" class="btn-primary" style="padding:14px 32px;font-size:15px;text-decoration:none"><span class="material-icons">open_in_new</span> Open DJ App</a>
+    </div>
+</div>
+</div>
+
+<footer class="footer">DAW Platform &copy; 2026 &middot; Community &middot; Gebouwd met Web Audio API</footer>
+
+<script>
+function switchTab(name) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    event.currentTarget.classList.add('active');
+}
+const SUPABASE_URL = 'https://zdhwofuoefczrpkjhtjg.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkaHdvZnVvZWZjenJwa2podGpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE5NTM5NjUsImV4cCI6MjA1NzUyOTk2NX0.pMb1GBQxQLFd73FKThLbkqVR0_bADVHjlATjB4mS36g';
+let _sbClient = null;
+function getSB() { if (!_sbClient) _sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); return _sbClient; }
+
+const contests = [
+    { title:'Beat Battle #12 - Lo-Fi Chill', desc:'Maak de ultieme lo-fi chill beat. Gebruik de meegeleverde sample pack of je eigen sounds. Max 2 minuten.',
+      tags:[['lofi','Lo-Fi'],['battle','Battle']], status:'active', entries:28, maxEntries:50, bpm:'70-90 BPM', maxLen:'2 min', prize:'Premium Sample Pack + Feature op hoofdpagina' },
+    { title:'Remix Contest - Synthwave Classic', desc:'Remix de klassieker "Neon Horizon" in jouw eigen stijl. Stems zijn beschikbaar als download.',
+      tags:[['synthwave','Synthwave'],['remix','Remix']], status:'active', entries:19, maxEntries:100, bpm:'Vrij BPM', maxLen:'5 min', prize:'Officieel remix release + Synth plugin licentie' }
+];
+const leaderboardData = [
+    {name:'ChillBeats_NL',track:'Midnight Rain',score:42},{name:'SynthWizard',track:'Neon Horizon (Future Bass)',score:38},
+    {name:'LoFiKing',track:'Coffee & Vinyl',score:35},{name:'BassKing_020',track:'Neon Horizon (DnB Flip)',score:31},
+    {name:'VibeProducer',track:'Sunset Boulevard',score:29},{name:'CloudNine',track:'Neon Horizon (Ambient)',score:24},
+    {name:'BeatSmith_020',track:'Rainy Window',score:21},{name:'RetroBeats',track:'Cassette Dreams',score:18},
+    {name:'BerlinBeat',track:'Neon Horizon (Techno)',score:15},{name:'TrapLord_NL',track:'Neon Horizon (Chill Trap)',score:12}
+];
+const votingEntries = [
+    {name:'Midnight Rain',artist:'ChillBeats_NL',votes:42},{name:'Coffee & Vinyl',artist:'LoFiKing',votes:38},
+    {name:'Sunset Boulevard',artist:'VibeProducer',votes:35},{name:'Rainy Window',artist:'BeatSmith_020',votes:29},
+    {name:'Cassette Dreams',artist:'RetroBeats',votes:24}
+];
+
+function renderContests() {
+    document.getElementById('contest-grid').innerHTML = contests.map(c => `
+        <div class="contest-card">
+            <div class="card-header">
+                <div class="card-status ${c.status}"><span class="pulse-dot"></span> ${c.status==='active'?'Actief':'Gesloten'}</div>
+                <div class="card-tags">${c.tags.map(t=>`<span class="tag ${t[0]}">${t[1]}</span>`).join('')}</div>
+            </div>
+            <div class="card-title">${c.title}</div>
+            <div class="card-desc">${c.desc}</div>
+            <div class="card-meta">
+                <div class="card-meta-item"><span class="material-icons">people</span>${c.entries} / ${c.maxEntries}</div>
+                <div class="card-meta-item"><span class="material-icons">timer</span>Max ${c.maxLen}</div>
+                <div class="card-meta-item"><span class="material-icons">music_note</span>${c.bpm}</div>
+            </div>
+            <div class="card-prize"><span class="material-icons">workspace_premium</span><span class="card-prize-text">${c.prize}</span></div>
+            <div class="card-actions">
+                <button class="btn-primary" style="flex:1;font-size:12px;padding:8px 14px"><span class="material-icons">upload</span> Doe Mee <span class="badge-soon">binnenkort</span></button>
+                <button class="btn-secondary" style="flex:1;font-size:12px;padding:8px 14px"><span class="material-icons">headphones</span> Beluister <span class="badge-soon">binnenkort</span></button>
+            </div>
+        </div>`).join('');
+}
+function renderLeaderboard() {
+    document.getElementById('leaderboard').innerHTML = `<div class="leaderboard-header"><span class="material-icons">emoji_events</span> Top 10 Producers</div>` +
+        leaderboardData.map((item,i) => {
+            const rc = i===0?'r1':i===1?'r2':i===2?'r3':'r-other';
+            return `<div class="lb-item"><div class="lb-rank ${rc}">${i+1}</div><div class="lb-info"><div class="lb-name">${item.name}</div><div class="lb-track">${item.track}</div></div><div class="lb-score">${item.score} pts</div></div>`;
+        }).join('');
+}
+function renderVoting() {
+    document.getElementById('voting-list').innerHTML = votingEntries.map(v => `
+        <div style="display:flex;align-items:center;gap:14px;padding:12px 16px;background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;margin-bottom:8px">
+            <button style="width:36px;height:36px;border:none;background:rgba(74,158,255,.15);color:var(--accent);border-radius:50%;cursor:not-allowed;display:flex;align-items:center;justify-content:center" disabled><span class="material-icons" style="font-size:18px">play_arrow</span></button>
+            <div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--text-bright)">${v.name}</div><div style="font-size:11px;color:var(--text-dim)">${v.artist}</div></div>
+            <div class="vote-stars">${[1,2,3,4,5].map(()=>`<button class="vote-star" disabled><span class="material-icons">star</span></button>`).join('')}</div>
+            <div style="font-size:12px;color:var(--text-dim);min-width:50px;text-align:right">${v.votes} pts</div>
+        </div>`).join('');
+}
+
+let knownBroadcasts={}, currentChatCode=null, chatChannel=null;
+let chatNickname='Luisteraar-'+Math.random().toString(36).substring(2,6).toUpperCase();
+
+function renderBroadcastGrid() {
+    const grid=document.getElementById('broadcast-grid'), codes=Object.keys(knownBroadcasts);
+    let html='';
+    if (!codes.length) {
+        html+=`<div class="broadcast-empty"><span class="material-icons">wifi_tethering_off</span><p>Geen actieve broadcasts</p><span class="sub">Start een broadcast vanuit de DJ App, of voer een code in hierboven</span></div>`;
+    } else {
+        const colors=['#4a9eff','#a855f7','#ff4a5a','#39ff14','#ff8a4a','#ffd24a'];
+        codes.forEach(code => {
+            const color=colors[code.charCodeAt(0)%colors.length], isC=currentChatCode===code;
+            html+=`<div class="broadcast-card"><div class="broadcast-card-header"><div class="broadcast-card-icon" style="background:${color}"><span class="material-icons">headphones</span></div><div class="broadcast-card-info"><div class="broadcast-card-name">Broadcast ${code}</div><div class="broadcast-card-meta">Code: ${code}</div></div><div class="broadcast-card-live"><span class="pulse-dot"></span> LIVE</div></div><div class="broadcast-card-body"><button class="broadcast-listen-btn" onclick="listenToBroadcast('${code}')" ${isC?'disabled style="opacity:.5;cursor:default"':''}><span class="material-icons">${isC?'check_circle':'headphones'}</span> ${isC?'Verbonden':'Luister mee'}</button></div></div>`;
+        });
+    }
+    html+=`<a href="dj.html" class="broadcast-card broadcast-card-start"><span class="material-icons">podcasts</span><h3>Start je eigen broadcast</h3><p>Open de DJ App en begin met uitzenden</p></a>`;
+    grid.innerHTML=html;
+}
+let discoveryChannel=null;
+function startBroadcastDiscovery() {
+    const sb=getSB();
+    discoveryChannel=sb.channel('broadcast-discovery',{config:{broadcast:{self:false}}});
+    discoveryChannel.on('broadcast',{event:'announce'},(p)=>{const c=p.payload?.code;if(c&&!knownBroadcasts[c]){knownBroadcasts[c]={code:c,startedAt:Date.now()};renderBroadcastGrid()}});
+    discoveryChannel.on('broadcast',{event:'signoff'},(p)=>{const c=p.payload?.code;if(c&&knownBroadcasts[c]){delete knownBroadcasts[c];if(currentChatCode===c)leaveBroadcastChat();renderBroadcastGrid()}});
+    discoveryChannel.subscribe();
+}
+function listenToBroadcast(code) { document.getElementById('listen-code').value=code; connectToBroadcast(); joinBroadcastChat(code); }
+function joinBroadcastChat(code) {
+    if(currentChatCode===code)return; if(chatChannel){chatChannel.unsubscribe();chatChannel=null}
+    currentChatCode=code; const sb=getSB();
+    chatChannel=sb.channel(`broadcast-chat-${code}`,{config:{broadcast:{self:true}}});
+    chatChannel.on('broadcast',{event:'message'},(p)=>{const m=p.payload;if(m)appendChatMessage(m.nickname,m.text,m.color)});
+    chatChannel.subscribe();
+    document.getElementById('broadcast-chat-section').style.display='block';
+    document.getElementById('broadcast-chat-title').textContent=`Chat - Broadcast ${code}`;
+    document.getElementById('broadcast-chat-messages').innerHTML=`<div class="chat-msg" style="justify-content:center"><div style="text-align:center"><div class="chat-msg-text" style="color:var(--accent)">Verbonden met chat van broadcast ${code}</div></div></div>`;
+    renderBroadcastGrid();
+}
+function leaveBroadcastChat() { if(chatChannel){chatChannel.unsubscribe();chatChannel=null} currentChatCode=null; document.getElementById('broadcast-chat-section').style.display='none'; renderBroadcastGrid(); }
+function sendBroadcastChat() {
+    const input=document.getElementById('broadcast-chat-input'), text=input.value.trim(); if(!text||!chatChannel)return;
+    const colors=['#4a9eff','#a855f7','#39ff14','#ff8a4a','#ffd24a','#ff4a5a'];
+    chatChannel.send({type:'broadcast',event:'message',payload:{nickname:chatNickname,text,color:colors[chatNickname.charCodeAt(chatNickname.length-1)%colors.length]}});
+    input.value='';
+}
+function appendChatMessage(nickname,text,color) {
+    const el=document.getElementById('broadcast-chat-messages'); if(!el)return;
+    el.insertAdjacentHTML('beforeend',`<div class="chat-msg"><div class="chat-avatar" style="background:${color||'#4a9eff'}">${nickname.charAt(0).toUpperCase()}</div><div><div class="chat-msg-author" style="color:${color||'#4a9eff'}">${nickname}</div><div class="chat-msg-text">${text}</div></div></div>`);
+    el.scrollTop=el.scrollHeight; while(el.children.length>50)el.removeChild(el.firstChild);
+}
+document.getElementById('broadcast-chat-input').addEventListener('keydown',e=>{if(e.key==='Enter')sendBroadcastChat()});
+
+let _listenPc=null, _listenChannel=null;
+async function connectToBroadcast() {
+    const code=document.getElementById('listen-code').value.trim().toUpperCase();
+    if(!code||code.length<4){document.getElementById('listen-status').textContent='Voer een geldige code in';document.getElementById('listen-status').style.color='#f44336';return}
+    document.getElementById('listen-status').textContent='Verbinden...';document.getElementById('listen-status').style.color='var(--text-dim)';
+    const sb=getSB(), lid=Math.random().toString(36).substring(2,8);
+    _listenPc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]});
+    _listenPc.ontrack=(ev)=>{
+        if(ev.track.kind==='video'){let v=document.getElementById('listen-video');if(!v){v=document.createElement('video');v.id='listen-video';v.autoplay=true;v.playsInline=true;v.style.cssText='width:100%;max-width:320px;border-radius:8px;border:2px solid var(--accent);margin:8px auto;display:block;background:#000';document.getElementById('listen-player').prepend(v)}v.srcObject=ev.streams[0]}
+        else{const a=document.getElementById('listen-audio');a.srcObject=ev.streams[0];a.play().catch(()=>{})}
+        document.getElementById('listen-player').style.display='block';
+        document.getElementById('listen-title').textContent=`Verbonden met broadcast ${code}`;
+        document.getElementById('listen-info').textContent='Je luistert nu live mee!';
+        document.getElementById('listen-status').textContent='Verbonden!';document.getElementById('listen-status').style.color='#4caf50';
+        document.getElementById('listen-connect-btn').style.display='none';
+    };
+    _listenPc.onicecandidate=(e)=>{if(e.candidate&&_listenChannel)_listenChannel.send({type:'broadcast',event:'ice',payload:{candidate:e.candidate,listenerId:lid}})};
+    _listenPc.onconnectionstatechange=()=>{if(['disconnected','failed','closed'].includes(_listenPc.connectionState))disconnectBroadcast()};
+    _listenChannel=sb.channel(`broadcast-${code}`);
+    _listenChannel.on('broadcast',{event:'offer'},async(p)=>{if(p.payload?.listenerId!==lid)return;await _listenPc.setRemoteDescription(new RTCSessionDescription(p.payload.sdp));const ans=await _listenPc.createAnswer();await _listenPc.setLocalDescription(ans);_listenChannel.send({type:'broadcast',event:'answer',payload:{sdp:_listenPc.localDescription,listenerId:lid}})});
+    _listenChannel.on('broadcast',{event:'broadcaster-ice'},async(p)=>{if(p.payload?.listenerId!==lid)return;if(p.payload.candidate)await _listenPc.addIceCandidate(new RTCIceCandidate(p.payload.candidate))});
+    await _listenChannel.subscribe();
+    _listenChannel.send({type:'broadcast',event:'join',payload:{listenerId:lid}});
+    setTimeout(()=>{if(_listenPc&&_listenPc.connectionState!=='connected'){document.getElementById('listen-status').textContent='Geen broadcast gevonden';document.getElementById('listen-status').style.color='#ff9800'}},15000);
+}
+function disconnectBroadcast() {
+    if(_listenPc){try{_listenPc.close()}catch(e){}_listenPc=null}if(_listenChannel){_listenChannel.unsubscribe();_listenChannel=null}
+    document.getElementById('listen-player').style.display='none';document.getElementById('listen-connect-btn').style.display='flex';
+    document.getElementById('listen-status').textContent='Verbinding verbroken';document.getElementById('listen-status').style.color='var(--text-dim)';
+}
+function embedStream() {
+    const url=document.getElementById('embed-url').value.trim(), c=document.getElementById('embed-container'); if(!url)return;
+    let h=''; const tw=url.match(/twitch\.tv\/([a-zA-Z0-9_]+)/); if(tw)h=`<iframe src="https://player.twitch.tv/?channel=${tw[1]}&parent=${location.hostname}" frameborder="0" allowfullscreen style="width:100%;height:100%"></iframe>`;
+    const yt=url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/live\/)([a-zA-Z0-9_-]+)/); if(yt)h=`<iframe src="https://www.youtube.com/embed/${yt[1]}?autoplay=1" frameborder="0" allow="autoplay;encrypted-media" allowfullscreen style="width:100%;height:100%"></iframe>`;
+    if(!h){c.style.display='block';c.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-dim)">URL niet herkend. Gebruik een Twitch of YouTube link.</div>';return}
+    c.style.display='block';c.innerHTML=h;
+}
+
+renderContests(); renderLeaderboard(); renderVoting(); renderBroadcastGrid(); startBroadcastDiscovery();
+(function(){const p=new URLSearchParams(location.search),code=p.get('listen');if(code){switchTab('live');document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-btn')[1].classList.add('active');document.getElementById('listen-code').value=code.toUpperCase();setTimeout(()=>connectToBroadcast(),500)}})();
+</script>
+</body>
+</html>
