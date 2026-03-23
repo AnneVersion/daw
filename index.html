@@ -2156,6 +2156,7 @@ body {
 
     <div class="spacer"></div>
 
+    <button class="header-btn" id="btn-library-toggle" title="Library sidebar (rechts)" onclick="if(typeof daw!=='undefined')daw.toggleLibrarySidebar()" style="background:var(--bg-hover);color:var(--accent)">Library</button>
     <button class="header-btn" id="btn-save" title="Opslaan (Ctrl+S)">Opslaan</button>
     <button class="header-btn" id="btn-upload" title="Geluid uploaden">Upload</button>
     <button class="header-btn" id="btn-export" title="Exporteren">Export</button>
@@ -2183,6 +2184,15 @@ body {
                 <div id="timeline-drop-indicator"></div>
                 <div id="timeline-drop-ghost"></div>
             </div>
+        </div>
+
+        <!-- Library Sidebar (rechts) -->
+        <div id="library-sidebar" style="display:none;width:280px;min-width:280px;background:var(--bg-dark);border-left:1px solid var(--border);overflow-y:auto;position:relative">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg-dark);z-index:5">
+                <span style="font-size:11px;font-weight:700;color:var(--accent)">Library</span>
+                <button onclick="daw.toggleLibrarySidebar()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px">&times;</button>
+            </div>
+            <div id="library-sidebar-content"></div>
         </div>
     </div>
 
@@ -8906,6 +8916,9 @@ class DAWController {
         this._bindSoundMatchEvents();
         this._initLibrary();
 
+        // Open library sidebar standaard
+        setTimeout(() => this.toggleLibrarySidebar(), 500);
+
         toast('DAW geladen', 'success');
     }
 
@@ -9238,6 +9251,84 @@ class DAWController {
     closeFxPanel() {
         document.getElementById('track-fx-panel').classList.remove('visible');
         this._fxPanelTrackId = null;
+    }
+
+    // Library sidebar rechts toggle
+    _librarySidebarOpen = false;
+    toggleLibrarySidebar() {
+        const sidebar = document.getElementById('library-sidebar');
+        const btn = document.getElementById('btn-library-toggle');
+        this._librarySidebarOpen = !this._librarySidebarOpen;
+        sidebar.style.display = this._librarySidebarOpen ? 'block' : 'none';
+        if (btn) {
+            btn.style.background = this._librarySidebarOpen ? 'var(--accent)' : 'var(--bg-hover)';
+            btn.style.color = this._librarySidebarOpen ? '#000' : 'var(--accent)';
+        }
+        if (this._librarySidebarOpen && !this._librarySidebarLoaded) {
+            this._librarySidebarLoaded = true;
+            this._populateLibrarySidebar();
+        }
+    }
+
+    async _populateLibrarySidebar() {
+        const container = document.getElementById('library-sidebar-content');
+        if (!container) return;
+        // Laad sounds als ze er nog niet zijn
+        if (!this._sounds || this._sounds.length === 0) {
+            try {
+                const res = await fetch(`${API_BASE}/api/sounds`);
+                this._sounds = await res.json();
+            } catch(e) { this._sounds = []; }
+        }
+        const sounds = this._sounds || [];
+        const categories = this._categories || [];
+        let html = '<div style="padding:6px 8px"><input type="text" id="lib-side-search" placeholder="Zoek..." style="width:100%;background:var(--bg-darkest);border:1px solid var(--border);border-radius:4px;padding:5px 8px;color:var(--text);font-size:11px;outline:none"></div>';
+        html += '<div style="display:flex;flex-wrap:wrap;gap:3px;padding:4px 8px">';
+        categories.filter(c => c.sound_count > 0 && !c.parent_id).forEach(c => {
+            html += `<button class="lib-side-cat" data-cat="${c.id}" style="font-size:9px;padding:2px 7px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text-dim);cursor:pointer">${c.name}</button>`;
+        });
+        html += '</div>';
+        html += '<div id="lib-side-list" style="padding:4px"></div>';
+        container.innerHTML = html;
+
+        // Render sounds
+        this._renderSidebarSounds(sounds);
+
+        // Search
+        document.getElementById('lib-side-search')?.addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            const filtered = q ? sounds.filter(s => (s.name||'').toLowerCase().includes(q) || (s.tags||'').toLowerCase().includes(q)) : sounds;
+            this._renderSidebarSounds(filtered);
+        });
+
+        // Category filter
+        container.querySelectorAll('.lib-side-cat').forEach(btn => {
+            btn.onclick = () => {
+                const active = btn.style.background !== 'transparent';
+                container.querySelectorAll('.lib-side-cat').forEach(b => { b.style.background = 'transparent'; b.style.color = 'var(--text-dim)'; });
+                if (!active) {
+                    btn.style.background = 'var(--accent)'; btn.style.color = '#000';
+                    const catId = btn.dataset.cat;
+                    this._renderSidebarSounds(sounds.filter(s => String(s.category_id) === catId));
+                } else {
+                    this._renderSidebarSounds(sounds);
+                }
+            };
+        });
+    }
+
+    _renderSidebarSounds(sounds) {
+        const list = document.getElementById('lib-side-list');
+        if (!list) return;
+        list.innerHTML = sounds.slice(0, 100).map(s => `
+            <div class="lib-side-item" draggable="true" data-sound-id="${s.id}"
+                 style="padding:5px 8px;border-bottom:1px solid var(--border);cursor:grab;font-size:11px;color:var(--text);transition:background .1s"
+                 onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background=''"
+                 ondragstart="event.dataTransfer.setData('audio-url','${API_BASE}/api/sounds/${s.id}/file');event.dataTransfer.setData('audio-name','${(s.name||'').replace(/'/g,"\\'")}');event.dataTransfer.effectAllowed='copy'">
+                <div style="font-weight:500">${s.name || 'Unnamed'}</div>
+                <div style="font-size:9px;color:var(--text-dim)">${s.category_name || ''} ${s.duration_ms ? (s.duration_ms/1000).toFixed(1)+'s' : ''} ${s.bpm ? s.bpm+'bpm' : ''}</div>
+            </div>
+        `).join('') || '<div style="padding:12px;text-align:center;color:var(--text-dim);font-size:11px">Geen geluiden gevonden</div>';
     }
 
     handleFxParam(input) {
@@ -10816,6 +10907,9 @@ class DAWController {
             else if (filters.sort === 'size') sounds.sort((a,b) => (a.file_size||0) - (b.file_size||0));
             else if (filters.sort === 'newest') sounds.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
             else sounds.sort((a,b) => (a.name||'').localeCompare(b.name||''));
+
+            // Bewaar voor sidebar
+            this._sounds = sounds;
 
             // Update count
             const countEl = document.getElementById('library-count');
