@@ -148,6 +148,13 @@ class AudioBrowser {
                 { q: 'explosion', l: 'Explosie' }, { q: 'bell clock', l: 'Bel' }, { q: 'footsteps', l: 'Stappen' },
                 { q: 'ocean sea wave', l: 'Zee' }, { q: 'fire', l: 'Vuur' }, { q: 'telephone', l: 'Telefoon' },
               ]},
+            { sid: 'bitmidi', label: 'BitMidi (MIDI)', color: '#ff69b4', icon: '🎹',
+              cats: [
+                { q: 'jazz', l: 'Jazz' }, { q: 'blues', l: 'Blues' }, { q: 'classical', l: 'Klassiek' },
+                { q: 'reggae', l: 'Reggae' }, { q: 'rock', l: 'Rock' }, { q: 'pop', l: 'Pop' },
+                { q: 'funk', l: 'Funk' }, { q: 'latin bossa', l: 'Latin' }, { q: 'gospel', l: 'Gospel' },
+                { q: 'piano solo', l: 'Piano' }, { q: 'guitar', l: 'Gitaar' }, { q: 'drum', l: 'Drums' },
+              ]},
             { sid: 'ccmixter', label: 'ccMixter', color: '#00cc88', icon: '🎼',
               cats: [
                 { q: 'drums', l: 'Drums' }, { q: 'bass', l: 'Bass' }, { q: 'guitar', l: 'Gitaar' },
@@ -259,6 +266,7 @@ class AudioBrowser {
             else if (sid === 'bbc') results = await this._searchBBC(query);
             else if (sid === 'ccmixter') results = await this._searchCCMixter(query);
             else if (sid === 'deezer') results = await this._searchDeezer(query);
+            else if (sid === 'bitmidi') results = await this._searchBitMidi(query);
             else if (sid === 'community') results = await this._searchCommunity(query);
         } catch(e) {}
         this._results = results;
@@ -531,6 +539,7 @@ class AudioBrowser {
         if (isOn('archive')) promises.push(this._searchArchive(query).then(r => allResults.push(...r)).catch(() => {}));
         if (isOn('bbc')) promises.push(this._searchBBC(query).then(r => allResults.push(...r)).catch(() => {}));
         if (isOn('ccmixter')) promises.push(this._searchCCMixter(query).then(r => allResults.push(...r)).catch(() => {}));
+        if (isOn('bitmidi')) promises.push(this._searchBitMidi(query).then(r => allResults.push(...r)).catch(() => {}));
         if (isOn('deezer')) promises.push(this._searchDeezer(query).then(r => allResults.push(...r)).catch(() => {}));
         if (isOn('community')) promises.push(this._searchCommunity(query).then(r => allResults.push(...r)).catch(() => {}));
         if (isOn('recordings')) promises.push(this._searchRecordings(query).then(r => allResults.push(...r)).catch(() => {}));
@@ -851,6 +860,23 @@ class AudioBrowser {
             url: t.files?.[0]?.download_url || '',
             needsProxy: false,
         })).filter(r => r.url);
+    }
+
+    async _searchBitMidi(query) {
+        // BitMidi: 100.000+ MIDI bestanden, geen auth nodig
+        const url = `https://bitmidi.com/api/midi/search?q=${encodeURIComponent(query)}`;
+        let data = null;
+        try { const r = await fetch(url); if (r.ok) data = await r.json(); } catch(e) {}
+        if (!data) try { const r = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`); if (r.ok) data = await r.json(); } catch(e) {}
+        if (!data) return [];
+        return (data.result?.results || []).map(m => ({
+            name: (m.name || '').replace(/\.mid$/i, ''),
+            source: `BitMidi · MIDI · ${(m.plays||0).toLocaleString()} plays`,
+            sourceColor: '#ff69b4',
+            url: `https://bitmidi.com${m.downloadUrl}`,
+            needsProxy: true,
+            isMidi: true,
+        }));
     }
 
     _getSupabase() {
