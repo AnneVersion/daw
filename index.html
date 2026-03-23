@@ -6481,6 +6481,116 @@ class InstrumentEngine {
                 osc.stop(now + duration + 0.2);
                 break;
             }
+            case 'sax': {
+                // Saxofoon: sawtooth + bandpass filter voor nasaal karakter
+                const osc = ctx.createOscillator();
+                osc.type = 'sawtooth';
+                osc.frequency.value = freq;
+                const bp = ctx.createBiquadFilter();
+                bp.type = 'bandpass'; bp.frequency.value = freq * 2.5; bp.Q.value = 2;
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(0, now);
+                g.gain.linearRampToValueAtTime(velocity * 0.3, now + 0.03);
+                g.gain.setValueAtTime(velocity * 0.28, now + duration * 0.8);
+                g.gain.linearRampToValueAtTime(0, now + duration);
+                // Vibrato
+                const vib = ctx.createOscillator(); vib.frequency.value = 5;
+                const vibG = ctx.createGain(); vibG.gain.value = freq * 0.008;
+                vib.connect(vibG); vibG.connect(osc.frequency); vib.start(now); vib.stop(now + duration + 0.1);
+                osc.connect(bp); bp.connect(g); g.connect(inst.gainNode);
+                osc.start(now); osc.stop(now + duration + 0.1);
+                break;
+            }
+            case 'flute': {
+                // Fluit: sine + zachte ruis voor adem
+                const osc = ctx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(0, now);
+                g.gain.linearRampToValueAtTime(velocity * 0.25, now + 0.05);
+                g.gain.setValueAtTime(velocity * 0.22, now + duration * 0.7);
+                g.gain.linearRampToValueAtTime(0, now + duration);
+                // Zachte vibrato
+                const vib = ctx.createOscillator(); vib.frequency.value = 4.5;
+                const vibG = ctx.createGain(); vibG.gain.value = freq * 0.005;
+                vib.connect(vibG); vibG.connect(osc.frequency); vib.start(now); vib.stop(now + duration + 0.1);
+                osc.connect(g); g.connect(inst.gainNode);
+                osc.start(now); osc.stop(now + duration + 0.1);
+                break;
+            }
+            case 'organ': {
+                // Orgel: meerdere sine harmonischen (drawbar style)
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(velocity * 0.2, now);
+                g.gain.setValueAtTime(velocity * 0.18, now + duration * 0.9);
+                g.gain.linearRampToValueAtTime(0, now + duration);
+                [1, 2, 3, 4].forEach((h, i) => {
+                    const o = ctx.createOscillator(); o.type = 'sine';
+                    o.frequency.value = freq * h;
+                    const hg = ctx.createGain(); hg.gain.value = [0.5, 0.3, 0.15, 0.08][i];
+                    o.connect(hg); hg.connect(g); o.start(now); o.stop(now + duration + 0.1);
+                });
+                g.connect(inst.gainNode);
+                break;
+            }
+            case 'vibes': {
+                // Vibrafoon: sine met snelle decay + tremolo
+                const osc = ctx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(velocity * 0.35, now);
+                g.gain.exponentialRampToValueAtTime(0.001, now + duration * 1.5);
+                const trem = ctx.createOscillator(); trem.frequency.value = 6;
+                const tremG = ctx.createGain(); tremG.gain.value = 0.15;
+                trem.connect(tremG); tremG.connect(g.gain); trem.start(now); trem.stop(now + duration + 0.5);
+                osc.connect(g); g.connect(inst.gainNode);
+                osc.start(now); osc.stop(now + duration + 0.5);
+                break;
+            }
+            case 'upright': {
+                // Contrabas: triangle laag register
+                const osc = ctx.createOscillator();
+                osc.type = 'triangle';
+                osc.frequency.value = freq;
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(velocity * 0.6, now);
+                g.gain.setTargetAtTime(0, now + duration * 0.6, duration * 0.2);
+                const lp = ctx.createBiquadFilter();
+                lp.type = 'lowpass'; lp.frequency.value = 1200;
+                osc.connect(lp); lp.connect(g); g.connect(inst.gainNode);
+                osc.start(now); osc.stop(now + duration + 0.2);
+                break;
+            }
+            case 'strings': case 'brass': {
+                // Strings/Brass: sawtooth ensemble met detuning
+                const type = instrumentId === 'strings' ? 'sawtooth' : 'square';
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(0, now);
+                g.gain.linearRampToValueAtTime(velocity * 0.2, now + 0.08);
+                g.gain.setValueAtTime(velocity * 0.18, now + duration * 0.8);
+                g.gain.linearRampToValueAtTime(0, now + duration);
+                [-3, 0, 3].forEach(cents => {
+                    const o = ctx.createOscillator(); o.type = type;
+                    o.frequency.value = freq * Math.pow(2, cents / 1200);
+                    o.connect(g); o.start(now); o.stop(now + duration + 0.1);
+                });
+                g.connect(inst.gainNode);
+                break;
+            }
+            default: {
+                // Fallback: simple sine
+                const osc = ctx.createOscillator();
+                osc.type = 'triangle';
+                osc.frequency.value = freq;
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(velocity * 0.3, now);
+                g.gain.setTargetAtTime(0, now + duration * 0.7, duration * 0.15);
+                osc.connect(g); g.connect(inst.gainNode);
+                osc.start(now); osc.stop(now + duration + 0.2);
+                break;
+            }
         }
     }
 
