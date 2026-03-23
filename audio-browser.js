@@ -17,6 +17,8 @@
 // ============================================================
 
 class AudioBrowser {
+    static _instanceCount = 0;
+
     constructor(options = {}) {
         this.container = options.container;
         this.onSelect = options.onSelect || (() => {});
@@ -31,120 +33,211 @@ class AudioBrowser {
         this._results = [];
         this._audioCtx = null;
         this._previewSource = null;
+        // Uniek ID per instantie zodat meerdere op 1 pagina werken
+        this._id = 'ab' + (AudioBrowser._instanceCount++);
+        this._recording = false;
+        this._recorder = null;
 
         if (this.container) this.render();
     }
 
+    _el(id) { return document.getElementById(`${this._id}-${id}`); }
+
     render() {
         const c = this.container;
+        const id = this._id;
         c.innerHTML = '';
-        c.style.cssText = 'background:var(--bg-panel,#161b22);border:1px solid var(--border,#30363d);border-radius:8px;padding:10px;font-family:inherit;';
+        c.style.cssText = 'background:var(--bg-panel,#161b22);border-radius:8px;padding:8px;font-family:inherit;';
 
-        // Header
-        const header = document.createElement('div');
-        header.style.cssText = 'font-size:11px;font-weight:700;color:var(--accent,#4a9eff);margin-bottom:6px;display:flex;align-items:center;gap:6px';
-        header.innerHTML = '<span style="font-size:14px" class="material-icons">library_music</span> Sample Browser';
-        c.appendChild(header);
+        // Opname knop + Scan PC (actieknoppen bovenaan)
+        const actions = document.createElement('div');
+        actions.style.cssText = 'display:flex;gap:4px;margin-bottom:6px';
+        actions.innerHTML = `
+            <button id="${id}-rec-btn" style="display:flex;align-items:center;gap:4px;padding:5px 12px;background:#ef4444;border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s">
+                <span class="material-icons" style="font-size:14px">mic</span> Opnemen
+            </button>
+            <span id="${id}-rec-status" style="font-size:10px;color:var(--text-dim,#8b949e);align-self:center;flex:1"></span>
+            ${this.showLocalScan ? `<button id="${id}-scan-btn" style="padding:5px 10px;background:var(--bg-dark,#0d1117);border:1px solid var(--border,#30363d);border-radius:6px;color:var(--text,#e0e0ee);font-size:10px;cursor:pointer">Scan PC</button>` : ''}
+        `;
+        c.appendChild(actions);
 
-        // Source toggles
+        // Source toggles (API's aan/uit)
         const toggles = document.createElement('div');
-        toggles.style.cssText = 'display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap';
+        toggles.style.cssText = 'display:flex;gap:3px;margin-bottom:6px;flex-wrap:wrap';
         const sources = [
-            { id: 'freesound', label: 'Freesound', color: 'var(--accent,#4a9eff)' },
-            { id: 'jamendo', label: 'Jamendo', color: 'var(--orange,#ff8a4a)' },
-            { id: 'archive', label: 'Archive', color: 'var(--green,#39ff14)' },
-            { id: 'community', label: 'Community', color: 'var(--purple,#a855f7)' },
+            { sid: 'freesound', label: 'Freesound', color: '#4a9eff' },
+            { sid: 'jamendo', label: 'Jamendo', color: '#ff8a4a' },
+            { sid: 'archive', label: 'Archive', color: '#39ff14' },
+            { sid: 'community', label: 'Community', color: '#a855f7' },
+            { sid: 'recordings', label: 'Opnames', color: '#ef4444' },
         ];
         sources.forEach(src => {
             const label = document.createElement('label');
-            label.style.cssText = `font-size:10px;display:flex;align-items:center;gap:3px;cursor:pointer;padding:3px 8px;border-radius:4px;background:var(--bg-dark,#0d1117);border:1px solid var(--border,#30363d)`;
+            label.style.cssText = 'font-size:9px;display:flex;align-items:center;gap:2px;cursor:pointer;padding:2px 6px;border-radius:4px;background:var(--bg-dark,#0d1117);border:1px solid var(--border,#30363d)';
             const cb = document.createElement('input');
             cb.type = 'checkbox';
             cb.checked = true;
-            cb.id = `ab-src-${src.id}`;
-            cb.style.accentColor = src.color;
+            cb.id = `${id}-src-${src.sid}`;
+            cb.style.cssText = `width:12px;height:12px;accent-color:${src.color}`;
             label.appendChild(cb);
             label.appendChild(document.createTextNode(` ${src.label}`));
             toggles.appendChild(label);
         });
         c.appendChild(toggles);
 
-        // Category buttons
+        // Categorieën (gegroepeerd)
         const cats = document.createElement('div');
-        cats.style.cssText = 'display:flex;gap:3px;margin-bottom:6px;flex-wrap:wrap';
-        const categories = this.compact
-            ? ['kick','snare','bass','guitar','piano','synth','vocals','fx']
-            : ['kick drum','snare drum','hi-hat','clap','bass guitar','guitar riff','piano chord','trumpet','saxophone','strings orchestra','synth pad','vocal chop','bird animal','dog cat animal','rain thunder nature','explosion boom','reggae','bongo conga'];
-        const catLabels = this.compact
-            ? ['Kick','Snare','Bass','Gitaar','Piano','Synth','Vocals','FX']
-            : ['Kick','Snare','Hi-Hat','Clap','Bass','Gitaar','Piano','Trompet','Sax','Strings','Synth','Vocals','Vogels','Dieren','Natuur','FX','Reggae','Conga'];
-        categories.forEach((q, i) => {
+        cats.style.cssText = 'display:flex;gap:2px;margin-bottom:6px;flex-wrap:wrap';
+        const catGroups = [
+            // Drums & Percussie
+            { q: 'kick drum', label: 'Kick', group: 'drums' },
+            { q: 'snare drum', label: 'Snare', group: 'drums' },
+            { q: 'hi-hat cymbal', label: 'Hi-Hat', group: 'drums' },
+            { q: 'clap', label: 'Clap', group: 'drums' },
+            { q: 'bongo conga percussion', label: 'Perc', group: 'drums' },
+            // Instrumenten
+            { q: 'bass guitar', label: 'Bass', group: 'inst' },
+            { q: 'acoustic guitar', label: 'Gitaar', group: 'inst' },
+            { q: 'piano chord', label: 'Piano', group: 'inst' },
+            { q: 'trumpet brass', label: 'Blazers', group: 'inst' },
+            { q: 'strings orchestra', label: 'Strings', group: 'inst' },
+            { q: 'saxophone jazz', label: 'Sax', group: 'inst' },
+            // Elektronisch
+            { q: 'synth pad', label: 'Synth', group: 'elec' },
+            { q: 'electronic loop beat', label: 'Loops', group: 'elec' },
+            { q: 'vocal chop', label: 'Vocals', group: 'elec' },
+            { q: 'sound effect boom', label: 'FX', group: 'elec' },
+            // Sfeer
+            { q: 'ambient nature rain', label: 'Natuur', group: 'sfeer' },
+            { q: 'bird animal', label: 'Dieren', group: 'sfeer' },
+        ];
+        const groupColors = { drums: '#ef4444', inst: '#4a9eff', elec: '#a855f7', sfeer: '#39ff14' };
+        catGroups.forEach(cat => {
             const btn = document.createElement('button');
-            btn.textContent = catLabels[i];
-            btn.style.cssText = 'font-size:9px;padding:2px 8px;border-radius:4px;border:1px solid var(--border,#30363d);background:var(--bg-panel,#161b22);color:var(--text,#e0e0ee);cursor:pointer;transition:all 0.15s';
+            btn.textContent = cat.label;
+            btn.style.cssText = `font-size:8px;padding:2px 7px;border-radius:3px;border:1px solid var(--border,#30363d);background:var(--bg-panel,#161b22);color:var(--text,#e0e0ee);cursor:pointer;transition:all .15s;border-left:2px solid ${groupColors[cat.group]}`;
             btn.onmouseover = () => { btn.style.background = 'var(--bg-hover,#242d3d)'; };
-            btn.onmouseout = () => { btn.style.background = 'var(--bg-panel,#161b22)'; };
-            btn.onclick = () => this.search(q);
+            btn.onmouseout = () => { if (!btn.classList.contains('active')) btn.style.background = 'var(--bg-panel,#161b22)'; };
+            btn.onclick = () => {
+                cats.querySelectorAll('button').forEach(b => { b.classList.remove('active'); b.style.background = 'var(--bg-panel,#161b22)'; });
+                btn.classList.add('active');
+                btn.style.background = groupColors[cat.group] + '33';
+                this.search(cat.q);
+            };
             cats.appendChild(btn);
         });
         c.appendChild(cats);
 
-        // Search bar
+        // Zoekbalk
         const searchBar = document.createElement('div');
-        searchBar.style.cssText = 'display:flex;gap:6px;margin-bottom:6px';
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.placeholder = 'Zoek in alle bronnen...';
-        input.id = 'ab-search-input';
-        input.style.cssText = 'flex:1;background:var(--bg-dark,#0d1117);border:1px solid var(--border,#30363d);border-radius:6px;color:var(--text,#e0e0ee);padding:6px 10px;font-size:12px;outline:none';
-        input.onkeydown = (e) => { if (e.key === 'Enter') this.search(); };
-        input.onfocus = () => { input.style.borderColor = 'var(--accent,#4a9eff)'; };
-        input.onblur = () => { input.style.borderColor = 'var(--border,#30363d)'; };
-        searchBar.appendChild(input);
-
-        const searchBtn = document.createElement('button');
-        searchBtn.textContent = 'Zoek';
-        searchBtn.style.cssText = 'padding:6px 14px;background:var(--accent,#4a9eff);border:none;border-radius:6px;color:#fff;font-size:12px;font-weight:700;cursor:pointer';
-        searchBtn.onclick = () => this.search();
-        searchBar.appendChild(searchBtn);
-
-        if (this.showLocalScan) {
-            const scanBtn = document.createElement('button');
-            scanBtn.textContent = 'Scan PC';
-            scanBtn.style.cssText = 'padding:6px 10px;background:var(--bg-dark,#0d1117);border:1px solid var(--border,#30363d);border-radius:6px;color:var(--text,#e0e0ee);font-size:11px;cursor:pointer';
-            scanBtn.onclick = () => this.scanLocal();
-            searchBar.appendChild(scanBtn);
-        }
-
+        searchBar.style.cssText = 'display:flex;gap:4px;margin-bottom:6px';
+        searchBar.innerHTML = `
+            <input type="text" id="${id}-search" placeholder="Zoek geluiden..." style="flex:1;background:var(--bg-dark,#0d1117);border:1px solid var(--border,#30363d);border-radius:5px;color:var(--text,#e0e0ee);padding:5px 8px;font-size:11px;outline:none">
+            <button id="${id}-search-btn" style="padding:5px 12px;background:var(--accent,#4a9eff);border:none;border-radius:5px;color:#fff;font-size:11px;font-weight:700;cursor:pointer">Zoek</button>
+        `;
         c.appendChild(searchBar);
 
-        // Results
+        // Resultaten
         const results = document.createElement('div');
-        results.id = 'ab-results';
-        results.style.cssText = 'max-height:300px;overflow-y:auto';
+        results.id = `${id}-results`;
+        results.style.cssText = 'max-height:400px;overflow-y:auto';
         c.appendChild(results);
+
+        // Event bindings
+        this._el('search').onkeydown = (e) => { if (e.key === 'Enter') this.search(); };
+        this._el('search-btn').onclick = () => this.search();
+        this._el('rec-btn').onclick = () => this.toggleRecording();
+        if (this._el('scan-btn')) this._el('scan-btn').onclick = () => this.scanLocal();
+    }
+
+    // ---- Opname functie ----
+    async toggleRecording() {
+        const btn = this._el('rec-btn');
+        const status = this._el('rec-status');
+        if (this._recording) {
+            // Stop
+            this._recording = false;
+            if (this._recorder && this._recorder.state === 'recording') this._recorder.stop();
+            btn.innerHTML = '<span class="material-icons" style="font-size:14px">mic</span> Opnemen';
+            btn.style.background = '#ef4444';
+            btn.style.animation = '';
+            return;
+        }
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            this._recording = true;
+            btn.innerHTML = '<span class="material-icons" style="font-size:14px">stop</span> Stop';
+            btn.style.animation = 'pulse .8s infinite alternate';
+            status.textContent = 'Opname bezig...';
+            status.style.color = '#ef4444';
+
+            const recorder = new MediaRecorder(stream);
+            this._recorder = recorder;
+            const chunks = [];
+            recorder.ondataavailable = e => chunks.push(e.data);
+            recorder.onstop = async () => {
+                stream.getTracks().forEach(t => t.stop());
+                this._recording = false;
+                const blob = new Blob(chunks, { type: 'audio/webm' });
+                const name = 'Opname-' + new Date().toLocaleTimeString('nl-NL', {hour:'2-digit',minute:'2-digit',second:'2-digit'}).replace(/:/g,'-');
+
+                // Opslaan via API (als beschikbaar) of localStorage
+                try {
+                    const fd = new FormData();
+                    fd.append('audio', blob, name + '.webm');
+                    fd.append('name', name);
+                    const resp = await fetch('/api/recordings', { method: 'POST', body: fd });
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        status.textContent = `"${name}" opgeslagen (${data.size_mb}MB)`;
+                        status.style.color = '#39ff14';
+                    } else throw new Error();
+                } catch(e) {
+                    // Fallback: localStorage
+                    const url = URL.createObjectURL(blob);
+                    const recs = JSON.parse(localStorage.getItem('ab_recordings') || '[]');
+                    recs.push({ name, url, timestamp: Date.now() });
+                    localStorage.setItem('ab_recordings', JSON.stringify(recs));
+                    status.textContent = `"${name}" opgeslagen (browser)`;
+                    status.style.color = '#f59e0b';
+                }
+
+                // Decodeer en trigger onSelect
+                try {
+                    if (!this._audioCtx) this._audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    const audioBuffer = await this._audioCtx.decodeAudioData(await blob.arrayBuffer());
+                    this.onSelect(audioBuffer, name);
+                } catch(e) {}
+
+                setTimeout(() => { status.textContent = ''; }, 4000);
+            };
+            recorder.start();
+            // Max 60s
+            setTimeout(() => { if (this._recording) this.toggleRecording(); }, 60000);
+        } catch(e) {
+            status.textContent = 'Mic niet beschikbaar';
+            status.style.color = '#ef4444';
+        }
     }
 
     async search(presetQuery) {
-        const query = presetQuery || document.getElementById('ab-search-input')?.value || '';
+        const query = presetQuery || this._el('search')?.value || '';
         if (!query) return;
-        if (!presetQuery) {
-            const input = document.getElementById('ab-search-input');
-            if (input) input.value = query;
-        }
+        if (!presetQuery && this._el('search')) this._el('search').value = query;
 
-        const resultsEl = document.getElementById('ab-results');
+        const resultsEl = this._el('results');
         if (!resultsEl) return;
         resultsEl.innerHTML = '<div style="color:var(--text-dim,#8b949e);font-size:11px;padding:8px">Zoeken...</div>';
 
         const allResults = [];
         const promises = [];
-        const isOn = (id) => document.getElementById(`ab-src-${id}`)?.checked;
+        const isOn = (sid) => this._el(`src-${sid}`)?.checked;
 
         if (isOn('freesound')) promises.push(this._searchFreesound(query).then(r => allResults.push(...r)).catch(() => {}));
         if (isOn('jamendo')) promises.push(this._searchJamendo(query).then(r => allResults.push(...r)).catch(() => {}));
         if (isOn('archive')) promises.push(this._searchArchive(query).then(r => allResults.push(...r)).catch(() => {}));
         if (isOn('community')) promises.push(this._searchCommunity(query).then(r => allResults.push(...r)).catch(() => {}));
+        if (isOn('recordings')) promises.push(this._searchRecordings(query).then(r => allResults.push(...r)).catch(() => {}));
 
         await Promise.all(promises);
         this._results = allResults;
@@ -154,12 +247,12 @@ class AudioBrowser {
             return;
         }
 
-        resultsEl.innerHTML = allResults.map((r, i) => `
-            <div class="ab-item" data-idx="${i}" style="display:flex;align-items:center;gap:8px;padding:6px;border-radius:6px;cursor:pointer;font-size:11px;transition:background 0.15s">
-                <span class="material-icons" style="font-size:16px;color:${r.sourceColor}">${r.sourceIcon}</span>
+        resultsEl.innerHTML = `<div style="font-size:9px;color:var(--text-dim,#8b949e);padding:3px 6px;border-bottom:1px solid var(--border,#30363d)">${allResults.length} resultaten</div>` + allResults.map((r, i) => `
+            <div class="ab-item" data-idx="${i}" style="display:flex;align-items:center;gap:6px;padding:5px 6px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;font-size:11px;transition:background 0.15s">
+                <span class="material-icons" style="font-size:14px;color:${r.sourceColor}">${r.sourceIcon}</span>
                 <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.name}">${r.name}</span>
                 <span class="material-icons" style="font-size:14px;color:var(--text-dim,#8b949e);cursor:pointer" title="Preview" data-preview="${i}">play_circle</span>
-                <span style="color:var(--text-dim,#8b949e);font-size:8px;min-width:50px;text-align:right">${r.source}</span>
+                <span style="color:${r.sourceColor};font-size:7px;min-width:45px;text-align:right;opacity:.7">${r.source}</span>
             </div>
         `).join('');
 
@@ -180,10 +273,51 @@ class AudioBrowser {
         });
     }
 
+    // Zoek opnames (lokale API + localStorage)
+    async _searchRecordings(query) {
+        const results = [];
+        // API opnames
+        try {
+            const resp = await fetch('/api/recordings');
+            if (resp.ok) {
+                const files = await resp.json();
+                files.forEach(f => {
+                    if (!query || f.name.toLowerCase().includes(query.toLowerCase())) {
+                        results.push({
+                            name: f.name,
+                            source: 'Opname',
+                            sourceColor: '#ef4444',
+                            sourceIcon: 'mic',
+                            url: `/api/recordings/${encodeURIComponent(f.name)}`,
+                            needsProxy: false
+                        });
+                    }
+                });
+            }
+        } catch(e) {}
+        // localStorage opnames als fallback
+        try {
+            const recs = JSON.parse(localStorage.getItem('ab_recordings') || '[]');
+            recs.forEach(r => {
+                if (!query || r.name.toLowerCase().includes(query.toLowerCase())) {
+                    results.push({
+                        name: r.name,
+                        source: 'Browser',
+                        sourceColor: '#f59e0b',
+                        sourceIcon: 'mic',
+                        url: r.url,
+                        needsProxy: false
+                    });
+                }
+            });
+        } catch(e) {}
+        return results;
+    }
+
     async scanLocal() {
-        const resultsEl = document.getElementById('ab-results');
+        const resultsEl = this._el('results');
         if (!resultsEl) return;
-        resultsEl.innerHTML = '<div style="color:var(--text-dim,#8b949e);font-size:11px;padding:8px">Scannen...</div>';
+        resultsEl.innerHTML = '<div style="color:var(--text-dim,#8b949e);font-size:11px;padding:8px">Scannen... (audio + video bestanden)</div>';
 
         try {
             const resp = await fetch('/api/scan-audio?path=audio');
