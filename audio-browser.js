@@ -19,6 +19,60 @@
 class AudioBrowser {
     static _instanceCount = 0;
 
+    // ---- IndexedDB: permanent lokale opslag (werkt overal, honderden MB's) ----
+    static _dbPromise = null;
+    static _openDB() {
+        if (AudioBrowser._dbPromise) return AudioBrowser._dbPromise;
+        AudioBrowser._dbPromise = new Promise((resolve, reject) => {
+            const req = indexedDB.open('DAW_Recordings', 1);
+            req.onupgradeneeded = () => {
+                const db = req.result;
+                if (!db.objectStoreNames.contains('recordings')) {
+                    db.createObjectStore('recordings', { keyPath: 'name' });
+                }
+            };
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+        return AudioBrowser._dbPromise;
+    }
+
+    static async saveToIndexedDB(name, blob) {
+        const db = await AudioBrowser._openDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction('recordings', 'readwrite');
+            tx.objectStore('recordings').put({
+                name,
+                blob,
+                size: blob.size,
+                timestamp: Date.now(),
+                type: blob.type
+            });
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+        });
+    }
+
+    static async getAllFromIndexedDB() {
+        const db = await AudioBrowser._openDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction('recordings', 'readonly');
+            const req = tx.objectStore('recordings').getAll();
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => reject(req.error);
+        });
+    }
+
+    static async getFromIndexedDB(name) {
+        const db = await AudioBrowser._openDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction('recordings', 'readonly');
+            const req = tx.objectStore('recordings').get(name);
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+    }
+
     constructor(options = {}) {
         this.container = options.container;
         this.onSelect = options.onSelect || (() => {});
@@ -180,6 +234,7 @@ class AudioBrowser {
                 <div style="display:flex;align-items:center;gap:5px">
                     <span style="cursor:pointer;font-size:16px;color:#ef4444" title="Afspelen" data-preview="${i}">&#9654;</span>
                     <span style="flex:1;color:var(--text,#e0e0ee)">${r.name}</span>
+                    <span style="cursor:pointer;font-size:13px;color:var(--text-dim,#8b949e)" title="Download" data-download="${i}">&#11015;</span>
                 </div>
                 <div style="font-size:8px;color:#ef4444;opacity:.8;margin-left:21px">${r.source}</div>
             </div>
@@ -187,9 +242,33 @@ class AudioBrowser {
         resultsEl.querySelectorAll('.ab-item').forEach(el => {
             el.onmouseover = () => { el.style.background = 'var(--bg-hover,#242d3d)'; };
             el.onmouseout = () => { el.style.background = 'transparent'; };
-            el.onclick = (e) => {
+            el.onclick = async (e) => {
                 if (e.target.dataset.preview !== undefined) {
                     this._preview(this._results[+e.target.dataset.preview]);
+                    e.stopPropagation();
+                    return;
+                }
+                if (e.target.dataset.download !== undefined) {
+                    const r = this._results[+e.target.dataset.download];
+                    if (r) {
+                        try {
+                            let blob;
+                            if (r._idbName) {
+                                const rec = await AudioBrowser.getFromIndexedDB(r._idbName);
+                                blob = rec?.blob;
+                            } else if (r.url) {
+                                const resp = await fetch(r.url);
+                                blob = await resp.blob();
+                            }
+                            if (blob) {
+                                const a = document.createElement('a');
+                                a.href = URL.createObjectURL(blob);
+                                a.download = r.name;
+                                a.click();
+                                URL.revokeObjectURL(a.href);
+                            }
+                        } catch(e) {}
+                    }
                     e.stopPropagation();
                     return;
                 }
@@ -230,7 +309,8 @@ class AudioBrowser {
                 const blob = new Blob(chunks, { type: 'audio/webm' });
                 const name = 'Opname-' + new Date().toLocaleTimeString('nl-NL', {hour:'2-digit',minute:'2-digit',second:'2-digit'}).replace(/:/g,'-');
 
-                // Opslaan via API (als beschikbaar) of localStorage
+                // Opslaan: 1) API server 2) IndexedDB (permanent, groot) 3) Download
+                let saved = false;
                 try {
                     const fd = new FormData();
                     fd.append('audio', blob, name + '.webm');
@@ -238,18 +318,34 @@ class AudioBrowser {
                     const resp = await fetch('/api/recordings', { method: 'POST', body: fd });
                     if (resp.ok) {
                         const data = await resp.json();
-                        status.textContent = `"${name}" opgeslagen (${data.size_mb}MB)`;
+                        status.textContent = `"${name}" opgeslagen op server`;
                         status.style.color = '#39ff14';
-                    } else throw new Error();
+                        saved = true;
+                    }
+                } catch(e) {}
+
+                // Altijd ook opslaan in IndexedDB (werkt op GitHub Pages, honderden MB's)
+                try {
+                    await AudioBrowser.saveToIndexedDB(name + '.webm', blob);
+                    if (!saved) {
+                        status.textContent = `"${name}" opgeslagen lokaal`;
+                        status.style.color = '#39ff14';
+                    }
                 } catch(e) {
-                    // Fallback: localStorage
-                    const url = URL.createObjectURL(blob);
-                    const recs = JSON.parse(localStorage.getItem('ab_recordings') || '[]');
-                    recs.push({ name, url, timestamp: Date.now() });
-                    localStorage.setItem('ab_recordings', JSON.stringify(recs));
-                    status.textContent = `"${name}" opgeslagen (browser)`;
-                    status.style.color = '#f59e0b';
+                    if (!saved) {
+                        status.textContent = `"${name}" niet opgeslagen`;
+                        status.style.color = '#ef4444';
+                    }
                 }
+
+                // Download ook automatisch naar Downloads map
+                try {
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = name + '.webm';
+                    a.click();
+                    URL.revokeObjectURL(a.href);
+                } catch(e) {}
 
                 // Decodeer en trigger onSelect
                 try {
@@ -324,20 +420,22 @@ class AudioBrowser {
         });
     }
 
-    // Zoek opnames (lokale API + localStorage)
+    // Zoek opnames (API server + IndexedDB)
     async _searchRecordings(query) {
         const results = [];
-        // API opnames
+        const seen = new Set();
+        // 1) API server opnames (als beschikbaar)
         try {
             const resp = await fetch('/api/recordings');
             if (resp.ok) {
                 const files = await resp.json();
                 files.forEach(f => {
                     if (!query || f.name.toLowerCase().includes(query.toLowerCase())) {
+                        seen.add(f.name);
                         results.push({
                             name: f.name,
-                            source: 'Opname',
-                            sourceColor: '#ef4444',
+                            source: 'Server',
+                            sourceColor: '#39ff14',
                             sourceIcon: 'mic',
                             url: `/api/recordings/${encodeURIComponent(f.name)}`,
                             needsProxy: false
@@ -346,17 +444,20 @@ class AudioBrowser {
                 });
             }
         } catch(e) {}
-        // localStorage opnames als fallback
+        // 2) IndexedDB opnames (permanent, werkt op GitHub Pages)
         try {
-            const recs = JSON.parse(localStorage.getItem('ab_recordings') || '[]');
-            recs.forEach(r => {
+            const idbRecs = await AudioBrowser.getAllFromIndexedDB();
+            idbRecs.forEach(r => {
+                if (seen.has(r.name)) return; // skip dubbelen
                 if (!query || r.name.toLowerCase().includes(query.toLowerCase())) {
+                    const sizeMB = r.size ? (r.size / 1024 / 1024).toFixed(1) + 'MB' : '';
                     results.push({
                         name: r.name,
-                        source: 'Browser',
-                        sourceColor: '#f59e0b',
+                        source: `Lokaal ${sizeMB}`,
+                        sourceColor: '#ef4444',
                         sourceIcon: 'mic',
-                        url: r.url,
+                        url: null, // laden via IndexedDB blob
+                        _idbName: r.name,
                         needsProxy: false
                     });
                 }
@@ -438,63 +539,53 @@ class AudioBrowser {
     }
 
     // ---- Audio preview (play in browser without loading to pad) ----
+    // Haal ArrayBuffer op uit result (URL, proxy, of IndexedDB)
+    async _fetchResultBuffer(result) {
+        // IndexedDB opname (geen URL)
+        if (result._idbName) {
+            const rec = await AudioBrowser.getFromIndexedDB(result._idbName);
+            if (rec && rec.blob) return await rec.blob.arrayBuffer();
+            throw new Error('Niet gevonden in IndexedDB');
+        }
+        // URL fetch (met proxy fallback)
+        let resp;
+        if (result.needsProxy) {
+            try {
+                resp = await fetch(`/api/proxy/audio?url=${encodeURIComponent(result.url)}`);
+                if (!resp.ok) throw new Error();
+            } catch(e) {
+                resp = await fetch(result.url);
+            }
+        } else {
+            resp = await fetch(result.url);
+        }
+        if (!resp.ok) throw new Error('Fetch failed');
+        return await resp.arrayBuffer();
+    }
+
     async _preview(result) {
         if (!this._audioCtx) this._audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (this._previewSource) { try { this._previewSource.stop(); } catch(e) {} }
-
         try {
-            let url = result.url;
-            let resp;
-            if (result.needsProxy) {
-                try {
-                    resp = await fetch(`/api/proxy/audio?url=${encodeURIComponent(url)}`);
-                    if (!resp.ok) throw new Error();
-                } catch(e) {
-                    resp = await fetch(url);
-                }
-            } else {
-                resp = await fetch(url);
-            }
-            const buf = await resp.arrayBuffer();
+            const buf = await this._fetchResultBuffer(result);
             const audioBuffer = await this._audioCtx.decodeAudioData(buf);
             const src = this._audioCtx.createBufferSource();
             src.buffer = audioBuffer;
             src.connect(this._audioCtx.destination);
             src.start();
             this._previewSource = src;
-            // Auto-stop after 5s
             setTimeout(() => { try { src.stop(); } catch(e) {} }, 5000);
-        } catch(e) {}
+        } catch(e) { console.warn('Preview error:', e); }
     }
 
-    // ---- Load result and pass to callback ----
     async _loadResult(result) {
         try {
-            let url = result.url;
-            let resp;
-            if (result.needsProxy) {
-                try {
-                    resp = await fetch(`/api/proxy/audio?url=${encodeURIComponent(url)}`);
-                    if (!resp.ok) throw new Error();
-                } catch(e) {
-                    resp = await fetch(url);
-                }
-            } else {
-                resp = await fetch(url);
-            }
-            if (!resp.ok) return;
-            const buf = await resp.arrayBuffer();
-
-            // If onSelectUrl is set and caller wants URL (e.g. DJ decks)
-            if (this.onSelectUrl) {
-                this.onSelectUrl(url, result.name);
-            }
-
-            // Decode and pass AudioBuffer
+            const buf = await this._fetchResultBuffer(result);
+            if (this.onSelectUrl && result.url) this.onSelectUrl(result.url, result.name);
             if (!this._audioCtx) this._audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const audioBuffer = await this._audioCtx.decodeAudioData(buf);
             this.onSelect(audioBuffer, result.name);
-        } catch(e) {}
+        } catch(e) { console.warn('Load error:', e); }
     }
 
     // ---- API Search Functions ----
