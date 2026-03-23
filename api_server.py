@@ -332,15 +332,16 @@ def scan_audio():
     q = request.args.get('q', '').lower()
     scan_path = request.args.get('path', '')
 
-    # Standaard: scan alle schijven
+    # Automatisch: detecteer OS + alle beschikbare schijven/paden
+    import platform
     home = Path.home()
-    default_paths = [
-        home,
-        Path('C:/Users'),
-        Path('D:/'),
-        Path('E:/'),
-        Path('F:/'),
-    ]
+    if platform.system() == 'Windows':
+        import string
+        drives = [Path(f'{d}:/') for d in string.ascii_uppercase if Path(f'{d}:/').exists()]
+        default_paths = [home] + drives
+    else:
+        # Linux/Mac/Android/Raspberry Pi: home + standaard media paden
+        default_paths = [home, Path('/home'), Path('/Users'), Path('/media'), Path('/mnt'), Path('/storage')]
 
     if scan_path:
         p = Path(scan_path)
