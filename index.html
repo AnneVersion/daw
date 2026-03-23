@@ -2186,13 +2186,13 @@ body {
             </div>
         </div>
 
-        <!-- Library Sidebar (rechts) -->
-        <div id="library-sidebar" style="display:none;width:280px;min-width:280px;background:var(--bg-dark);border-left:1px solid var(--border);overflow-y:auto;position:relative">
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg-dark);z-index:5">
+        <!-- Library Sidebar (rechts) — AudioBrowser module -->
+        <div id="library-sidebar" style="display:none;width:300px;min-width:300px;background:var(--bg-dark);border-left:1px solid var(--border);overflow-y:auto;position:relative">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg-dark);z-index:5">
                 <span style="font-size:11px;font-weight:700;color:var(--accent)">Library</span>
                 <button onclick="daw.toggleLibrarySidebar()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px">&times;</button>
             </div>
-            <div id="library-sidebar-content"></div>
+            <div id="library-sidebar-browser"></div>
         </div>
     </div>
 
@@ -2207,7 +2207,6 @@ body {
             <button class="bottom-tab" data-panel="improvisation">Improvisatie</button>
             <button class="bottom-tab" data-panel="synth">Synth</button>
             <button class="bottom-tab" data-panel="sound-match">Sound Match</button>
-            <button class="bottom-tab" data-panel="library">Library</button>
         </div>
         <div id="bottom-content">
             <div id="mixer"></div>
@@ -2612,6 +2611,9 @@ body {
 
 <!-- Hidden file input for uploads -->
 <input type="file" id="file-upload" accept="audio/*" multiple style="display:none">
+
+<!-- Herbruikbare modules -->
+<script src="audio-browser.js"></script>
 
 <script>
 /* ============================================================
@@ -9253,8 +9255,9 @@ class DAWController {
         this._fxPanelTrackId = null;
     }
 
-    // Library sidebar rechts toggle
+    // Library sidebar rechts — AudioBrowser module (Jamendo, Archive, Freesound, Community)
     _librarySidebarOpen = false;
+    _librarySidebarBrowser = null;
     toggleLibrarySidebar() {
         const sidebar = document.getElementById('library-sidebar');
         const btn = document.getElementById('btn-library-toggle');
@@ -9264,71 +9267,58 @@ class DAWController {
             btn.style.background = this._librarySidebarOpen ? 'var(--accent)' : 'var(--bg-hover)';
             btn.style.color = this._librarySidebarOpen ? '#000' : 'var(--accent)';
         }
-        if (this._librarySidebarOpen && !this._librarySidebarLoaded) {
-            this._librarySidebarLoaded = true;
-            this._populateLibrarySidebar();
+        if (this._librarySidebarOpen && !this._librarySidebarBrowser) {
+            const container = document.getElementById('library-sidebar-browser');
+            if (container && typeof AudioBrowser !== 'undefined') {
+                this._librarySidebarBrowser = new AudioBrowser({
+                    container: container,
+                    onSelect: (audioBuffer, name) => {
+                        // Laad op geselecteerde audio track als regio
+                        this._loadAudioBufferToTimeline(audioBuffer, name);
+                    },
+                    compact: true,
+                    showLocalScan: location.hostname === 'localhost'
+                });
+            }
         }
     }
 
-    async _populateLibrarySidebar() {
-        const container = document.getElementById('library-sidebar-content');
-        if (!container) return;
-        // Laad sounds als ze er nog niet zijn
-        if (!this._sounds || this._sounds.length === 0) {
-            try {
-                const res = await fetch(`${API_BASE}/api/sounds`);
-                this._sounds = await res.json();
-            } catch(e) { this._sounds = []; }
+    _loadAudioBufferToTimeline(audioBuffer, name) {
+        // Zoek eerste audio track, of maak er een
+        let track = this.state.tracks.find(t => t.type === 'audio');
+        if (!track) {
+            this.addTrack('Audio 1', 'audio');
+            track = this.state.tracks.find(t => t.type === 'audio');
         }
-        const sounds = this._sounds || [];
-        const categories = this._categories || [];
-        let html = '<div style="padding:6px 8px"><input type="text" id="lib-side-search" placeholder="Zoek..." style="width:100%;background:var(--bg-darkest);border:1px solid var(--border);border-radius:4px;padding:5px 8px;color:var(--text);font-size:11px;outline:none"></div>';
-        html += '<div style="display:flex;flex-wrap:wrap;gap:3px;padding:4px 8px">';
-        categories.filter(c => c.sound_count > 0 && !c.parent_id).forEach(c => {
-            html += `<button class="lib-side-cat" data-cat="${c.id}" style="font-size:9px;padding:2px 7px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text-dim);cursor:pointer">${c.name}</button>`;
-        });
-        html += '</div>';
-        html += '<div id="lib-side-list" style="padding:4px"></div>';
-        container.innerHTML = html;
-
-        // Render sounds
-        this._renderSidebarSounds(sounds);
-
-        // Search
-        document.getElementById('lib-side-search')?.addEventListener('input', e => {
-            const q = e.target.value.toLowerCase();
-            const filtered = q ? sounds.filter(s => (s.name||'').toLowerCase().includes(q) || (s.tags||'').toLowerCase().includes(q)) : sounds;
-            this._renderSidebarSounds(filtered);
-        });
-
-        // Category filter
-        container.querySelectorAll('.lib-side-cat').forEach(btn => {
-            btn.onclick = () => {
-                const active = btn.style.background !== 'transparent';
-                container.querySelectorAll('.lib-side-cat').forEach(b => { b.style.background = 'transparent'; b.style.color = 'var(--text-dim)'; });
-                if (!active) {
-                    btn.style.background = 'var(--accent)'; btn.style.color = '#000';
-                    const catId = btn.dataset.cat;
-                    this._renderSidebarSounds(sounds.filter(s => String(s.category_id) === catId));
-                } else {
-                    this._renderSidebarSounds(sounds);
-                }
-            };
-        });
+        if (!track) return;
+        // Voeg regio toe op playhead positie
+        const startBeat = this.state.playheadBeat || 0;
+        const duration = audioBuffer.duration;
+        const region = {
+            id: 'ar-' + Date.now(),
+            startBeat: startBeat,
+            duration: duration,
+            name: name || 'Audio',
+            buffer: audioBuffer,
+            peaks: this._generatePeaks(audioBuffer)
+        };
+        track.regions.push(region);
+        toast(`"${name}" toegevoegd aan ${track.name}`, 'success');
     }
 
-    _renderSidebarSounds(sounds) {
-        const list = document.getElementById('lib-side-list');
-        if (!list) return;
-        list.innerHTML = sounds.slice(0, 100).map(s => `
-            <div class="lib-side-item" draggable="true" data-sound-id="${s.id}"
-                 style="padding:5px 8px;border-bottom:1px solid var(--border);cursor:grab;font-size:11px;color:var(--text);transition:background .1s"
-                 onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background=''"
-                 ondragstart="event.dataTransfer.setData('audio-url','${API_BASE}/api/sounds/${s.id}/file');event.dataTransfer.setData('audio-name','${(s.name||'').replace(/'/g,"\\'")}');event.dataTransfer.effectAllowed='copy'">
-                <div style="font-weight:500">${s.name || 'Unnamed'}</div>
-                <div style="font-size:9px;color:var(--text-dim)">${s.category_name || ''} ${s.duration_ms ? (s.duration_ms/1000).toFixed(1)+'s' : ''} ${s.bpm ? s.bpm+'bpm' : ''}</div>
-            </div>
-        `).join('') || '<div style="padding:12px;text-align:center;color:var(--text-dim);font-size:11px">Geen geluiden gevonden</div>';
+    _generatePeaks(buffer) {
+        const data = buffer.getChannelData(0);
+        const peaks = [];
+        const step = Math.max(1, Math.floor(data.length / 200));
+        for (let i = 0; i < data.length; i += step) {
+            let max = 0;
+            for (let j = i; j < Math.min(i + step, data.length); j++) {
+                const abs = Math.abs(data[j]);
+                if (abs > max) max = abs;
+            }
+            peaks.push(max);
+        }
+        return peaks;
     }
 
     handleFxParam(input) {
