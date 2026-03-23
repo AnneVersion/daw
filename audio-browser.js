@@ -148,6 +148,9 @@ class AudioBrowser {
         this._el('search-btn').onclick = () => this.search();
         this._el('rec-btn').onclick = () => this.toggleRecording();
         if (this._el('scan-btn')) this._el('scan-btn').onclick = () => this.scanLocal();
+
+        // Bij openen: laad meteen populaire geluiden
+        setTimeout(() => this.search('drums loop'), 300);
     }
 
     // ---- Opname functie ----
@@ -248,11 +251,12 @@ class AudioBrowser {
         }
 
         resultsEl.innerHTML = `<div style="font-size:9px;color:var(--text-dim,#8b949e);padding:3px 6px;border-bottom:1px solid var(--border,#30363d)">${allResults.length} resultaten</div>` + allResults.map((r, i) => `
-            <div class="ab-item" data-idx="${i}" style="display:flex;align-items:center;gap:6px;padding:5px 6px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;font-size:11px;transition:background 0.15s">
-                <span class="material-icons" style="font-size:14px;color:${r.sourceColor}">${r.sourceIcon}</span>
-                <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.name}">${r.name}</span>
-                <span class="material-icons" style="font-size:14px;color:var(--text-dim,#8b949e);cursor:pointer" title="Preview" data-preview="${i}">play_circle</span>
-                <span style="color:${r.sourceColor};font-size:7px;min-width:45px;text-align:right;opacity:.7">${r.source}</span>
+            <div class="ab-item" data-idx="${i}" style="padding:5px 6px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;font-size:11px;transition:background 0.15s">
+                <div style="display:flex;align-items:center;gap:5px">
+                    <span style="cursor:pointer;font-size:16px" title="Afspelen" data-preview="${i}">&#9654;</span>
+                    <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text,#e0e0ee)" title="${r.name}">${r.name}</span>
+                </div>
+                <div style="font-size:8px;color:${r.sourceColor};opacity:.8;margin-left:21px">${r.source}${r.duration ? ' · ' + (typeof r.duration === 'number' ? (r.duration < 60 ? Math.round(r.duration) + 's' : Math.floor(r.duration/60) + ':' + String(Math.round(r.duration%60)).padStart(2,'0')) : r.duration) : ''}</div>
             </div>
         `).join('');
 
@@ -320,39 +324,70 @@ class AudioBrowser {
         resultsEl.innerHTML = '<div style="color:var(--text-dim,#8b949e);font-size:11px;padding:8px">Scannen... (audio + video bestanden)</div>';
 
         try {
-            const resp = await fetch('/api/scan-audio?path=audio');
+            // Scan alle schijven (geen path = alles), of cache gebruiken
+            let resp;
+            try {
+                resp = await fetch('/api/scan-cache');
+                const cache = await resp.json();
+                if (cache.results && cache.results.length > 0) {
+                    resultsEl.innerHTML = '<div style="color:var(--text-dim,#8b949e);font-size:11px;padding:8px">Cache gevonden, herladen... (klik opnieuw voor verse scan)</div>';
+                    // Toon cache, start verse scan op achtergrond
+                    this._renderScanResults(resultsEl, cache.results);
+                    fetch('/api/scan-audio').then(r => r.json()).then(data => {
+                        if (data.results) {
+                            fetch('/api/scan-cache', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+                        }
+                    }).catch(() => {});
+                    return;
+                }
+            } catch(e) {}
+            resp = await fetch('/api/scan-audio');
             const data = await resp.json();
             const files = data.results || [];
             if (!files.length) {
                 resultsEl.innerHTML = '<div style="color:var(--text-dim,#8b949e);font-size:11px;padding:8px">Geen bestanden gevonden</div>';
                 return;
             }
-            this._results = files.map(f => ({
-                name: f.name,
-                source: 'Lokaal',
-                sourceColor: 'var(--yellow,#ffd24a)',
-                sourceIcon: 'folder',
-                url: `/api/local-audio?path=${encodeURIComponent(f.path)}`,
-                needsProxy: false
-            }));
-            resultsEl.innerHTML = this._results.map((r, i) => `
-                <div class="ab-item" data-idx="${i}" style="display:flex;align-items:center;gap:8px;padding:6px;border-radius:6px;cursor:pointer;font-size:11px;transition:background 0.15s">
-                    <span class="material-icons" style="font-size:16px;color:${r.sourceColor}">${r.sourceIcon}</span>
-                    <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}</span>
-                    <span style="color:var(--text-dim,#8b949e);font-size:8px">Lokaal</span>
-                </div>
-            `).join('');
-            resultsEl.querySelectorAll('.ab-item').forEach(el => {
-                el.onmouseover = () => { el.style.background = 'var(--bg-hover,#242d3d)'; };
-                el.onmouseout = () => { el.style.background = 'transparent'; };
-                el.onclick = () => {
-                    const r = this._results[+el.dataset.idx];
-                    if (r) this._loadResult(r);
-                };
-            });
+            // Cache opslaan
+            try { fetch('/api/scan-cache', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }); } catch(e) {}
+            this._renderScanResults(resultsEl, files);
         } catch(e) {
             resultsEl.innerHTML = '<div style="color:var(--red,#ff4a5a);font-size:11px;padding:8px">Scan niet beschikbaar (alleen op localhost)</div>';
         }
+    }
+
+    _renderScanResults(resultsEl, files) {
+        this._results = files.map(f => ({
+            name: f.name,
+            source: `Lokaal · ${f.ext} · ${f.size_mb}MB`,
+            sourceColor: '#ffd24a',
+            sourceIcon: 'folder',
+            url: `/api/local-audio?path=${encodeURIComponent(f.path)}`,
+            needsProxy: false,
+            duration: f.size_mb > 10 ? 'groot' : ''
+        }));
+        resultsEl.innerHTML = `<div style="font-size:9px;color:var(--text-dim,#8b949e);padding:3px 6px;border-bottom:1px solid var(--border,#30363d)">${files.length} bestanden gevonden</div>` + this._results.map((r, i) => `
+            <div class="ab-item" data-idx="${i}" style="padding:5px 6px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;font-size:11px;transition:background 0.15s">
+                <div style="display:flex;align-items:center;gap:5px">
+                    <span style="cursor:pointer;font-size:16px" title="Afspelen" data-preview="${i}">&#9654;</span>
+                    <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text,#e0e0ee)" title="${r.name}">${r.name}</span>
+                </div>
+                <div style="font-size:8px;color:${r.sourceColor};opacity:.8;margin-left:21px">${r.source}</div>
+            </div>
+        `).join('');
+        resultsEl.querySelectorAll('.ab-item').forEach(el => {
+            el.onmouseover = () => { el.style.background = 'var(--bg-hover,#242d3d)'; };
+            el.onmouseout = () => { el.style.background = 'transparent'; };
+            el.onclick = (e) => {
+                if (e.target.dataset.preview !== undefined) {
+                    this._preview(this._results[+e.target.dataset.preview]);
+                    e.stopPropagation();
+                    return;
+                }
+                const r = this._results[+el.dataset.idx];
+                if (r) this._loadResult(r);
+            };
+        });
     }
 
     // ---- Audio preview (play in browser without loading to pad) ----
