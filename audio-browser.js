@@ -49,14 +49,17 @@ class AudioBrowser {
         c.innerHTML = '';
         c.style.cssText = 'background:var(--bg-panel,#161b22);border-radius:8px;padding:8px;font-family:inherit;';
 
-        // Opname knop + Scan PC (actieknoppen bovenaan)
+        // Opname knop + Mijn Opnames + Scan PC
         const actions = document.createElement('div');
-        actions.style.cssText = 'display:flex;gap:4px;margin-bottom:6px';
+        actions.style.cssText = 'display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap';
         actions.innerHTML = `
-            <button id="${id}-rec-btn" style="display:flex;align-items:center;gap:4px;padding:5px 12px;background:#ef4444;border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s">
-                <span class="material-icons" style="font-size:14px">mic</span> Opnemen
+            <button id="${id}-rec-btn" style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:#ef4444;border:none;border-radius:6px;color:#fff;font-size:10px;font-weight:700;cursor:pointer;transition:all .2s">
+                &#127908; Opnemen
             </button>
-            <span id="${id}-rec-status" style="font-size:10px;color:var(--text-dim,#8b949e);align-self:center;flex:1"></span>
+            <button id="${id}-my-recs-btn" style="padding:5px 10px;background:var(--bg-dark,#0d1117);border:1px solid #ef4444;border-radius:6px;color:#ef4444;font-size:10px;cursor:pointer">
+                Mijn Opnames
+            </button>
+            <span id="${id}-rec-status" style="font-size:9px;color:var(--text-dim,#8b949e);align-self:center;flex:1"></span>
             ${this.showLocalScan ? `<button id="${id}-scan-btn" style="padding:5px 10px;background:var(--bg-dark,#0d1117);border:1px solid var(--border,#30363d);border-radius:6px;color:var(--text,#e0e0ee);font-size:10px;cursor:pointer">Scan PC</button>` : ''}
         `;
         c.appendChild(actions);
@@ -147,10 +150,46 @@ class AudioBrowser {
         this._el('search').onkeydown = (e) => { if (e.key === 'Enter') this.search(); };
         this._el('search-btn').onclick = () => this.search();
         this._el('rec-btn').onclick = () => this.toggleRecording();
+        this._el('my-recs-btn').onclick = () => this.showMyRecordings();
         if (this._el('scan-btn')) this._el('scan-btn').onclick = () => this.scanLocal();
 
         // Bij openen: laad meteen populaire geluiden
         setTimeout(() => this.search('drums loop'), 300);
+    }
+
+    // ---- Mijn Opnames tonen ----
+    async showMyRecordings() {
+        const resultsEl = this._el('results');
+        if (!resultsEl) return;
+        resultsEl.innerHTML = '<div style="color:var(--text-dim,#8b949e);font-size:11px;padding:8px">Opnames laden...</div>';
+        const recs = await this._searchRecordings('');
+        if (!recs.length) {
+            resultsEl.innerHTML = '<div style="padding:12px;text-align:center;color:var(--text-dim,#8b949e);font-size:11px">Nog geen opnames. Klik "Opnemen" om je eerste opname te maken.</div>';
+            return;
+        }
+        this._results = recs;
+        resultsEl.innerHTML = `<div style="font-size:9px;color:#ef4444;padding:3px 6px;border-bottom:1px solid var(--border,#30363d);font-weight:700">${recs.length} opname${recs.length !== 1 ? 's' : ''}</div>` + recs.map((r, i) => `
+            <div class="ab-item" data-idx="${i}" style="padding:5px 6px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;font-size:11px;transition:background 0.15s">
+                <div style="display:flex;align-items:center;gap:5px">
+                    <span style="cursor:pointer;font-size:16px;color:#ef4444" title="Afspelen" data-preview="${i}">&#9654;</span>
+                    <span style="flex:1;color:var(--text,#e0e0ee)">${r.name}</span>
+                </div>
+                <div style="font-size:8px;color:#ef4444;opacity:.8;margin-left:21px">${r.source}</div>
+            </div>
+        `).join('');
+        resultsEl.querySelectorAll('.ab-item').forEach(el => {
+            el.onmouseover = () => { el.style.background = 'var(--bg-hover,#242d3d)'; };
+            el.onmouseout = () => { el.style.background = 'transparent'; };
+            el.onclick = (e) => {
+                if (e.target.dataset.preview !== undefined) {
+                    this._preview(this._results[+e.target.dataset.preview]);
+                    e.stopPropagation();
+                    return;
+                }
+                const r = this._results[+el.dataset.idx];
+                if (r) this._loadResult(r);
+            };
+        });
     }
 
     // ---- Opname functie ----
@@ -212,7 +251,8 @@ class AudioBrowser {
                     this.onSelect(audioBuffer, name);
                 } catch(e) {}
 
-                setTimeout(() => { status.textContent = ''; }, 4000);
+                // Toon opnames lijst na 2 seconden
+                setTimeout(() => { status.textContent = ''; this.showMyRecordings(); }, 2000);
             };
             recorder.start();
             // Max 60s
