@@ -153,8 +153,15 @@ class AudioBrowser {
         this._el('my-recs-btn').onclick = () => this.showMyRecordings();
         if (this._el('scan-btn')) this._el('scan-btn').onclick = () => this.scanLocal();
 
-        // Bij openen: laad meteen populaire geluiden
-        setTimeout(() => this.search('drums loop'), 300);
+        // Bij openen: toon opnames als die er zijn, anders populaire geluiden
+        setTimeout(async () => {
+            const recs = await this._searchRecordings('');
+            if (recs.length > 0) {
+                this.showMyRecordings();
+            } else {
+                this.search('drums loop');
+            }
+        }, 300);
     }
 
     // ---- Mijn Opnames tonen ----
