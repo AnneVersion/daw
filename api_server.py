@@ -350,10 +350,16 @@ def scan_audio():
     else:
         search_dirs = [p for p in default_paths if p.exists()]
 
-    audio_exts = {'.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.wma', '.aiff', '.opus', '.webm',
-                  '.mid', '.midi', '.amr', '.ape', '.mka', '.ra', '.rm', '.snd', '.au', '.gsm',
-                  '.dss', '.dvf', '.msv', '.nmf', '.oga', '.mogg', '.raw', '.vox', '.tta',
-                  '.wv', '.8svx', '.cda', '.ac3', '.dts', '.pcm', '.w64', '.rf64'}
+    # Audio + video bestanden (video bevat ook audio)
+    audio_exts = {
+        # Audio
+        '.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.wma', '.aiff', '.opus', '.webm',
+        '.mid', '.midi', '.amr', '.ape', '.mka', '.ra', '.rm', '.snd', '.au', '.gsm',
+        '.dss', '.dvf', '.msv', '.nmf', '.oga', '.mogg', '.raw', '.vox', '.tta',
+        '.wv', '.8svx', '.cda', '.ac3', '.dts', '.pcm', '.w64', '.rf64',
+        # Video (bevat audio)
+        '.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.m4v', '.3gp', '.ts', '.mts',
+    }
     results = []
     start = time.time()
     timeout = 120  # 2 minuten max, geen limiet op aantal
@@ -404,27 +410,132 @@ def scan_audio():
 
 @app.route('/api/local-audio')
 def serve_local_audio():
-    """Serveer een lokaal audio bestand voor de browser."""
+    """Serveer een lokaal audio/video bestand met streaming (range requests)."""
     filepath = request.args.get('path', '')
     if not filepath or not os.path.isfile(filepath):
         return jsonify({"error": "Bestand niet gevonden"}), 404
 
-    audio_exts = {'.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.wma', '.aiff', '.opus', '.webm'}
+    allowed_exts = {
+        '.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.wma', '.aiff', '.opus', '.webm',
+        '.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.m4v', '.3gp', '.ts', '.mts',
+    }
     ext = os.path.splitext(filepath)[1].lower()
-    if ext not in audio_exts:
-        return jsonify({"error": "Geen audio bestand"}), 400
+    if ext not in allowed_exts:
+        return jsonify({"error": "Geen audio/video bestand"}), 400
 
     mime_types = {
         '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.flac': 'audio/flac',
         '.ogg': 'audio/ogg', '.m4a': 'audio/mp4', '.aac': 'audio/aac',
         '.wma': 'audio/x-ms-wma', '.aiff': 'audio/aiff', '.opus': 'audio/opus',
-        '.webm': 'audio/webm'
+        '.webm': 'audio/webm',
+        '.mp4': 'video/mp4', '.mkv': 'video/x-matroska', '.avi': 'video/x-msvideo',
+        '.mov': 'video/quicktime', '.wmv': 'video/x-ms-wmv', '.flv': 'video/x-flv',
+        '.m4v': 'video/mp4', '.3gp': 'video/3gpp', '.ts': 'video/mp2t', '.mts': 'video/mp2t',
     }
-    return send_file(filepath, mimetype=mime_types.get(ext, 'audio/mpeg'))
+    mimetype = mime_types.get(ext, 'application/octet-stream')
+
+    # Streaming met Range request support (voor grote bestanden)
+    file_size = os.path.getsize(filepath)
+    range_header = request.headers.get('Range')
+
+    if range_header:
+        # Parse Range: bytes=start-end
+        byte_start = 0
+        byte_end = file_size - 1
+        match = __import__('re').match(r'bytes=(\d+)-(\d*)', range_header)
+        if match:
+            byte_start = int(match.group(1))
+            if match.group(2):
+                byte_end = int(match.group(2))
+        length = byte_end - byte_start + 1
+
+        with open(filepath, 'rb') as f:
+            f.seek(byte_start)
+            data = f.read(length)
+
+        resp = app.response_class(data, 206, mimetype=mimetype)
+        resp.headers['Content-Range'] = f'bytes {byte_start}-{byte_end}/{file_size}'
+        resp.headers['Accept-Ranges'] = 'bytes'
+        resp.headers['Content-Length'] = length
+        return resp
+
+    return send_file(filepath, mimetype=mimetype)
+
+
+# --- Scan cache: sla resultaten op als lokaal JSON ---
+SCAN_CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'audio', 'scan_cache.json')
+
+@app.route('/api/scan-cache', methods=['GET'])
+def get_scan_cache():
+    """Geeft gecachte scan resultaten terug (snel, geen disk scan)."""
+    if os.path.isfile(SCAN_CACHE_FILE):
+        with open(SCAN_CACHE_FILE, 'r', encoding='utf-8') as f:
+            return jsonify(json.load(f))
+    return jsonify({'results': [], 'count': 0, 'cached': False})
+
+@app.route('/api/scan-cache', methods=['POST'])
+def save_scan_cache():
+    """Sla scan resultaten op als cache."""
+    data = request.get_json()
+    os.makedirs(os.path.dirname(SCAN_CACHE_FILE), exist_ok=True)
+    with open(SCAN_CACHE_FILE, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False)
+    return jsonify({'saved': True, 'count': data.get('count', 0)})
+
+
+# --- Opnames opslaan als echte bestanden ---
+RECORDINGS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'audio', 'recordings')
+
+@app.route('/api/recordings', methods=['GET'])
+def list_recordings():
+    """Lijst van opgeslagen opnames."""
+    os.makedirs(RECORDINGS_DIR, exist_ok=True)
+    files = []
+    for f in sorted(os.listdir(RECORDINGS_DIR), reverse=True):
+        if f.endswith(('.webm', '.wav', '.mp3', '.ogg')):
+            path = os.path.join(RECORDINGS_DIR, f)
+            stat = os.stat(path)
+            files.append({
+                'name': f,
+                'path': path.replace('\\', '/'),
+                'size_mb': round(stat.st_size / (1024*1024), 2),
+                'modified': datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M'),
+            })
+    return jsonify(files)
+
+@app.route('/api/recordings', methods=['POST'])
+def save_recording():
+    """Sla een opname op als bestand (multipart upload)."""
+    os.makedirs(RECORDINGS_DIR, exist_ok=True)
+    if 'audio' not in request.files:
+        return jsonify({'error': 'Geen audio bestand'}), 400
+    audio = request.files['audio']
+    name = request.form.get('name', f'opname-{datetime.now().strftime("%Y%m%d-%H%M%S")}')
+    ext = os.path.splitext(audio.filename)[1] if audio.filename else '.webm'
+    if not ext:
+        ext = '.webm'
+    filename = f'{name}{ext}'
+    filepath = os.path.join(RECORDINGS_DIR, filename)
+    audio.save(filepath)
+    return jsonify({
+        'saved': True,
+        'name': filename,
+        'path': filepath.replace('\\', '/'),
+        'size_mb': round(os.path.getsize(filepath) / (1024*1024), 2)
+    })
+
+@app.route('/api/recordings/<filename>')
+def serve_recording(filename):
+    """Serveer een opgeslagen opname."""
+    filepath = os.path.join(RECORDINGS_DIR, filename)
+    if not os.path.isfile(filepath):
+        return jsonify({'error': 'Niet gevonden'}), 404
+    return send_file(filepath)
 
 
 # --- Start ---
 if __name__ == '__main__':
     print("DAW API Server: http://localhost:8086")
+    print(f"Recordings: {RECORDINGS_DIR}")
     print("Database:", os.getenv('DB_NAME', 'daw'))
     app.run(host='0.0.0.0', port=8086, debug=True)
