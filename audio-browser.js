@@ -101,121 +101,215 @@ class AudioBrowser {
         const c = this.container;
         const id = this._id;
         c.innerHTML = '';
-        c.style.cssText = 'background:var(--bg-panel,#161b22);border-radius:8px;padding:8px;font-family:inherit;';
+        c.style.cssText = 'background:var(--bg-panel,#161b22);border-radius:8px;padding:6px;font-family:inherit;font-size:11px;';
 
-        // Opname knop + Mijn Opnames + Scan PC
-        const actions = document.createElement('div');
-        actions.style.cssText = 'display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap';
-        actions.innerHTML = `
-            <button id="${id}-rec-btn" style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:#ef4444;border:none;border-radius:6px;color:#fff;font-size:10px;font-weight:700;cursor:pointer;transition:all .2s">
-                &#127908; Opnemen
-            </button>
-            <button id="${id}-my-recs-btn" style="padding:5px 10px;background:var(--bg-dark,#0d1117);border:1px solid #ef4444;border-radius:6px;color:#ef4444;font-size:10px;cursor:pointer">
-                Mijn Opnames
-            </button>
-            <span id="${id}-rec-status" style="font-size:9px;color:var(--text-dim,#8b949e);align-self:center;flex:1"></span>
-            ${this.showLocalScan ? `<button id="${id}-scan-btn" style="padding:5px 10px;background:var(--bg-dark,#0d1117);border:1px solid var(--border,#30363d);border-radius:6px;color:var(--text,#e0e0ee);font-size:10px;cursor:pointer">Scan PC</button>` : ''}
+        // Zoekbalk + Opnemen + Scan PC
+        const top = document.createElement('div');
+        top.style.cssText = 'display:flex;gap:3px;margin-bottom:4px';
+        top.innerHTML = `
+            <input type="text" id="${id}-search" placeholder="Zoek geluiden..." style="flex:1;background:var(--bg-dark,#0d1117);border:1px solid var(--border,#30363d);border-radius:4px;color:var(--text,#e0e0ee);padding:4px 8px;font-size:11px;outline:none">
+            <button id="${id}-search-btn" style="padding:4px 10px;background:#4a9eff;border:none;border-radius:4px;color:#fff;font-size:10px;font-weight:700;cursor:pointer">Zoek</button>
+            <button id="${id}-rec-btn" style="padding:4px 8px;background:#ef4444;border:none;border-radius:4px;color:#fff;font-size:10px;font-weight:700;cursor:pointer">&#127908;</button>
+            ${this.showLocalScan ? `<button id="${id}-scan-btn" style="padding:4px 8px;background:var(--bg-dark,#0d1117);border:1px solid var(--border,#30363d);border-radius:4px;color:var(--text,#e0e0ee);font-size:9px;cursor:pointer">PC</button>` : ''}
         `;
-        c.appendChild(actions);
+        c.appendChild(top);
+        const recStatus = document.createElement('div');
+        recStatus.id = `${id}-rec-status`;
+        recStatus.style.cssText = 'font-size:9px;color:var(--text-dim,#8b949e);padding:0 2px;display:none';
+        c.appendChild(recStatus);
 
-        // Source toggles (API's aan/uit)
-        const toggles = document.createElement('div');
-        toggles.style.cssText = 'display:flex;gap:3px;margin-bottom:6px;flex-wrap:wrap';
-        const sources = [
-            { sid: 'freesound', label: 'Freesound', color: '#4a9eff' },
-            { sid: 'jamendo', label: 'Jamendo', color: '#ff8a4a' },
-            { sid: 'archive', label: 'Archive', color: '#39ff14' },
-            { sid: 'community', label: 'Community', color: '#a855f7' },
-            { sid: 'recordings', label: 'Opnames', color: '#ef4444' },
+        // API vakken (inklapbaar, elk met eigen categorieën)
+        const apiSections = [
+            { sid: 'freesound', label: 'Freesound', color: '#4a9eff', icon: '🔊',
+              cats: [
+                { q: 'kick drum', l: 'Kick' }, { q: 'snare drum', l: 'Snare' }, { q: 'hi-hat cymbal', l: 'Hi-Hat' },
+                { q: 'clap handclap', l: 'Clap' }, { q: 'percussion bongo', l: 'Perc' },
+                { q: 'bass guitar', l: 'Bass' }, { q: 'acoustic guitar', l: 'Gitaar' }, { q: 'piano chord', l: 'Piano' },
+                { q: 'trumpet brass', l: 'Blazers' }, { q: 'strings orchestra', l: 'Strings' },
+                { q: 'synth pad', l: 'Synth' }, { q: 'vocal chop', l: 'Vocals' },
+                { q: 'sound effect', l: 'FX' }, { q: 'ambient nature', l: 'Natuur' },
+              ]},
+            { sid: 'jamendo', label: 'Jamendo', color: '#ff8a4a', icon: '🎵',
+              cats: [
+                { q: 'jazz', l: 'Jazz' }, { q: 'blues', l: 'Blues' }, { q: 'reggae', l: 'Reggae' },
+                { q: 'funk soul', l: 'Funk' }, { q: 'hip hop', l: 'HipHop' }, { q: 'electronic', l: 'Electronic' },
+                { q: 'rock', l: 'Rock' }, { q: 'classical', l: 'Klassiek' }, { q: 'ambient', l: 'Ambient' },
+                { q: 'pop', l: 'Pop' }, { q: 'african', l: 'Afrikaans' }, { q: 'latin', l: 'Latin' },
+              ]},
+            { sid: 'archive', label: 'Internet Archive', color: '#39ff14', icon: '📚',
+              cats: [
+                { q: 'jazz music', l: 'Jazz' }, { q: 'blues music', l: 'Blues' }, { q: 'classical music', l: 'Klassiek' },
+                { q: 'folk music', l: 'Folk' }, { q: 'world music', l: 'Wereld' }, { q: 'spoken word', l: 'Spoken' },
+              ]},
+            { sid: 'community', label: 'Community', color: '#a855f7', icon: '👥',
+              cats: [
+                { q: 'drums', l: 'Drums' }, { q: 'bass', l: 'Bass' }, { q: 'melody', l: 'Melodie' },
+                { q: 'loop', l: 'Loops' }, { q: 'vocals', l: 'Vocals' },
+              ]},
+            { sid: 'recordings', label: 'Opnames', color: '#ef4444', icon: '🎤',
+              cats: [] },
         ];
-        sources.forEach(src => {
-            const label = document.createElement('label');
-            label.style.cssText = 'font-size:9px;display:flex;align-items:center;gap:2px;cursor:pointer;padding:2px 6px;border-radius:4px;background:var(--bg-dark,#0d1117);border:1px solid var(--border,#30363d)';
+
+        const sections = document.createElement('div');
+        sections.style.cssText = 'margin-bottom:4px';
+        apiSections.forEach(api => {
+            const sec = document.createElement('div');
+            sec.style.cssText = `border:1px solid var(--border,#30363d);border-left:3px solid ${api.color};border-radius:4px;margin-bottom:3px;overflow:hidden`;
+            // Header (klikbaar om in/uit te klappen)
+            const hdr = document.createElement('div');
+            hdr.style.cssText = `display:flex;align-items:center;gap:4px;padding:4px 8px;cursor:pointer;background:var(--bg-dark,#0d1117);font-size:10px;font-weight:700;color:${api.color}`;
+            hdr.innerHTML = `<span id="${id}-arrow-${api.sid}" style="font-size:8px;transition:transform .2s">▶</span> ${api.icon} ${api.label}`;
+            const body = document.createElement('div');
+            body.id = `${id}-body-${api.sid}`;
+            body.style.cssText = 'display:none;padding:4px 6px';
+            // Checkbox aan/uit
             const cb = document.createElement('input');
             cb.type = 'checkbox';
             cb.checked = true;
-            cb.id = `${id}-src-${src.sid}`;
-            cb.style.cssText = `width:12px;height:12px;accent-color:${src.color}`;
-            label.appendChild(cb);
-            label.appendChild(document.createTextNode(` ${src.label}`));
-            toggles.appendChild(label);
-        });
-        c.appendChild(toggles);
+            cb.id = `${id}-src-${api.sid}`;
+            cb.style.cssText = `width:12px;height:12px;accent-color:${api.color};margin-left:auto`;
+            cb.onclick = (e) => e.stopPropagation();
+            hdr.appendChild(cb);
 
-        // Categorieën (gegroepeerd)
-        const cats = document.createElement('div');
-        cats.style.cssText = 'display:flex;gap:2px;margin-bottom:6px;flex-wrap:wrap';
-        const catGroups = [
-            // Drums & Percussie
-            { q: 'kick drum', label: 'Kick', group: 'drums' },
-            { q: 'snare drum', label: 'Snare', group: 'drums' },
-            { q: 'hi-hat cymbal', label: 'Hi-Hat', group: 'drums' },
-            { q: 'clap', label: 'Clap', group: 'drums' },
-            { q: 'bongo conga percussion', label: 'Perc', group: 'drums' },
-            // Instrumenten
-            { q: 'bass guitar', label: 'Bass', group: 'inst' },
-            { q: 'acoustic guitar', label: 'Gitaar', group: 'inst' },
-            { q: 'piano chord', label: 'Piano', group: 'inst' },
-            { q: 'trumpet brass', label: 'Blazers', group: 'inst' },
-            { q: 'strings orchestra', label: 'Strings', group: 'inst' },
-            { q: 'saxophone jazz', label: 'Sax', group: 'inst' },
-            // Elektronisch
-            { q: 'synth pad', label: 'Synth', group: 'elec' },
-            { q: 'electronic loop beat', label: 'Loops', group: 'elec' },
-            { q: 'vocal chop', label: 'Vocals', group: 'elec' },
-            { q: 'sound effect boom', label: 'FX', group: 'elec' },
-            // Sfeer
-            { q: 'ambient nature rain', label: 'Natuur', group: 'sfeer' },
-            { q: 'bird animal', label: 'Dieren', group: 'sfeer' },
-        ];
-        const groupColors = { drums: '#ef4444', inst: '#4a9eff', elec: '#a855f7', sfeer: '#39ff14' };
-        catGroups.forEach(cat => {
-            const btn = document.createElement('button');
-            btn.textContent = cat.label;
-            btn.style.cssText = `font-size:8px;padding:2px 7px;border-radius:3px;border:1px solid var(--border,#30363d);background:var(--bg-panel,#161b22);color:var(--text,#e0e0ee);cursor:pointer;transition:all .15s;border-left:2px solid ${groupColors[cat.group]}`;
-            btn.onmouseover = () => { btn.style.background = 'var(--bg-hover,#242d3d)'; };
-            btn.onmouseout = () => { if (!btn.classList.contains('active')) btn.style.background = 'var(--bg-panel,#161b22)'; };
-            btn.onclick = () => {
-                cats.querySelectorAll('button').forEach(b => { b.classList.remove('active'); b.style.background = 'var(--bg-panel,#161b22)'; });
-                btn.classList.add('active');
-                btn.style.background = groupColors[cat.group] + '33';
-                this.search(cat.q);
+            hdr.onclick = () => {
+                const open = body.style.display !== 'none';
+                body.style.display = open ? 'none' : 'block';
+                const arrow = this._el(`arrow-${api.sid}`);
+                if (arrow) arrow.style.transform = open ? '' : 'rotate(90deg)';
             };
-            cats.appendChild(btn);
+            sec.appendChild(hdr);
+
+            // Categorie knoppen
+            if (api.cats.length > 0) {
+                const catDiv = document.createElement('div');
+                catDiv.style.cssText = 'display:flex;flex-wrap:wrap;gap:2px;margin-bottom:4px';
+                api.cats.forEach(cat => {
+                    const btn = document.createElement('button');
+                    btn.textContent = cat.l;
+                    btn.style.cssText = `font-size:8px;padding:1px 6px;border-radius:3px;border:1px solid ${api.color}33;background:transparent;color:var(--text,#e0e0ee);cursor:pointer`;
+                    btn.onmouseover = () => { btn.style.background = api.color + '22'; };
+                    btn.onmouseout = () => { btn.style.background = 'transparent'; };
+                    btn.onclick = () => this._searchSingleAPI(api.sid, cat.q);
+                    catDiv.appendChild(btn);
+                });
+                body.appendChild(catDiv);
+            }
+            // Opnames: toon direct lijst
+            if (api.sid === 'recordings') {
+                const recList = document.createElement('div');
+                recList.id = `${id}-reclist`;
+                recList.style.cssText = 'font-size:10px;color:var(--text-dim,#8b949e)';
+                recList.textContent = 'Laden...';
+                body.appendChild(recList);
+                // Laad opnames bij renderen
+                setTimeout(() => this._loadRecordingsList(), 500);
+            }
+            // Resultaten per API
+            const apiResults = document.createElement('div');
+            apiResults.id = `${id}-res-${api.sid}`;
+            body.appendChild(apiResults);
+
+            sec.appendChild(body);
+            sections.appendChild(sec);
         });
-        c.appendChild(cats);
+        c.appendChild(sections);
 
-        // Zoekbalk
-        const searchBar = document.createElement('div');
-        searchBar.style.cssText = 'display:flex;gap:4px;margin-bottom:6px';
-        searchBar.innerHTML = `
-            <input type="text" id="${id}-search" placeholder="Zoek geluiden..." style="flex:1;background:var(--bg-dark,#0d1117);border:1px solid var(--border,#30363d);border-radius:5px;color:var(--text,#e0e0ee);padding:5px 8px;font-size:11px;outline:none">
-            <button id="${id}-search-btn" style="padding:5px 12px;background:var(--accent,#4a9eff);border:none;border-radius:5px;color:#fff;font-size:11px;font-weight:700;cursor:pointer">Zoek</button>
-        `;
-        c.appendChild(searchBar);
-
-        // Resultaten
+        // Globale resultaten (voor zoekbalk)
         const results = document.createElement('div');
         results.id = `${id}-results`;
-        results.style.cssText = 'max-height:400px;overflow-y:auto';
+        results.style.cssText = 'max-height:350px;overflow-y:auto';
         c.appendChild(results);
 
         // Event bindings
         this._el('search').onkeydown = (e) => { if (e.key === 'Enter') this.search(); };
         this._el('search-btn').onclick = () => this.search();
         this._el('rec-btn').onclick = () => this.toggleRecording();
-        this._el('my-recs-btn').onclick = () => this.showMyRecordings();
         if (this._el('scan-btn')) this._el('scan-btn').onclick = () => this.scanLocal();
+    }
 
-        // Bij openen: toon opnames als die er zijn, anders populaire geluiden
-        setTimeout(async () => {
-            const recs = await this._searchRecordings('');
-            if (recs.length > 0) {
-                this.showMyRecordings();
-            } else {
-                this.search('drums loop');
-            }
-        }, 300);
+    // Zoek in 1 specifieke API en toon resultaten in dat vak
+    async _searchSingleAPI(sid, query) {
+        const resEl = this._el(`res-${sid}`);
+        if (resEl) resEl.innerHTML = '<div style="color:var(--text-dim,#8b949e);font-size:10px;padding:4px">Zoeken...</div>';
+        let results = [];
+        try {
+            if (sid === 'freesound') results = await this._searchFreesound(query);
+            else if (sid === 'jamendo') results = await this._searchJamendo(query);
+            else if (sid === 'archive') results = await this._searchArchive(query);
+            else if (sid === 'community') results = await this._searchCommunity(query);
+        } catch(e) {}
+        this._results = results;
+        if (resEl) resEl.innerHTML = this._renderResultsHTML(results);
+        this._bindResultClicks(resEl);
+    }
+
+    // Laad opnames lijst in het Opnames vak
+    async _loadRecordingsList() {
+        const el = this._el('reclist');
+        if (!el) return;
+        const recs = await this._searchRecordings('');
+        if (!recs.length) {
+            el.innerHTML = '<div style="padding:4px;color:var(--text-dim,#8b949e);font-size:9px">Nog geen opnames</div>';
+            return;
+        }
+        this._results = recs;
+        el.innerHTML = recs.map((r, i) => `
+            <div class="ab-item" data-idx="${i}" style="padding:3px 4px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;transition:background .15s">
+                <div style="display:flex;align-items:center;gap:4px">
+                    <span style="cursor:pointer;font-size:14px;color:#ef4444" data-preview="${i}">&#9654;</span>
+                    <span style="flex:1;color:var(--text,#e0e0ee);font-size:10px">${r.name}</span>
+                    <span style="cursor:pointer;font-size:12px;color:var(--text-dim,#8b949e)" data-download="${i}" title="Download">&#11015;</span>
+                </div>
+            </div>
+        `).join('');
+        this._bindResultClicks(el);
+    }
+
+    _renderResultsHTML(results) {
+        if (!results.length) return '<div style="color:var(--text-dim,#8b949e);font-size:10px;padding:4px">Geen resultaten</div>';
+        return results.map((r, i) => `
+            <div class="ab-item" data-idx="${i}" style="padding:3px 4px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;font-size:10px;transition:background .15s">
+                <div style="display:flex;align-items:center;gap:4px">
+                    <span style="cursor:pointer;font-size:14px" data-preview="${i}">&#9654;</span>
+                    <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text,#e0e0ee)" title="${r.name}">${r.name}</span>
+                </div>
+                <div style="font-size:7px;color:${r.sourceColor};opacity:.8;margin-left:18px">${r.source}${r.duration ? ' · ' + (typeof r.duration === 'number' ? (r.duration < 60 ? Math.round(r.duration) + 's' : Math.floor(r.duration/60) + ':' + String(Math.round(r.duration%60)).padStart(2,'0')) : r.duration) : ''}</div>
+            </div>
+        `).join('');
+    }
+
+    _bindResultClicks(container) {
+        if (!container) return;
+        container.querySelectorAll('.ab-item').forEach(el => {
+            el.onmouseover = () => { el.style.background = 'var(--bg-hover,#242d3d)'; };
+            el.onmouseout = () => { el.style.background = 'transparent'; };
+            el.onclick = async (e) => {
+                if (e.target.dataset.preview !== undefined) {
+                    this._preview(this._results[+e.target.dataset.preview]);
+                    e.stopPropagation();
+                    return;
+                }
+                if (e.target.dataset.download !== undefined) {
+                    const r = this._results[+e.target.dataset.download];
+                    if (r) {
+                        try {
+                            let blob;
+                            if (r._idbName) {
+                                const rec = await AudioBrowser.getFromIndexedDB(r._idbName);
+                                blob = rec?.blob;
+                            } else if (r.url) {
+                                blob = await (await fetch(r.url)).blob();
+                            }
+                            if (blob) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = r.name; a.click(); }
+                        } catch(e) {}
+                    }
+                    e.stopPropagation();
+                    return;
+                }
+                const r = this._results[+el.dataset.idx];
+                if (r) this._loadResult(r);
+            };
+        });
     }
 
     // ---- Mijn Opnames tonen ----
@@ -355,7 +449,15 @@ class AudioBrowser {
                 } catch(e) {}
 
                 // Toon opnames lijst na 2 seconden
-                setTimeout(() => { status.textContent = ''; this.showMyRecordings(); }, 2000);
+                setTimeout(() => {
+                    status.style.display = 'none';
+                    // Open Opnames vak en herlaad lijst
+                    const body = this._el('body-recordings');
+                    if (body) body.style.display = 'block';
+                    const arrow = this._el('arrow-recordings');
+                    if (arrow) arrow.style.transform = 'rotate(90deg)';
+                    this._loadRecordingsList();
+                }, 2000);
             };
             recorder.start();
             // Max 60s

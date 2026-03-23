@@ -355,11 +355,11 @@ def scan_audio():
     audio_exts = {
         # Audio
         '.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.wma', '.aiff', '.opus', '.webm',
-        '.mid', '.midi', '.amr', '.ape', '.mka', '.ra', '.rm', '.snd', '.au', '.gsm',
+        '.mid', '.midi', '.amr', '.ape', '.mka', '.ra', '.rm', '.snd', '.gsm',
         '.dss', '.dvf', '.msv', '.nmf', '.oga', '.mogg', '.raw', '.vox', '.tta',
         '.wv', '.8svx', '.cda', '.ac3', '.dts', '.pcm', '.w64', '.rf64',
-        # Video (bevat audio)
-        '.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.m4v', '.3gp', '.ts', '.mts',
+        # Video (bevat audio) — .ts en .au uitgesloten (niet speelbaar in browser)
+        '.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.m4v', '.3gp',
     }
     results = []
     start = time.time()
@@ -418,7 +418,7 @@ def serve_local_audio():
 
     allowed_exts = {
         '.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.wma', '.aiff', '.opus', '.webm',
-        '.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.m4v', '.3gp', '.ts', '.mts',
+        '.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.m4v', '.3gp',
     }
     ext = os.path.splitext(filepath)[1].lower()
     if ext not in allowed_exts:
@@ -431,7 +431,7 @@ def serve_local_audio():
         '.webm': 'audio/webm',
         '.mp4': 'video/mp4', '.mkv': 'video/x-matroska', '.avi': 'video/x-msvideo',
         '.mov': 'video/quicktime', '.wmv': 'video/x-ms-wmv', '.flv': 'video/x-flv',
-        '.m4v': 'video/mp4', '.3gp': 'video/3gpp', '.ts': 'video/mp2t', '.mts': 'video/mp2t',
+        '.m4v': 'video/mp4', '.3gp': 'video/3gpp',
     }
     mimetype = mime_types.get(ext, 'application/octet-stream')
 
