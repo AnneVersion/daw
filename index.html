@@ -2872,7 +2872,9 @@ class AudioEngine {
                             if (!nodes) return;
 
                             const when = startTime + noteStartSec;
-                            const vel = (note.velocity || 100) / 127 * 0.6;
+                            // Velocity: kan 0-1 (import) of 0-127 (handmatig) zijn
+                            const rawVel = note.velocity || 0.8;
+                            const vel = (rawVel > 1 ? rawVel / 127 : rawVel) * 0.6;
 
                             // Try soundfont first, then synth drum fallback, then oscillator
                             const bufs = window.daw?.instruments?.loadedInstruments?.get(track.instrument);
@@ -9193,23 +9195,26 @@ class DAWController {
         // Sync UI with current FX state
         const nodes = this.engine.trackNodes.get(trackId);
         if (nodes && nodes.fx) {
-            const fx = nodes.fx;
-            panel.querySelector('[data-fx="eq-low"]').value = fx.eq.low.gain.value;
-            panel.querySelector('[data-fx="eq-mid"]').value = fx.eq.mid.gain.value;
-            panel.querySelector('[data-fx="eq-high"]').value = fx.eq.high.gain.value;
-            panel.querySelector('[data-fx="comp-threshold"]').value = fx.compressor.threshold.value;
-            panel.querySelector('[data-fx="comp-ratio"]').value = fx.compressor.ratio.value;
-            panel.querySelector('[data-fx="reverb-wet"]').value = fx.reverb.wet.gain.value;
-            panel.querySelector('[data-fx="delay-time"]').value = fx.delay.node.delayTime.value;
-            panel.querySelector('[data-fx="delay-feedback"]').value = fx.delay.feedback.gain.value;
-            panel.querySelector('[data-fx="delay-wet"]').value = fx.delay.wet.gain.value;
-            // Update value displays
-            panel.querySelectorAll('.fx-param input').forEach(inp => this._updateFxDisplay(inp));
-            // Sync toggles
-            panel.querySelectorAll('[data-fx-toggle]').forEach(btn => {
-                const type = btn.dataset.fxToggle;
-                btn.classList.toggle('on', fx.enabled[type]);
-            });
+            try {
+                const fx = nodes.fx;
+                const setVal = (sel, val) => { const el = panel.querySelector(sel); if (el) el.value = val; };
+                setVal('[data-fx="eq-low"]', fx.eq.low.gain.value);
+                setVal('[data-fx="eq-mid"]', fx.eq.mid.gain.value);
+                setVal('[data-fx="eq-high"]', fx.eq.high.gain.value);
+                setVal('[data-fx="comp-threshold"]', fx.compressor.threshold.value);
+                setVal('[data-fx="comp-ratio"]', fx.compressor.ratio.value);
+                setVal('[data-fx="reverb-wet"]', fx.reverb.wet.gain.value);
+                setVal('[data-fx="delay-time"]', fx.delay.node.delayTime.value);
+                setVal('[data-fx="delay-feedback"]', fx.delay.feedback.gain.value);
+                setVal('[data-fx="delay-wet"]', fx.delay.wet.gain.value);
+                // Update value displays
+                panel.querySelectorAll('.fx-param input').forEach(inp => this._updateFxDisplay(inp));
+                // Sync toggles
+                panel.querySelectorAll('[data-fx-toggle]').forEach(btn => {
+                    const type = btn.dataset.fxToggle;
+                    btn.classList.toggle('on', fx.enabled?.[type] || false);
+                });
+            } catch(e) { console.warn('FX sync error:', e); }
         }
     }
 
