@@ -2966,11 +2966,16 @@ class AudioEngine {
 
                         const source = this.ctx.createBufferSource();
                         source.buffer = buffer;
+                        // BPM sync: pas playbackRate aan als regio een originele BPM heeft
+                        if (region.originalBpm && region.originalBpm !== state.project.bpm) {
+                            source.playbackRate.value = state.project.bpm / region.originalBpm;
+                        }
                         const nodes = this.trackNodes.get(track.id);
                         if (nodes) source.connect(nodes.gain);
 
                         const when = this._startTime + regionStart;
-                        source.start(when, region.offset || 0, region.duration);
+                        const rate = source.playbackRate.value || 1;
+                        source.start(when, region.offset || 0, region.duration / rate);
                         source.onended = () => this.activeSources.delete(key);
                         this.activeSources.set(key, source);
                     }
@@ -10102,6 +10107,64 @@ class DAWController {
             }
         });
 
+        // Rechtermuisklik op regio = context menu met verwijderen
+        tlCanvas.addEventListener('contextmenu', e => {
+            const rect = tlCanvas.getBoundingClientRect();
+            const hit = hitTestRegion(e.clientX - rect.left, e.clientY - rect.top);
+            if (hit) {
+                e.preventDefault();
+                state.selectedRegionId = hit.region.id;
+                // Toon context menu
+                let menu = document.getElementById('region-context-menu');
+                if (!menu) {
+                    menu = document.createElement('div');
+                    menu.id = 'region-context-menu';
+                    menu.style.cssText = 'display:none;position:fixed;z-index:9999;background:#1a1a2e;border:1px solid #333;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.5);padding:4px 0;font-size:12px;min-width:160px';
+                    menu.innerHTML = `
+                        <div class="rcm-item" data-action="delete" style="padding:6px 14px;cursor:pointer;color:#ff4a5a;display:flex;align-items:center;gap:6px"><span class="material-icons" style="font-size:16px">delete</span>Verwijderen</div>
+                        <div class="rcm-item" data-action="duplicate" style="padding:6px 14px;cursor:pointer;color:#e0e0ee;display:flex;align-items:center;gap:6px"><span class="material-icons" style="font-size:16px">content_copy</span>Dupliceren</div>
+                        <div class="rcm-item" data-action="rename" style="padding:6px 14px;cursor:pointer;color:#e0e0ee;display:flex;align-items:center;gap:6px"><span class="material-icons" style="font-size:16px">edit</span>Hernoemen</div>
+                    `;
+                    document.body.appendChild(menu);
+                    menu.querySelectorAll('.rcm-item').forEach(item => {
+                        item.onmouseover = () => item.style.background = '#2a2a44';
+                        item.onmouseout = () => item.style.background = '';
+                        item.onclick = () => {
+                            const action = item.dataset.action;
+                            const rid = state.selectedRegionId;
+                            if (action === 'delete' && rid) {
+                                state.tracks.forEach(t => { t.regions = t.regions.filter(r => r.id !== rid); });
+                                state.selectedRegionId = null;
+                                toast('Regio verwijderd', 'info');
+                            } else if (action === 'duplicate' && rid) {
+                                state.tracks.forEach(t => {
+                                    const r = t.regions.find(r => r.id === rid);
+                                    if (r) {
+                                        const copy = JSON.parse(JSON.stringify(r));
+                                        copy.id = 'r-' + Date.now();
+                                        copy.startBeat += (r.lengthBeats || 4);
+                                        t.regions.push(copy);
+                                        toast(`"${r.name}" gedupliceerd`, 'success');
+                                    }
+                                });
+                            } else if (action === 'rename' && rid) {
+                                state.tracks.forEach(t => {
+                                    const r = t.regions.find(r => r.id === rid);
+                                    if (r) { const n = prompt('Nieuwe naam:', r.name); if (n) r.name = n; }
+                                });
+                            }
+                            menu.style.display = 'none';
+                        };
+                    });
+                    document.addEventListener('click', () => { menu.style.display = 'none'; });
+                }
+                menu.style.display = 'block';
+                menu.style.left = e.clientX + 'px';
+                menu.style.top = e.clientY + 'px';
+                return;
+            }
+        });
+
         tlCanvas.addEventListener('mousedown', e => {
             if (state.transport.state === 'playing') return;
             const rect = tlCanvas.getBoundingClientRect();
@@ -10109,6 +10172,8 @@ class DAWController {
             const my = e.clientY - rect.top;
             const hit = hitTestRegion(mx, my);
             if (hit) {
+                // Selecteer regio
+                state.selectedRegionId = hit.region.id;
                 const sx = document.getElementById('timeline-scroll').scrollLeft;
                 const beatAtMouse = pixelsToBeats(mx + sx);
 
