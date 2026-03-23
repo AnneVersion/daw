@@ -9232,9 +9232,12 @@ class DAWController {
             if (container && typeof AudioBrowser !== 'undefined') {
                 this._librarySidebarBrowser = new AudioBrowser({
                     container: container,
-                    onSelect: (audioBuffer, name) => {
-                        // Laad op geselecteerde audio track als regio
-                        this._loadAudioBufferToTimeline(audioBuffer, name);
+                    onSelect: (audioBuffer, name, extra) => {
+                        if (extra?.isMidi) {
+                            this._loadMidiToTimeline(name, extra.notes);
+                        } else if (audioBuffer) {
+                            this._loadAudioBufferToTimeline(audioBuffer, name);
+                        }
                     },
                     compact: true,
                     showLocalScan: location.hostname === 'localhost'
@@ -9264,6 +9267,57 @@ class DAWController {
         };
         track.regions.push(region);
         toast(`"${name}" toegevoegd aan ${track.name}`, 'success');
+    }
+
+    _loadMidiToTimeline(name, notes) {
+        if (!notes || !notes.length) { toast('Geen noten gevonden in MIDI bestand', 'error'); return; }
+
+        // Groepeer noten per kanaal
+        const channels = {};
+        notes.forEach(n => {
+            if (!channels[n.channel]) channels[n.channel] = [];
+            channels[n.channel].push(n);
+        });
+
+        const noteNames = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+        const midiToName = (midi) => `${noteNames[midi % 12]}${Math.floor(midi / 12) - 1}`;
+
+        const chNames = { 0: 'Piano', 1: 'Piano 2', 2: 'Synth', 3: 'Strings', 4: 'Brass',
+            5: 'Choir', 6: 'Guitar', 7: 'Bass', 8: 'Pad', 9: 'Drums', 10: 'Organ',
+            11: 'Vibes', 12: 'Lead', 13: 'FX', 14: 'Perc', 15: 'Synth 2' };
+
+        let tracksCreated = 0;
+        for (const [ch, chNotes] of Object.entries(channels)) {
+            const chNum = parseInt(ch);
+            const trackName = `${name} - ${chNames[chNum] || 'Ch ' + chNum}`;
+
+            // Maak MIDI track
+            this.addTrack(trackName, 'midi');
+            const track = this.state.tracks[this.state.tracks.length - 1];
+
+            // Bereken lengte in beats (BPM 120 = 2 beats per seconde)
+            const bps = this.state.project.bpm / 60;
+            const maxTime = Math.max(...chNotes.map(n => n.time + n.duration));
+            const lengthBeats = Math.ceil(maxTime * bps) + 1;
+
+            // Maak regio met noten
+            const region = {
+                id: 'mr-' + Date.now() + '-' + ch,
+                startBeat: 0,
+                lengthBeats: Math.max(4, lengthBeats),
+                name: chNames[chNum] || `Channel ${chNum}`,
+                notes: chNotes.map(n => ({
+                    note: midiToName(n.note),
+                    startBeat: n.time * bps,
+                    lengthBeats: Math.max(0.125, n.duration * bps),
+                    velocity: n.velocity / 127
+                }))
+            };
+            track.regions.push(region);
+            tracksCreated++;
+        }
+
+        toast(`"${name}" geladen: ${tracksCreated} tracks (${notes.length} noten)`, 'success');
     }
 
     _generatePeaks(buffer) {
