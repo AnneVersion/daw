@@ -10875,6 +10875,7 @@ class DAWController {
             this._categories = categories;
             // Populate dropdown
             const select = document.getElementById('library-category');
+            if (!select) return; // Library verwijderd
             select.innerHTML = '<option value="">Alle categorieën</option>';
             // Eigen geluiden categorie
             const userSounds = JSON.parse(localStorage.getItem('daw_user_sounds') || '[]');
@@ -11020,13 +11021,14 @@ class DAWController {
             this._renderLibraryGrid(sounds);
         } catch (e) {
             console.error('Sounds laden mislukt:', e);
-            document.getElementById('library-grid').innerHTML =
-                '<div style="color:var(--text-dim);padding:20px;text-align:center">Kan sounds niet laden. Is de API server actief?</div>';
+            const eg = document.getElementById('library-grid');
+            if (eg) eg.innerHTML = '<div style="color:var(--text-dim);padding:20px;text-align:center">Kan sounds niet laden</div>';
         }
     }
 
     _renderLibraryGrid(sounds) {
         const grid = document.getElementById('library-grid');
+        if (!grid) return; // Library grid is verwijderd, sidebar wordt gebruikt
         if (sounds.length === 0) {
             grid.innerHTML = '<div style="color:var(--text-dim);padding:20px;text-align:center">Geen sounds gevonden</div>';
             return;
@@ -11171,6 +11173,7 @@ class DAWController {
 
         // Delegate clicks on grid items
         const grid = document.getElementById('library-grid');
+        if (!grid) return; // Library grid verwijderd, sidebar wordt gebruikt
 
         // Favorite toggle
         grid.addEventListener('click', async (e) => {
