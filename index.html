@@ -3301,16 +3301,21 @@ class TimelineRenderer {
                         if (midi < minNote) minNote = midi;
                         if (midi > maxNote) maxNote = midi;
                     });
-                    const noteRange = Math.max(maxNote - minNote, 12) + 4;
-                    const noteH = Math.max(2, (regionH - 14) / noteRange);
+                    const noteRange = Math.max(maxNote - minNote, 1) + 2;
+                    const innerH = regionH - 16; // ruimte binnen regio (padding 8px boven/onder naam)
+                    const noteH = Math.max(2, Math.min(6, innerH / noteRange));
 
                     ctx.fillStyle = color + 'dd';
                     region.notes.forEach(n => {
                         const midi = this._noteNameToMidi(n.note);
                         const noteX = x + (n.startBeat / (region.lengthBeats || 4)) * regionW;
                         const noteW = Math.max(2, (n.lengthBeats / (region.lengthBeats || 4)) * regionW);
-                        const noteY = y + regionH - 4 - (midi - minNote + 2) * noteH;
-                        ctx.fillRect(noteX, noteY, noteW - 0.5, noteH - 0.5);
+                        // Noot Y-positie: genormaliseerd binnen de regio (hoog=boven, laag=onder)
+                        const normY = noteRange > 1 ? (maxNote - midi) / noteRange : 0.5;
+                        const noteY = y + 10 + normY * innerH; // 10px padding voor naam
+                        // Clamp binnen regio
+                        const clampedY = Math.max(y + 10, Math.min(y + regionH - noteH - 2, noteY));
+                        ctx.fillRect(noteX, clampedY, noteW - 0.5, noteH - 0.5);
                     });
                 } else if (!isMidi && region.peaks && region.peaks.length > 0) {
                     // ---- Audio: draw waveform ----
@@ -10132,11 +10137,18 @@ class DAWController {
                 const startPx = beatsToPixels(state.transport.loopStart);
                 const endPx = beatsToPixels(state.transport.loopEnd);
                 const hitPx = e.clientX - rect.left + document.getElementById('timeline-scroll').scrollLeft;
-                if (Math.abs(hitPx - startPx) < 8) { loopDrag = 'start'; return; }
-                if (Math.abs(hitPx - endPx) < 8) { loopDrag = 'end'; return; }
+                // Vergroot hit zone naar 15px voor makkelijker slepen
+                if (Math.abs(hitPx - startPx) < 15) { loopDrag = 'start'; rulerCanvas.style.cursor = 'ew-resize'; return; }
+                if (Math.abs(hitPx - endPx) < 15) { loopDrag = 'end'; rulerCanvas.style.cursor = 'ew-resize'; return; }
+                // Klik binnen loop = sleep hele loop
+                if (hitPx > startPx && hitPx < endPx) {
+                    loopDrag = 'create';
+                    loopDragOrigin = snapBeat(beat);
+                    return;
+                }
             }
-            // Shift+drag creates new loop region
-            if (e.shiftKey) {
+            // Klik + sleep maakt nieuwe loop (geen shift meer nodig)
+            if (e.shiftKey || !state.transport.loopEnabled) {
                 loopDrag = 'create';
                 loopDragOrigin = snapBeat(beat);
                 state.transport.loopStart = loopDragOrigin;
@@ -10169,7 +10181,24 @@ class DAWController {
             }
         });
 
-        document.addEventListener('mouseup', () => { loopDrag = null; });
+        document.addEventListener('mouseup', () => { loopDrag = null; rulerCanvas.style.cursor = 'default'; });
+
+        // Cursor feedback bij hoveren over loop randen
+        rulerCanvas.addEventListener('mousemove', e => {
+            if (loopDrag) return;
+            if (!state.transport.loopEnabled) { rulerCanvas.style.cursor = 'default'; return; }
+            const rect = rulerCanvas.getBoundingClientRect();
+            const hitPx = e.clientX - rect.left + document.getElementById('timeline-scroll').scrollLeft;
+            const startPx = beatsToPixels(state.transport.loopStart);
+            const endPx = beatsToPixels(state.transport.loopEnd);
+            if (Math.abs(hitPx - startPx) < 15 || Math.abs(hitPx - endPx) < 15) {
+                rulerCanvas.style.cursor = 'ew-resize';
+            } else if (hitPx > startPx && hitPx < endPx) {
+                rulerCanvas.style.cursor = 'grab';
+            } else {
+                rulerCanvas.style.cursor = 'default';
+            }
+        });
 
         // Drag & drop files onto timeline
         const timelineArea = document.getElementById('timeline-area');
