@@ -9256,14 +9256,14 @@ class DAWController {
 
     _loadAudioBufferToTimeline(audioBuffer, name) {
         // Zoek eerste audio track, of maak er een
-        let track = this.state.tracks.find(t => t.type === 'audio');
+        let track = state.tracks.find(t => t.type === 'audio');
         if (!track) {
             this.addTrack('Audio 1', 'audio');
-            track = this.state.tracks.find(t => t.type === 'audio');
+            track = state.tracks.find(t => t.type === 'audio');
         }
         if (!track) return;
         // Voeg regio toe op playhead positie
-        const startBeat = this.state.playheadBeat || 0;
+        const startBeat = state.transport.position || 0;
         const duration = audioBuffer.duration;
         const region = {
             id: 'ar-' + Date.now(),
@@ -9291,21 +9291,37 @@ class DAWController {
         const noteNames = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
         const midiToName = (midi) => `${noteNames[midi % 12]}${Math.floor(midi / 12) - 1}`;
 
-        const chNames = { 0: 'Piano', 1: 'Piano 2', 2: 'Synth', 3: 'Strings', 4: 'Brass',
-            5: 'Choir', 6: 'Guitar', 7: 'Bass', 8: 'Pad', 9: 'Drums', 10: 'Organ',
-            11: 'Vibes', 12: 'Lead', 13: 'FX', 14: 'Perc', 15: 'Synth 2' };
+        const chConfig = {
+            0: { name: 'Piano', inst: 'acoustic_grand_piano' },
+            1: { name: 'Piano 2', inst: 'acoustic_grand_piano' },
+            2: { name: 'Synth', inst: 'synth_brass_1' },
+            3: { name: 'Strings', inst: 'string_ensemble_1' },
+            4: { name: 'Brass', inst: 'trumpet' },
+            5: { name: 'Choir', inst: 'choir_aahs' },
+            6: { name: 'Guitar', inst: 'acoustic_guitar_nylon' },
+            7: { name: 'Bass', inst: 'acoustic_bass' },
+            8: { name: 'Pad', inst: 'pad_2_warm' },
+            9: { name: 'Drums', inst: 'synth_drum' },
+            10: { name: 'Organ', inst: 'drawbar_organ' },
+            11: { name: 'Vibes', inst: 'vibraphone' },
+            12: { name: 'Lead', inst: 'lead_1_square' },
+            13: { name: 'FX', inst: 'fx_1_rain' },
+            14: { name: 'Perc', inst: 'synth_drum' },
+            15: { name: 'Synth 2', inst: 'synth_brass_1' },
+        };
 
         let tracksCreated = 0;
         for (const [ch, chNotes] of Object.entries(channels)) {
             const chNum = parseInt(ch);
-            const trackName = `${name} - ${chNames[chNum] || 'Ch ' + chNum}`;
+            const cfg = chConfig[chNum] || { name: 'Ch ' + chNum, inst: 'acoustic_grand_piano' };
+            const trackName = `${name} - ${cfg.name}`;
 
-            // Maak MIDI track
-            this.addTrack(trackName, 'midi');
-            const track = this.state.tracks[this.state.tracks.length - 1];
+            // Maak MIDI track met juiste instrument
+            this.addTrack(trackName, 'midi', cfg.inst);
+            const track = state.tracks[state.tracks.length - 1];
 
             // Bereken lengte in beats (BPM 120 = 2 beats per seconde)
-            const bps = this.state.project.bpm / 60;
+            const bps = state.project.bpm / 60;
             const maxTime = Math.max(...chNotes.map(n => n.time + n.duration));
             const lengthBeats = Math.ceil(maxTime * bps) + 1;
 
@@ -10866,11 +10882,10 @@ class DAWController {
         });
     }
 
-    // ---- Library ----
+    // ---- Library (oude bottom panel - alleen voor localhost met API) ----
     async _initLibrary() {
-        await this._loadCategories();
-        await this._loadSounds();
-        this._bindLibraryEvents();
+        // Skip als library-grid niet bestaat (verwijderd, sidebar wordt gebruikt)
+        if (!document.getElementById('library-grid')) return;
     }
 
     async _loadCategories() {
