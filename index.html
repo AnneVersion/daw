@@ -9266,6 +9266,7 @@ class DAWController {
             peaks: this._generatePeaks(audioBuffer)
         };
         track.regions.push(region);
+        this.renderer.render();
         toast(`"${name}" toegevoegd aan ${track.name}`, 'success');
     }
 
@@ -9317,6 +9318,8 @@ class DAWController {
             tracksCreated++;
         }
 
+        // Herteken timeline zodat de MIDI noten zichtbaar zijn
+        this.renderer.render();
         toast(`"${name}" geladen: ${tracksCreated} tracks (${notes.length} noten)`, 'success');
     }
 
