@@ -141,6 +141,20 @@ class AudioBrowser {
                 { q: 'jazz music', l: 'Jazz' }, { q: 'blues music', l: 'Blues' }, { q: 'classical music', l: 'Klassiek' },
                 { q: 'folk music', l: 'Folk' }, { q: 'world music', l: 'Wereld' }, { q: 'spoken word', l: 'Spoken' },
               ]},
+            { sid: 'bbc', label: 'BBC Sound Effects', color: '#ff6b6b', icon: '📻',
+              cats: [
+                { q: 'rain water', l: 'Regen' }, { q: 'wind storm', l: 'Wind' }, { q: 'bird', l: 'Vogels' },
+                { q: 'traffic car', l: 'Verkeer' }, { q: 'crowd people', l: 'Menigte' }, { q: 'door knock', l: 'Deur' },
+                { q: 'explosion', l: 'Explosie' }, { q: 'bell clock', l: 'Bel' }, { q: 'footsteps', l: 'Stappen' },
+                { q: 'ocean sea wave', l: 'Zee' }, { q: 'fire', l: 'Vuur' }, { q: 'telephone', l: 'Telefoon' },
+              ]},
+            { sid: 'deezer', label: 'Deezer', color: '#a238ff', icon: '🎧',
+              cats: [
+                { q: 'jazz', l: 'Jazz' }, { q: 'reggae', l: 'Reggae' }, { q: 'hip hop', l: 'HipHop' },
+                { q: 'afrobeat', l: 'Afrobeat' }, { q: 'classical', l: 'Klassiek' }, { q: 'blues', l: 'Blues' },
+                { q: 'funk soul', l: 'Funk' }, { q: 'electronic', l: 'Electronic' }, { q: 'arabic', l: 'Arabisch' },
+                { q: 'gospel', l: 'Gospel' }, { q: 'latin salsa', l: 'Latin' }, { q: 'african music', l: 'Afrikaans' },
+              ]},
             { sid: 'community', label: 'Community', color: '#a855f7', icon: '👥',
               cats: [
                 { q: 'drums', l: 'Drums' }, { q: 'bass', l: 'Bass' }, { q: 'melody', l: 'Melodie' },
@@ -236,6 +250,8 @@ class AudioBrowser {
             if (sid === 'freesound') results = await this._searchFreesound(query);
             else if (sid === 'jamendo') results = await this._searchJamendo(query);
             else if (sid === 'archive') results = await this._searchArchive(query);
+            else if (sid === 'bbc') results = await this._searchBBC(query);
+            else if (sid === 'deezer') results = await this._searchDeezer(query);
             else if (sid === 'community') results = await this._searchCommunity(query);
         } catch(e) {}
         this._results = results;
@@ -484,6 +500,8 @@ class AudioBrowser {
         if (isOn('freesound')) promises.push(this._searchFreesound(query).then(r => allResults.push(...r)).catch(() => {}));
         if (isOn('jamendo')) promises.push(this._searchJamendo(query).then(r => allResults.push(...r)).catch(() => {}));
         if (isOn('archive')) promises.push(this._searchArchive(query).then(r => allResults.push(...r)).catch(() => {}));
+        if (isOn('bbc')) promises.push(this._searchBBC(query).then(r => allResults.push(...r)).catch(() => {}));
+        if (isOn('deezer')) promises.push(this._searchDeezer(query).then(r => allResults.push(...r)).catch(() => {}));
         if (isOn('community')) promises.push(this._searchCommunity(query).then(r => allResults.push(...r)).catch(() => {}));
         if (isOn('recordings')) promises.push(this._searchRecordings(query).then(r => allResults.push(...r)).catch(() => {}));
 
@@ -751,6 +769,44 @@ class AudioBrowser {
                 needsProxy: false
             }));
         } catch(e) { return []; }
+    }
+
+    async _searchBBC(query) {
+        // BBC Sound Effects via Internet Archive collection
+        const url = `https://archive.org/advancedsearch.php?q=collection:bbcsoundeffects+${encodeURIComponent(query)}&fl[]=identifier&fl[]=title&fl[]=description&output=json&rows=15&sort[]=downloads+desc`;
+        const resp = await fetch(url);
+        const data = await resp.json();
+        return (data.response?.docs || []).map(item => ({
+            name: (item.title || item.identifier).replace(/^BBC Sound Effects - /, ''),
+            source: 'BBC',
+            sourceColor: '#ff6b6b',
+            sourceIcon: 'radio',
+            url: `https://archive.org/download/${item.identifier}/${item.identifier}.mp3`,
+            needsProxy: false
+        }));
+    }
+
+    async _searchDeezer(query) {
+        // Deezer API - geen auth nodig, 30s previews
+        // CORS: Deezer blokkeert directe browser requests, gebruik CORS proxy
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://api.deezer.com/search?q=${encodeURIComponent(query)}&limit=10`)}`;
+        let resp;
+        try {
+            resp = await fetch(proxyUrl);
+        } catch(e) {
+            // Fallback: directe request (werkt op sommige browsers/servers)
+            resp = await fetch(`https://api.deezer.com/search?q=${encodeURIComponent(query)}&limit=10`);
+        }
+        const data = await resp.json();
+        return (data.data || []).map(t => ({
+            name: `${t.artist?.name || ''} - ${t.title || ''}`.trim(),
+            source: 'Deezer',
+            sourceColor: '#a238ff',
+            sourceIcon: 'headphones',
+            url: t.preview, // 30s MP3 preview, CORS OK
+            needsProxy: false,
+            duration: 30
+        }));
     }
 
     _getSupabase() {
