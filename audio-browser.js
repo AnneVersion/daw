@@ -724,26 +724,180 @@ class AudioBrowser {
 
     async _preview(result) {
         if (!this._audioCtx) this._audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (this._previewSource) { try { this._previewSource.stop(); } catch(e) {} }
+        this._stopPreview();
         try {
             const buf = await this._fetchResultBuffer(result);
-            const audioBuffer = await this._audioCtx.decodeAudioData(buf);
-            const src = this._audioCtx.createBufferSource();
-            src.buffer = audioBuffer;
-            src.connect(this._audioCtx.destination);
-            src.start();
-            this._previewSource = src;
-            setTimeout(() => { try { src.stop(); } catch(e) {} }, 5000);
+            if (result.isMidi || result.url?.endsWith('.mid')) {
+                // MIDI: parse en speel via synth
+                await this._previewMidi(buf);
+            } else {
+                const audioBuffer = await this._audioCtx.decodeAudioData(buf);
+                const src = this._audioCtx.createBufferSource();
+                src.buffer = audioBuffer;
+                src.connect(this._audioCtx.destination);
+                src.start();
+                this._previewSource = src;
+                setTimeout(() => this._stopPreview(), 8000);
+            }
         } catch(e) { console.warn('Preview error:', e); }
+    }
+
+    _stopPreview() {
+        if (this._previewSource) { try { this._previewSource.stop(); } catch(e) {} this._previewSource = null; }
+        if (this._midiPreviewTimers) { this._midiPreviewTimers.forEach(t => clearTimeout(t)); this._midiPreviewTimers = null; }
+        if (this._midiPreviewOscs) { this._midiPreviewOscs.forEach(o => { try { o.stop(); } catch(e) {} }); this._midiPreviewOscs = null; }
+    }
+
+    async _previewMidi(arrayBuffer) {
+        // Simpele MIDI parser: extract noten uit track 0/1 en speel via oscillator synth
+        const data = new Uint8Array(arrayBuffer);
+        const notes = this._parseMidiNotes(data);
+        if (!notes.length) return;
+
+        const ctx = this._audioCtx;
+        const now = ctx.currentTime;
+        const timers = [];
+        const oscs = [];
+        const maxDur = 8; // max 8 seconden preview
+
+        notes.forEach(n => {
+            if (n.time > maxDur) return;
+            const t = setTimeout(() => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = n.channel === 9 ? 'square' : 'triangle'; // drums = square
+                osc.frequency.value = 440 * Math.pow(2, (n.note - 69) / 12);
+                gain.gain.setValueAtTime(n.velocity / 127 * 0.15, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + Math.min(n.duration, 2));
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + Math.min(n.duration, 2));
+                oscs.push(osc);
+            }, n.time * 1000);
+            timers.push(t);
+        });
+        this._midiPreviewTimers = timers;
+        this._midiPreviewOscs = oscs;
+        // Auto-stop
+        setTimeout(() => this._stopPreview(), maxDur * 1000);
+    }
+
+    // Simpele MIDI parser - extract note on/off events met timing
+    _parseMidiNotes(data) {
+        const notes = [];
+        let pos = 0;
+        const readUint16 = () => (data[pos++] << 8) | data[pos++];
+        const readUint32 = () => (data[pos++] << 24) | (data[pos++] << 16) | (data[pos++] << 8) | data[pos++];
+        const readVarLen = () => {
+            let val = 0;
+            while (pos < data.length) {
+                const b = data[pos++];
+                val = (val << 7) | (b & 0x7F);
+                if (!(b & 0x80)) break;
+            }
+            return val;
+        };
+
+        // Header
+        if (pos + 14 > data.length) return notes;
+        pos += 4; // 'MThd'
+        readUint32(); // header length
+        const format = readUint16();
+        const numTracks = readUint16();
+        let ticksPerBeat = readUint16();
+        if (ticksPerBeat & 0x8000) ticksPerBeat = 120; // SMPTE fallback
+        const bpm = 120;
+        const secPerTick = 60 / (bpm * ticksPerBeat);
+
+        // Parse tracks
+        const activeNotes = {}; // key: "ch-note" → {time, velocity, channel}
+        for (let tr = 0; tr < numTracks && pos < data.length; tr++) {
+            if (pos + 8 > data.length) break;
+            pos += 4; // 'MTrk'
+            const trackLen = readUint32();
+            const trackEnd = pos + trackLen;
+            let tick = 0;
+            let runningStatus = 0;
+
+            while (pos < trackEnd && pos < data.length) {
+                const delta = readVarLen();
+                tick += delta;
+                const time = tick * secPerTick;
+
+                let statusByte = data[pos];
+                if (statusByte & 0x80) {
+                    runningStatus = statusByte;
+                    pos++;
+                } else {
+                    statusByte = runningStatus;
+                }
+
+                const type = statusByte & 0xF0;
+                const ch = statusByte & 0x0F;
+
+                if (type === 0x90 || type === 0x80) {
+                    const note = data[pos++];
+                    const vel = data[pos++];
+                    const key = `${ch}-${note}`;
+                    if (type === 0x90 && vel > 0) {
+                        activeNotes[key] = { time, velocity: vel, channel: ch, note };
+                    } else {
+                        // Note off
+                        if (activeNotes[key]) {
+                            notes.push({
+                                note: activeNotes[key].note,
+                                velocity: activeNotes[key].velocity,
+                                channel: activeNotes[key].channel,
+                                time: activeNotes[key].time,
+                                duration: Math.max(0.05, time - activeNotes[key].time)
+                            });
+                            delete activeNotes[key];
+                        }
+                    }
+                } else if (type === 0xC0 || type === 0xD0) {
+                    pos++; // 1 data byte
+                } else if (type === 0xB0 || type === 0xA0 || type === 0xE0) {
+                    pos += 2; // 2 data bytes
+                } else if (statusByte === 0xFF) {
+                    // Meta event
+                    const metaType = data[pos++];
+                    const metaLen = readVarLen();
+                    if (metaType === 0x51 && metaLen === 3) {
+                        // Tempo change - recalculate would need more work, skip for preview
+                    }
+                    pos += metaLen;
+                } else if (statusByte === 0xF0 || statusByte === 0xF7) {
+                    // SysEx
+                    const len = readVarLen();
+                    pos += len;
+                } else {
+                    pos++; // skip unknown
+                }
+            }
+            pos = trackEnd;
+        }
+        // Sort by time
+        notes.sort((a, b) => a.time - b.time);
+        return notes;
     }
 
     async _loadResult(result) {
         try {
             const buf = await this._fetchResultBuffer(result);
-            if (this.onSelectUrl && result.url) this.onSelectUrl(result.url, result.name);
-            if (!this._audioCtx) this._audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const audioBuffer = await this._audioCtx.decodeAudioData(buf);
-            this.onSelect(audioBuffer, result.name);
+            if (result.isMidi || result.url?.endsWith('.mid')) {
+                // MIDI: parse noten en geef door aan callback met midi data
+                const notes = this._parseMidiNotes(new Uint8Array(buf));
+                // Geef zowel raw buffer als parsed notes door
+                if (this.onSelect) {
+                    this.onSelect(null, result.name, { isMidi: true, notes, rawBuffer: buf });
+                }
+            } else {
+                if (this.onSelectUrl && result.url) this.onSelectUrl(result.url, result.name);
+                if (!this._audioCtx) this._audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const audioBuffer = await this._audioCtx.decodeAudioData(buf);
+                this.onSelect(audioBuffer, result.name);
+            }
         } catch(e) { console.warn('Load error:', e); }
     }
 
