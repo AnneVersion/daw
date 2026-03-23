@@ -168,6 +168,23 @@ class AudioBrowser {
                 { q: 'funk soul', l: 'Funk' }, { q: 'electronic', l: 'Electronic' }, { q: 'arabic', l: 'Arabisch' },
                 { q: 'gospel', l: 'Gospel' }, { q: 'latin salsa', l: 'Latin' }, { q: 'african music', l: 'Afrikaans' },
               ]},
+            { sid: 'netlabels', label: 'Netlabels (77K)', color: '#ff9900', icon: '🏷️',
+              cats: [
+                { q: 'electronic', l: 'Electronic' }, { q: 'ambient', l: 'Ambient' }, { q: 'techno', l: 'Techno' },
+                { q: 'house', l: 'House' }, { q: 'dnb drum and bass', l: 'DnB' }, { q: 'experimental', l: 'Experiment' },
+                { q: 'hip hop', l: 'HipHop' }, { q: 'dub', l: 'Dub' }, { q: 'noise', l: 'Noise' },
+              ]},
+            { sid: 'fma', label: 'Free Music Archive', color: '#e91e63', icon: '🎶',
+              cats: [
+                { q: 'rock', l: 'Rock' }, { q: 'electronic', l: 'Electronic' }, { q: 'hip hop', l: 'HipHop' },
+                { q: 'jazz', l: 'Jazz' }, { q: 'folk', l: 'Folk' }, { q: 'classical', l: 'Klassiek' },
+                { q: 'blues', l: 'Blues' }, { q: 'country', l: 'Country' }, { q: 'soul', l: 'Soul' },
+              ]},
+            { sid: 'vintage', label: 'Vintage 78rpm (300K)', color: '#8d6e63', icon: '📀',
+              cats: [
+                { q: 'jazz', l: 'Jazz' }, { q: 'blues', l: 'Blues' }, { q: 'swing', l: 'Swing' },
+                { q: 'ragtime', l: 'Ragtime' }, { q: 'classical', l: 'Klassiek' }, { q: 'gospel', l: 'Gospel' },
+              ]},
             { sid: 'community', label: 'Community', color: '#a855f7', icon: '👥',
               cats: [
                 { q: 'drums', l: 'Drums' }, { q: 'bass', l: 'Bass' }, { q: 'melody', l: 'Melodie' },
@@ -267,6 +284,9 @@ class AudioBrowser {
             else if (sid === 'ccmixter') results = await this._searchCCMixter(query);
             else if (sid === 'deezer') results = await this._searchDeezer(query);
             else if (sid === 'bitmidi') results = await this._searchBitMidi(query);
+            else if (sid === 'netlabels') results = await this._searchArchiveCollection('netlabels', query, '#ff9900');
+            else if (sid === 'fma') results = await this._searchArchiveCollection('freemusicarchive', query, '#e91e63');
+            else if (sid === 'vintage') results = await this._searchArchiveCollection('78rpm', query, '#8d6e63');
             else if (sid === 'community') results = await this._searchCommunity(query);
         } catch(e) {}
         this._results = results;
@@ -570,6 +590,9 @@ class AudioBrowser {
         if (isOn('bbc')) promises.push(this._searchBBC(query).then(r => allResults.push(...r)).catch(() => {}));
         if (isOn('ccmixter')) promises.push(this._searchCCMixter(query).then(r => allResults.push(...r)).catch(() => {}));
         if (isOn('bitmidi')) promises.push(this._searchBitMidi(query).then(r => allResults.push(...r)).catch(() => {}));
+        if (isOn('netlabels')) promises.push(this._searchArchiveCollection('netlabels', query, '#ff9900').then(r => allResults.push(...r)).catch(() => {}));
+        if (isOn('fma')) promises.push(this._searchArchiveCollection('freemusicarchive', query, '#e91e63').then(r => allResults.push(...r)).catch(() => {}));
+        if (isOn('vintage')) promises.push(this._searchArchiveCollection('78rpm', query, '#8d6e63').then(r => allResults.push(...r)).catch(() => {}));
         if (isOn('deezer')) promises.push(this._searchDeezer(query).then(r => allResults.push(...r)).catch(() => {}));
         if (isOn('community')) promises.push(this._searchCommunity(query).then(r => allResults.push(...r)).catch(() => {}));
         if (isOn('recordings')) promises.push(this._searchRecordings(query).then(r => allResults.push(...r)).catch(() => {}));
@@ -1027,6 +1050,21 @@ class AudioBrowser {
             url: t.preview,
             needsProxy: false,
             duration: 30
+        }));
+    }
+
+    async _searchArchiveCollection(collection, query, color) {
+        // Generieke Archive.org collectie zoekfunctie
+        const collNames = { netlabels: 'Netlabels', freemusicarchive: 'FMA', '78rpm': '78rpm' };
+        const url = `https://archive.org/advancedsearch.php?q=collection:${collection}+${encodeURIComponent(query)}+mediatype:audio&fl[]=identifier&fl[]=title&fl[]=creator&output=json&rows=10&sort[]=downloads+desc`;
+        const resp = await fetch(url);
+        const data = await resp.json();
+        return (data.response?.docs || []).map(item => ({
+            name: (item.creator ? item.creator + ' - ' : '') + (item.title || item.identifier),
+            source: collNames[collection] || collection,
+            sourceColor: color,
+            url: `https://archive.org/download/${item.identifier}/${item.identifier}_vbr.mp3`,
+            needsProxy: false
         }));
     }
 
