@@ -10413,30 +10413,47 @@ class DAWController {
                     const data = JSON.parse(jsonData);
                     toast(`Laden: ${data.name}...`, 'info');
 
+                    // Zorg dat AudioContext actief is
+                    if (this.engine.ctx?.state === 'suspended') await this.engine.ctx.resume();
+
                     if (data.isMidi) {
                         // MIDI: fetch, parse, maak tracks
                         let buf;
-                        if (data.needsProxy) {
-                            try { buf = await (await fetch(`/api/proxy/audio?url=${encodeURIComponent(data.url)}`)).arrayBuffer(); }
-                            catch(e) { buf = await (await fetch(data.url)).arrayBuffer(); }
-                        } else {
-                            buf = await (await fetch(data.url)).arrayBuffer();
+                        try {
+                            if (data.needsProxy) {
+                                try { buf = await (await fetch(`/api/proxy/audio?url=${encodeURIComponent(data.url)}`)).arrayBuffer(); }
+                                catch(e) { buf = await (await fetch(data.url)).arrayBuffer(); }
+                            } else {
+                                buf = await (await fetch(data.url)).arrayBuffer();
+                            }
+                        } catch(fetchErr) {
+                            // Probeer via CORS proxy
+                            try { buf = await (await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(data.url)}`)).arrayBuffer(); }
+                            catch(e2) { throw new Error('Kan MIDI niet laden: ' + fetchErr.message); }
                         }
                         const notes = this._librarySidebarBrowser?._parseMidiNotes(new Uint8Array(buf)) || [];
                         this._loadMidiToTimeline(data.name, notes);
                     } else {
                         // Audio: fetch, decode, drop op track
                         let resp;
-                        if (data.needsProxy) {
-                            try { resp = await fetch(`/api/proxy/audio?url=${encodeURIComponent(data.url)}`); if (!resp.ok) throw 0; }
-                            catch(e) { resp = await fetch(data.url); }
-                        } else if (data._idbName) {
-                            const rec = await AudioBrowser.getFromIndexedDB(data._idbName);
-                            if (rec?.blob) resp = new Response(rec.blob);
-                        } else {
-                            resp = await fetch(data.url);
+                        try {
+                            if (data.needsProxy) {
+                                try { resp = await fetch(`/api/proxy/audio?url=${encodeURIComponent(data.url)}`); if (!resp.ok) throw 0; }
+                                catch(e) { resp = await fetch(data.url); }
+                            } else if (data._idbName) {
+                                const rec = await AudioBrowser.getFromIndexedDB(data._idbName);
+                                if (rec?.blob) resp = new Response(rec.blob);
+                            } else {
+                                resp = await fetch(data.url);
+                            }
+                        } catch(fetchErr) {
+                            // CORS proxy fallback
+                            try { resp = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(data.url)}`); }
+                            catch(e2) { throw new Error('Kan audio niet laden'); }
                         }
-                        const audioBuffer = await this.engine.ctx.decodeAudioData(await resp.arrayBuffer());
+                        if (!resp || !resp.ok) throw new Error('Download mislukt');
+                        const arrayBuf = await resp.arrayBuffer();
+                        const audioBuffer = await this.engine.ctx.decodeAudioData(arrayBuf);
                         let track = state.tracks[trackIdx];
                         if (!track || track.type !== 'audio') track = state.tracks.find(t => t.type === 'audio');
                         if (!track) { this.addTrack('Audio', 'audio'); track = state.tracks.find(t => t.type === 'audio'); }
@@ -10447,11 +10464,12 @@ class DAWController {
                             duration: audioBuffer.duration, name: data.name,
                             peaks: this.engine.computePeaks(audioBuffer)
                         });
+                        this.renderer.render();
                         toast(`"${data.name}" op ${track.name} @ beat ${Math.round(dropBeat)}`, 'success');
                     }
                 } catch(err) {
                     console.error('Library drop error:', err);
-                    toast('Fout bij laden', 'error');
+                    toast(`Fout: ${err.message || 'Laden mislukt'}`, 'error');
                 }
                 return;
             }
