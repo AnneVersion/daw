@@ -9330,7 +9330,7 @@ class DAWController {
                 id: 'mr-' + Date.now() + '-' + ch,
                 startBeat: 0,
                 lengthBeats: Math.max(4, lengthBeats),
-                name: chNames[chNum] || `Channel ${chNum}`,
+                name: cfg.name,
                 notes: chNotes.map(n => ({
                     note: midiToName(n.note),
                     startBeat: n.time * bps,
