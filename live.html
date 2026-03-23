@@ -828,11 +828,28 @@ async function connectToBroadcast() {
         ]
     });
 
-    // Ontvang audio
+    // Ontvang audio + video
     _listenPc.ontrack = (event) => {
-        const audio = document.getElementById('listen-audio');
-        audio.srcObject = event.streams[0];
-        audio.play().catch(() => {});
+        if (event.track.kind === 'video') {
+            // Video track ontvangen (camera van DJ)
+            let videoEl = document.getElementById('listen-video');
+            if (!videoEl) {
+                videoEl = document.createElement('video');
+                videoEl.id = 'listen-video';
+                videoEl.autoplay = true;
+                videoEl.playsInline = true;
+                videoEl.style.cssText = 'width:100%;max-width:320px;border-radius:8px;border:2px solid var(--accent,#4a7fff);margin:8px auto;display:block;background:#000';
+                const player = document.getElementById('listen-player');
+                if (player) player.prepend(videoEl);
+            }
+            videoEl.srcObject = event.streams[0];
+            videoEl.style.display = 'block';
+        } else {
+            // Audio track
+            const audio = document.getElementById('listen-audio');
+            audio.srcObject = event.streams[0];
+            audio.play().catch(() => {});
+        }
         document.getElementById('listen-player').style.display = 'block';
         document.getElementById('listen-title').textContent = `Verbonden met broadcast ${code}`;
         document.getElementById('listen-info').textContent = 'Je luistert nu live mee!';

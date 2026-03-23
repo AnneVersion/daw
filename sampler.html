@@ -655,6 +655,13 @@ select:focus { border-color: var(--accent); }
     <!-- Left: Pad Grid -->
     <div class="pad-section">
         <div class="section-header">Pads</div>
+        <div id="quick-rec-bar" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:8px 10px;background:var(--bg-dark);border-radius:8px;border:1px solid var(--border)">
+            <button id="quick-rec-btn" onclick="sampler.quickRecord()" style="display:flex;align-items:center;gap:6px;padding:8px 16px;background:var(--red);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;transition:all .2s">
+                <span class="material-icons" style="font-size:18px">mic</span> Neem Op
+            </button>
+            <span id="quick-rec-status" style="font-size:11px;color:var(--text-dim)">Klik om je stem op te nemen. Kies daarna een pad.</span>
+            <span id="quick-rec-timer" style="font-size:13px;font-weight:700;color:var(--red);display:none;margin-left:auto">0:00</span>
+        </div>
         <div class="pad-grid" id="pad-grid"></div>
         <div style="font-size:9px;color:var(--text-dim);text-align:center;margin-top:4px">
             Keyboard: Q W E R / A S D F / Z X C V / 1 2 3 4 &nbsp;|&nbsp; Sleep een audiobestand op een pad
@@ -679,17 +686,11 @@ select:focus { border-color: var(--accent); }
                 <button class="action-btn primary" onclick="sampler.loadSampleFile()">
                     <span class="material-icons">folder_open</span> Laad Sample
                 </button>
-                <button class="action-btn" onclick="sampler.loadFromScan('library')">
+                <button class="action-btn" onclick="sampler.toggleLibrary()">
                     <span class="material-icons">library_music</span> Library
                 </button>
                 <button class="action-btn" onclick="sampler.loadFromScan('full')">
                     <span class="material-icons">computer</span> Scan PC
-                </button>
-                <button class="action-btn" onclick="sampler.toggleCommunity()">
-                    <span class="material-icons">cloud</span> Community
-                </button>
-                <button class="action-btn" onclick="sampler.toggleLibrary()">
-                    <span class="material-icons">folder_special</span> Library
                 </button>
                 <button class="action-btn danger" onclick="sampler.clearPad()">
                     <span class="material-icons">delete</span> Wis
@@ -1115,7 +1116,15 @@ Voor jou geschreven"
 <div class="toast-container" id="toast-container"></div>
 
 <!-- Pad Context Menu -->
-<div id="pad-context-menu" style="display:none;position:fixed;z-index:9999;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.5);min-width:180px;padding:4px 0;font-size:12px">
+<div id="pad-context-menu" style="display:none;position:fixed;z-index:9999;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.5);min-width:200px;padding:4px 0;font-size:12px">
+    <div id="ctx-pad-header" style="padding:6px 16px;font-size:10px;color:var(--text-dim);border-bottom:1px solid var(--border);font-weight:700"></div>
+    <div class="ctx-item" onclick="sampler.ctxPlay()" id="ctx-play-item" style="padding:8px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--text)">
+        <span class="material-icons" style="font-size:16px;color:var(--green)">play_arrow</span> Afspelen
+    </div>
+    <div class="ctx-item" onclick="sampler.ctxStop()" id="ctx-stop-item" style="padding:8px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--text)">
+        <span class="material-icons" style="font-size:16px;color:var(--yellow)">stop</span> Stoppen
+    </div>
+    <div style="height:1px;background:var(--border);margin:4px 0"></div>
     <div class="ctx-item" onclick="sampler.ctxRecord()" style="padding:8px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--text)">
         <span class="material-icons" style="font-size:16px;color:var(--red)">mic</span> Opnemen naar pad
     </div>
@@ -1123,7 +1132,7 @@ Voor jou geschreven"
         <span class="material-icons" style="font-size:16px;color:var(--accent)">folder_open</span> Geluid kiezen...
     </div>
     <div class="ctx-item" onclick="sampler.ctxBrowse()" style="padding:8px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--text)">
-        <span class="material-icons" style="font-size:16px;color:var(--green)">library_music</span> Sample Browser
+        <span class="material-icons" style="font-size:16px;color:var(--purple)">library_music</span> Sample Browser
     </div>
     <div style="height:1px;background:var(--border);margin:4px 0"></div>
     <div class="ctx-item" onclick="sampler.ctxToggleMute()" id="ctx-mute-item" style="padding:8px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--text)">
@@ -1334,12 +1343,22 @@ class SamplerApp {
         this._ctxPadIdx = idx;
         this.selectPad(idx);
         const menu = document.getElementById('pad-context-menu');
+        const p = this.pads[idx];
+        const hasBuffer = !!p.buffer;
         menu.style.display = 'block';
         menu.style.left = e.clientX + 'px';
         menu.style.top = e.clientY + 'px';
+        // Header: toon pad naam en status
+        const header = document.getElementById('ctx-pad-header');
+        if (header) header.textContent = hasBuffer ? `Pad ${idx+1}: ${p.name}` : `Pad ${idx+1}: (leeg)`;
+        // Play/Stop alleen tonen als er een sample geladen is
+        const playItem = document.getElementById('ctx-play-item');
+        const stopItem = document.getElementById('ctx-stop-item');
+        if (playItem) playItem.style.display = hasBuffer ? 'flex' : 'none';
+        if (stopItem) stopItem.style.display = hasBuffer ? 'flex' : 'none';
         // Update mute label
         const muteLabel = document.getElementById('ctx-mute-label');
-        if (muteLabel) muteLabel.textContent = this.pads[idx].muted ? 'Unmute' : 'Mute';
+        if (muteLabel) muteLabel.textContent = p.muted ? 'Unmute' : 'Mute';
         // Close on click elsewhere
         setTimeout(() => {
             const close = () => { menu.style.display = 'none'; document.removeEventListener('click', close); };
@@ -1364,14 +1383,27 @@ class SamplerApp {
                 const p = this.pads[idx];
                 p.buffer = audioBuffer;
                 p.reverseBuffer = null;
-                p.name = 'Rec ' + (idx + 1);
+                const recName = 'Rec ' + new Date().toLocaleTimeString('nl-NL', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+                p.name = recName;
                 document.getElementById(`pad-${idx}`).classList.add('loaded');
                 document.getElementById(`pad-name-${idx}`).textContent = p.name;
                 this._drawPadWaveform(idx);
                 this.drawWaveform();
                 document.getElementById('selected-pad-name').textContent = p.name;
                 this._updateSeqLabels();
-                toast(`Opgenomen op Pad ${idx + 1}`, 'success');
+
+                // Bewaar in library
+                const recordings = JSON.parse(localStorage.getItem('sampler_recordings') || '[]');
+                const recId = 'rec-' + Date.now();
+                recordings.push({ id: recId, name: recName, duration: audioBuffer.duration, timestamp: Date.now() });
+                localStorage.setItem('sampler_recordings', JSON.stringify(recordings));
+                if (blob.size < 5 * 1024 * 1024) {
+                    const reader = new FileReader();
+                    reader.onload = () => localStorage.setItem('sampler_audio_' + recId, reader.result);
+                    reader.readAsDataURL(blob);
+                }
+
+                toast(`"${recName}" opgenomen op Pad ${idx + 1} en bewaard in library`, 'success');
             };
             recorder.start();
             // Stop on pad click or after 10 seconds
@@ -1387,6 +1419,152 @@ class SamplerApp {
             padEl.addEventListener('click', stopRec, { once: true });
             setTimeout(() => { if (recorder.state === 'recording') stopRec(); }, 10000);
         }).catch(() => toast('Microfoon niet beschikbaar', 'error'));
+    }
+
+    // Quick Record: grote knop boven pads, neemt op en laat je een pad kiezen
+    _quickRecording = false;
+    _quickRecorder = null;
+    _quickRecTimerInterval = null;
+
+    async quickRecord() {
+        if (this._quickRecording) {
+            // Stop opname
+            this._quickRecording = false;
+            if (this._quickRecorder && this._quickRecorder.state === 'recording') {
+                this._quickRecorder.stop();
+            }
+            return;
+        }
+
+        this.initAudio();
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            this._quickRecording = true;
+
+            const btn = document.getElementById('quick-rec-btn');
+            const status = document.getElementById('quick-rec-status');
+            const timer = document.getElementById('quick-rec-timer');
+
+            btn.innerHTML = '<span class="material-icons" style="font-size:18px">stop</span> Stop';
+            btn.style.animation = 'pulse 0.8s infinite alternate';
+            status.textContent = 'Opname bezig... klik Stop als je klaar bent';
+            status.style.color = 'var(--red)';
+            timer.style.display = 'inline';
+
+            let seconds = 0;
+            this._quickRecTimerInterval = setInterval(() => {
+                seconds++;
+                const m = Math.floor(seconds / 60);
+                const s = seconds % 60;
+                timer.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+            }, 1000);
+
+            const recorder = new MediaRecorder(stream);
+            this._quickRecorder = recorder;
+            const chunks = [];
+            recorder.ondataavailable = e => chunks.push(e.data);
+
+            recorder.onstop = async () => {
+                clearInterval(this._quickRecTimerInterval);
+                stream.getTracks().forEach(t => t.stop());
+
+                btn.innerHTML = '<span class="material-icons" style="font-size:18px">mic</span> Neem Op';
+                btn.style.animation = '';
+                timer.style.display = 'none';
+
+                const blob = new Blob(chunks, { type: 'audio/webm' });
+                const arrayBuf = await blob.arrayBuffer();
+                const audioBuffer = await this.audioCtx.decodeAudioData(arrayBuf);
+
+                // Bewaar in library (localStorage)
+                const recName = 'Opname ' + new Date().toLocaleTimeString('nl-NL', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+                const url = URL.createObjectURL(blob);
+
+                // Bewaar metadata
+                const recordings = JSON.parse(localStorage.getItem('sampler_recordings') || '[]');
+                const recId = 'rec-' + Date.now();
+                recordings.push({
+                    id: recId,
+                    name: recName,
+                    url: url,
+                    duration: audioBuffer.duration,
+                    timestamp: Date.now()
+                });
+                localStorage.setItem('sampler_recordings', JSON.stringify(recordings));
+
+                // Bewaar audio als base64 (max 5MB)
+                if (blob.size < 5 * 1024 * 1024) {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        localStorage.setItem('sampler_audio_' + recId, reader.result);
+                    };
+                    reader.readAsDataURL(blob);
+                }
+
+                // Laat gebruiker een pad kiezen
+                status.textContent = `"${recName}" opgenomen (${audioBuffer.duration.toFixed(1)}s). Klik een pad om te laden.`;
+                status.style.color = 'var(--green)';
+
+                // Wacht op pad klik
+                const padGrid = document.getElementById('pad-grid');
+                const loadOnPad = (e) => {
+                    const padEl = e.target.closest('.pad');
+                    if (!padEl) return;
+                    const idx = parseInt(padEl.dataset.index);
+                    if (isNaN(idx)) return;
+
+                    const p = this.pads[idx];
+                    p.buffer = audioBuffer;
+                    p.reverseBuffer = null;
+                    p.name = recName;
+                    padEl.classList.add('loaded');
+                    document.getElementById(`pad-name-${idx}`).textContent = recName;
+                    this._drawPadWaveform(idx);
+                    if (this.selectedPad === idx) {
+                        this.drawWaveform();
+                        document.getElementById('selected-pad-name').textContent = recName;
+                    }
+                    this._updateSeqLabels();
+                    toast(`"${recName}" geladen op Pad ${idx + 1}`, 'success');
+                    status.textContent = 'Klik om je stem op te nemen. Kies daarna een pad.';
+                    status.style.color = 'var(--text-dim)';
+                    padGrid.removeEventListener('click', loadOnPad);
+                };
+                padGrid.addEventListener('click', loadOnPad);
+
+                // Timeout: na 30s annuleer pad-selectie
+                setTimeout(() => {
+                    padGrid.removeEventListener('click', loadOnPad);
+                    if (status.style.color !== 'var(--text-dim)') {
+                        status.textContent = 'Klik om je stem op te nemen. Kies daarna een pad.';
+                        status.style.color = 'var(--text-dim)';
+                    }
+                }, 30000);
+            };
+
+            recorder.start();
+
+            // Max 60 seconden
+            setTimeout(() => {
+                if (this._quickRecording) this.quickRecord(); // stop
+            }, 60000);
+
+        } catch(e) {
+            toast('Microfoon niet beschikbaar. Geef toestemming in je browser.', 'error');
+            console.warn('Mic error:', e);
+        }
+    }
+
+    ctxPlay() {
+        document.getElementById('pad-context-menu').style.display = 'none';
+        const idx = this._ctxPadIdx;
+        this.initAudio();
+        this.triggerPad(idx, 0.8);
+    }
+
+    ctxStop() {
+        document.getElementById('pad-context-menu').style.display = 'none';
+        this._stopPad(this._ctxPadIdx);
     }
 
     ctxChooseFile() {
@@ -1417,9 +1595,8 @@ class SamplerApp {
 
     ctxBrowse() {
         document.getElementById('pad-context-menu').style.display = 'none';
-        // Open the community panel (sample browser)
-        const panel = document.getElementById('community-panel');
-        if (panel.style.display === 'none') panel.style.display = 'block';
+        // Open het Library panel
+        this.toggleLibrary();
     }
 
     ctxToggleMute() {
@@ -3387,7 +3564,7 @@ class SamplerApp {
 
         const ctx = this.audioCtx;
         const now = ctx.currentTime;
-        const effects = ['reverse', 'pitch', 'filter', 'echo', 'halfspeed', 'stutter'];
+        const effects = ['reverse', 'pitch', 'filter', 'echo', 'halfspeed', 'stutter', 'bitcrush', 'ringmod', 'tapestop'];
         const fx = effects[Math.floor(Math.random() * effects.length)];
 
         switch (fx) {
@@ -3463,6 +3640,45 @@ class SamplerApp {
                     stSrc.start(now + i * interval);
                     stSrc.stop(now + i * interval + interval * 0.9);
                 }
+                break;
+            }
+            case 'bitcrush': {
+                // Lo-fi bitcrusher via waveshaper + downsampling
+                const wsAmount = 5 + Math.random() * 15;
+                const ws = ctx.createWaveShaper();
+                const curve = new Float32Array(256);
+                for (let i = 0; i < 256; i++) {
+                    const x = (i / 128) - 1;
+                    curve[i] = Math.round(x * wsAmount) / wsAmount;
+                }
+                ws.curve = curve;
+                ws.oversample = 'none';
+                env.disconnect();
+                env.connect(ws);
+                ws.connect(panner);
+                break;
+            }
+            case 'ringmod': {
+                // Ring modulator: multipliceert signaal met sinusgolf
+                const ringFreq = 100 + Math.random() * 800;
+                const ringOsc = ctx.createOscillator();
+                ringOsc.frequency.value = ringFreq;
+                ringOsc.type = 'sine';
+                const ringGain = ctx.createGain();
+                ringGain.gain.value = 0;
+                ringOsc.connect(ringGain.gain);
+                env.disconnect();
+                env.connect(ringGain);
+                ringGain.connect(panner);
+                ringOsc.start(now);
+                ringOsc.stop(now + 2);
+                break;
+            }
+            case 'tapestop': {
+                // Tape stop: playback rate ramp naar 0
+                const stopTime = 0.2 + Math.random() * 0.4;
+                source.playbackRate.setValueAtTime(source.playbackRate.value, now);
+                source.playbackRate.linearRampToValueAtTime(0.01, now + stopTime);
                 break;
             }
         }
@@ -5214,59 +5430,76 @@ class SamplerApp {
     _songPlaying = false;
 
     _splitSyllables(word) {
-        // Simple Dutch/English syllable splitter
+        // Splits Nederlands/Engels woord in lettergrepen
         const w = word.toLowerCase().replace(/[^a-zàáâãäåèéêëìíîïòóôõöùúûüýÿ]/g, '');
-        if (w.length <= 2) return [w];
-        const vowels = 'aeiouyàáâãäåèéêëìíîïòóôõöùúûüýÿ';
-        const syllables = [];
-        let current = '';
-        let prevVowel = false;
-        for (let i = 0; i < w.length; i++) {
-            const ch = w[i];
-            const isVowel = vowels.includes(ch);
-            if (isVowel) {
-                if (prevVowel) {
-                    // Diphthong: keep together (ie, oe, ui, ei, au, ou, eu, aa, ee, oo, uu)
-                    current += ch;
-                } else {
-                    if (current.length > 0 && syllables.length > 0) {
-                        // Start new syllable: move last consonant(s) to new syllable
-                        // but keep at least one char in previous syllable
-                        let split = current.length;
-                        while (split > 1 && !vowels.includes(current[split - 1])) split--;
-                        if (split > 0 && split < current.length) {
-                            syllables[syllables.length - 1] += current.substring(0, split);
-                            current = current.substring(split) + ch;
-                        } else {
-                            current += ch;
-                        }
-                    } else {
-                        current += ch;
-                    }
+        if (w.length <= 3) return [w];
+
+        // Splits op medeklinker(s) tussen klinkers
+        // Diftrongen (aa, ee, oo, uu, ie, oe, ei, ui, au, ou, eu, ij) blijven samen
+        const result = [];
+        const diphthongs = ['aa','ee','oo','uu','ie','oe','ei','ui','au','ou','eu','ij','ai','oi'];
+        const isVowel = c => 'aeiouyàáâãäåèéêëìíîïòóôõöùúûüýÿ'.includes(c);
+
+        let i = 0;
+        let syl = '';
+
+        while (i < w.length) {
+            syl += w[i];
+
+            // Check of we op een klinker-medeklinker-klinker grens zitten
+            if (isVowel(w[i]) && i + 1 < w.length) {
+                // Check diftong
+                const pair = w[i] + (w[i+1] || '');
+                if (diphthongs.includes(pair)) {
+                    syl += w[i+1];
+                    i += 2;
+                    continue;
                 }
-                prevVowel = true;
-            } else {
-                current += ch;
-                prevVowel = false;
+
+                // Zoek medeklinker cluster na deze klinker
+                let j = i + 1;
+                while (j < w.length && !isVowel(w[j])) j++;
+
+                if (j < w.length && j > i + 1) {
+                    // Er is een medeklinker cluster gevolgd door een klinker
+                    // Split: laatste medeklinker gaat naar volgende syllabe
+                    // Behalve bij clusters als 'str', 'pr', 'tr', 'br', 'gr', 'kr', 'bl', 'fl', 'pl', 'sch'
+                    const cluster = w.substring(i + 1, j);
+                    let splitAt = cluster.length - 1;
+                    // Houd onset-clusters samen
+                    const onsets = ['str','schr','sch','spr','spl','pr','tr','br','gr','kr','dr','fr','vr','bl','fl','pl','gl','kl','sl','sn','sm','sp','st','sk','sw','tw','kw','zw'];
+                    for (const on of onsets) {
+                        if (cluster.endsWith(on)) {
+                            splitAt = cluster.length - on.length;
+                            break;
+                        }
+                    }
+                    if (splitAt > 0) {
+                        syl += cluster.substring(0, splitAt);
+                        result.push(syl);
+                        syl = cluster.substring(splitAt);
+                    } else {
+                        result.push(syl);
+                        syl = cluster;
+                    }
+                    i = j;
+                    continue;
+                }
             }
+            i++;
         }
-        if (current.length > 0) {
-            if (syllables.length > 0 && !vowels.includes(current[0]) && current.length <= 2) {
-                syllables[syllables.length - 1] += current;
-            } else {
-                syllables.push(current);
-            }
-        }
-        // Merge very short syllables
+        if (syl) result.push(syl);
+
+        // Merge heel korte syllaben (1 letter)
         const merged = [];
-        for (const s of syllables) {
-            if (merged.length > 0 && (s.length <= 1 || merged[merged.length - 1].length <= 1)) {
+        for (const s of result) {
+            if (s.length <= 1 && merged.length > 0) {
                 merged[merged.length - 1] += s;
             } else {
                 merged.push(s);
             }
         }
-        return merged.length > 0 ? merged : [word];
+        return merged.length > 0 ? merged : [w];
     }
 
     _songDrumPatterns = {
@@ -5664,12 +5897,10 @@ const audioBrowser = new AudioBrowser({
     }
 });
 
-// Auto-load drums on first click (AudioContext needs user gesture)
+// AudioContext init on first click (user gesture required)
+// Do NOT auto-load drums - let the user choose what to load
 document.addEventListener('click', () => {
-    if (!sampler._autoLoaded && sampler.pads.every(p => !p.buffer)) {
-        sampler._autoLoaded = true;
-        sampler.autoLoadKit('Drums');
-    }
+    sampler.initAudio();
 }, { once: true });
 
 // Resize handler for waveform

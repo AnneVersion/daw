@@ -2525,9 +2525,11 @@ body {
             <div id="library">
                 <div id="library-search">
                     <input type="text" placeholder="Zoek geluiden..." id="library-query">
-                    <button onclick="daw.scanLocalAudio()" style="background:var(--accent);color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap" title="Zoek audio bestanden op je computer">🔍 Scan PC</button>
+                    <button onclick="daw.uploadToLibrary()" style="background:var(--green);color:#000;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap" title="Upload eigen geluid naar library">+ Upload</button>
+                    <button onclick="daw.scanLocalAudio()" style="background:var(--accent);color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap" title="Zoek audio bestanden op je computer">Scan PC</button>
                     <select id="library-category" class="header-input" style="width:auto">
                         <option value="">Alle categorieën</option>
+                        <option value="eigen">Eigen geluiden</option>
                     </select>
                 </div>
                 <div id="library-filters" style="display:flex;gap:6px;padding:4px 8px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--border)">
@@ -4809,6 +4811,8 @@ class InstrumentEngine {
                     <option value="neosoul">Neo-Soul</option>
                     <option value="gospel">Gospel</option>
                     <option value="bossa">Bossa Nova</option>
+                    <option value="reggae">Reggae</option>
+                    <option value="dub">Dub</option>
                 </select>
                 <select id="ens-key" class="improv-select" style="width:50px">
                     <option>C</option><option>Db</option><option>D</option><option>Eb</option>
@@ -4882,6 +4886,11 @@ class InstrumentEngine {
             </tr>`;
         });
         unifiedHtml += `</tbody></table>
+            <div style="margin-top:6px;padding:4px;background:var(--bg-dark);border-radius:4px;border:1px solid var(--border)">
+                <label style="font-size:8px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px">Zang tekst (koor/scat zingt deze woorden)</label>
+                <input type="text" id="ens-lyrics" placeholder="Typ tekst voor de zanger..." value=""
+                    style="width:100%;background:var(--bg-panel);border:1px solid var(--border);color:var(--text);border-radius:3px;padding:4px 6px;font-size:11px;margin-top:3px;box-sizing:border-box">
+            </div>
             <div class="improv-controls-row" style="gap:6px;margin-top:6px">
                 <button class="ens-start-btn" id="ens-start-btn"
                     onclick="daw.instruments.startEnsemble()" style="flex:1">&#x25B6; Start</button>
@@ -5245,6 +5254,8 @@ class InstrumentEngine {
         neosoul:   [[1,'M'],[4,'M'],[3,'m'],[6,'m']],
         gospel:    [[1,'M'],[1,'7'],[4,'M'],[4,'m'],[1,'M'],[5,'7'],[1,'M']],
         bossa:     [[1,'M'],[6,'m'],[2,'m'],[5,'7']],
+        reggae:    [[1,'M'],[4,'M'],[1,'M'],[5,'M']],
+        dub:       [[1,'m'],[4,'m'],[5,'m'],[1,'m']],
     };
 
     // Style-specific rhythm configuration
@@ -5261,6 +5272,8 @@ class InstrumentEngine {
         neosoul: { swing: true, density: 0.5, stepwise: true, noteRange: [55,84] },
         gospel:  { swing: true, density: 0.55, noteRange: [48,84] },
         bossa:   { swing: true, density: 0.45, stepwise: true, noteRange: [55,79] },
+        reggae:  { offbeat: true, density: 0.4, stepwise: true, noteRange: [48,79] },
+        dub:     { offbeat: true, density: 0.3, sparse: true, noteRange: [48,76] },
     };
 
     _improv = null;
@@ -6639,6 +6652,104 @@ class InstrumentEngine {
                 src.start(now);
                 break;
             }
+            case 'tom_hi': {
+                const osc = ctx.createOscillator();
+                osc.frequency.setValueAtTime(280, now);
+                osc.frequency.exponentialRampToValueAtTime(180, now + 0.15);
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(velocity * 0.7, now);
+                g.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.connect(g); g.connect(inst.gainNode);
+                osc.start(now); osc.stop(now + 0.25);
+                break;
+            }
+            case 'tom_mid': {
+                const osc = ctx.createOscillator();
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.exponentialRampToValueAtTime(120, now + 0.2);
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(velocity * 0.7, now);
+                g.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                osc.connect(g); g.connect(inst.gainNode);
+                osc.start(now); osc.stop(now + 0.3);
+                break;
+            }
+            case 'tom_lo': {
+                const osc = ctx.createOscillator();
+                osc.frequency.setValueAtTime(140, now);
+                osc.frequency.exponentialRampToValueAtTime(70, now + 0.25);
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(velocity * 0.8, now);
+                g.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.connect(g); g.connect(inst.gainNode);
+                osc.start(now); osc.stop(now + 0.35);
+                break;
+            }
+            case 'crash': {
+                const bufLen = ctx.sampleRate * 0.8;
+                const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+                const d = buf.getChannelData(0);
+                for (let i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.35));
+                const src = ctx.createBufferSource();
+                src.buffer = buf;
+                const bp = ctx.createBiquadFilter();
+                bp.type = 'bandpass'; bp.frequency.value = 6000; bp.Q.value = 0.5;
+                const g = ctx.createGain();
+                g.gain.value = velocity * 0.35;
+                src.connect(bp); bp.connect(g); g.connect(inst.gainNode);
+                src.start(now);
+                break;
+            }
+            case 'hihat_open': {
+                const bufLen = ctx.sampleRate * 0.2;
+                const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+                const d = buf.getChannelData(0);
+                for (let i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.1));
+                const src = ctx.createBufferSource();
+                src.buffer = buf;
+                const hp = ctx.createBiquadFilter();
+                hp.type = 'highpass'; hp.frequency.value = 6000;
+                const g = ctx.createGain();
+                g.gain.value = velocity * 0.35;
+                src.connect(hp); hp.connect(g); g.connect(inst.gainNode);
+                src.start(now);
+                break;
+            }
+            case 'cowbell': {
+                const osc1 = ctx.createOscillator();
+                const osc2 = ctx.createOscillator();
+                osc1.frequency.value = 800; osc2.frequency.value = 540;
+                osc1.type = 'square'; osc2.type = 'square';
+                const bp = ctx.createBiquadFilter();
+                bp.type = 'bandpass'; bp.frequency.value = 700; bp.Q.value = 3;
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(velocity * 0.25, now);
+                g.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                osc1.connect(bp); osc2.connect(bp); bp.connect(g); g.connect(inst.gainNode);
+                osc1.start(now); osc2.start(now);
+                osc1.stop(now + 0.1); osc2.stop(now + 0.1);
+                break;
+            }
+            case 'rimshot': {
+                const bufLen = ctx.sampleRate * 0.03;
+                const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+                const d = buf.getChannelData(0);
+                for (let i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.008));
+                const src = ctx.createBufferSource();
+                src.buffer = buf;
+                const osc = ctx.createOscillator();
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(200, now + 0.02);
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(velocity * 0.5, now);
+                g.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
+                const gNoise = ctx.createGain();
+                gNoise.gain.value = velocity * 0.4;
+                src.connect(gNoise); gNoise.connect(inst.gainNode);
+                osc.connect(g); g.connect(inst.gainNode);
+                src.start(now); osc.start(now); osc.stop(now + 0.05);
+                break;
+            }
         }
     }
 
@@ -6651,74 +6762,336 @@ class InstrumentEngine {
         if (!this._ensembleInstruments.drums.on) return;
         const style = ens.style;
         const vel = 0.4 + ens.intensity * 0.4;
+        const barInPhrase = Math.floor((ens.tick16 % (16 * 4)) / 16); // 0-3 within 4-bar phrase
+        const isLastBar = barInPhrase === 3;
+        const isFillZone = isLastBar && beat16 >= 8; // Last 2 beats of phrase
+
+        // Energy tracking: crash on downbeat after fill or at high intensity moments
+        if (beat16 === 0 && ens.tick16 > 0) {
+            const justFinishedPhrase = ens.tick16 % (16 * 4) === 0;
+            if (justFinishedPhrase && ens.intensity > 0.4) {
+                this._ensPlayDrum('crash', vel * 0.7);
+            }
+        }
 
         switch (style) {
             case 'jazz': case 'jazz2': case 'jazz3': case 'bossa': {
-                // Ride cymbal pattern: ding-ding-a-ding
+                // Ride cymbal pattern: ding-ding-a-ding met ghost notes
                 if (beat16 % 4 === 0) this._ensPlayDrum('ride', vel);
                 if (beat16 === 5 || beat16 === 13) this._ensPlayDrum('ride', vel * 0.5);
                 if (beat16 === 3 || beat16 === 11) this._ensPlayDrum('ride', vel * 0.6);
                 // Brush on 2 and 4
                 if (beat16 === 4 || beat16 === 12) this._ensPlayDrum('brush', vel * 0.6);
-                // Kick on 1, occasionally on 3
+                // Kick comping: meer variatie bij hogere intensiteit
                 if (beat16 === 0) this._ensPlayDrum('kick', vel * 0.5);
-                if (beat16 === 8 && Math.random() < 0.3) this._ensPlayDrum('kick', vel * 0.3);
-                // Bossa: add clave + shaker
+                if (beat16 === 8 && Math.random() < 0.3 + ens.intensity * 0.2) this._ensPlayDrum('kick', vel * 0.3);
+                // Syncopated kick drops bij hoge intensiteit
+                if (ens.intensity > 0.5 && (beat16 === 6 || beat16 === 14) && Math.random() < 0.15)
+                    this._ensPlayDrum('kick', vel * 0.25);
+                // Ghost snare hits (jazz comping)
+                if (ens.intensity > 0.4 && (beat16 === 7 || beat16 === 15) && Math.random() < 0.2)
+                    this._ensPlayDrum('snare', vel * 0.12);
+                // Bossa: clave + shaker + rimshot
                 if (style === 'bossa') {
                     const clavePattern = [0, 6, 10, 12, 14];
                     if (clavePattern.includes(beat16)) this._ensPlayDrum('clave', vel * 0.5);
                     if (beat16 % 2 === 0) this._ensPlayDrum('shaker', vel * 0.3);
+                    if (beat16 === 8 && Math.random() < 0.3) this._ensPlayDrum('rimshot', vel * 0.3);
                 }
                 break;
             }
             case 'funk': {
-                // Tight 16th hi-hat, syncopated kick, ghost snare
-                this._ensPlayDrum('hihat', vel * (beat16 % 2 === 0 ? 0.8 : 0.4));
+                // Tight 16th hi-hat met open hi-hat accenten
+                const isOpen = (beat16 === 2 || beat16 === 10) && Math.random() < 0.3 * ens.intensity;
+                if (isOpen) {
+                    this._ensPlayDrum('hihat_open', vel * 0.5);
+                } else {
+                    this._ensPlayDrum('hihat', vel * (beat16 % 2 === 0 ? 0.8 : 0.4));
+                }
+                // Syncopated kick met variatie
                 if (beat16 === 0 || beat16 === 6 || beat16 === 10) this._ensPlayDrum('kick', vel * 0.9);
+                if (beat16 === 14 && Math.random() < 0.4) this._ensPlayDrum('kick', vel * 0.6); // pickup
+                // Snare on 2 and 4
                 if (beat16 === 4 || beat16 === 12) this._ensPlayDrum('snare', vel);
+                // Ghost notes (paradiddle-achtig)
                 if ((beat16 === 3 || beat16 === 7 || beat16 === 11 || beat16 === 15) && Math.random() < 0.4)
-                    this._ensPlayDrum('snare', vel * 0.2);
+                    this._ensPlayDrum('snare', vel * 0.15);
+                if ((beat16 === 1 || beat16 === 9) && Math.random() < 0.2 * ens.intensity)
+                    this._ensPlayDrum('snare', vel * 0.1); // extra ghost
                 break;
             }
             case 'blues': {
+                // Shuffle ride met triplet feel
                 if (beat16 % 4 === 0) this._ensPlayDrum('ride', vel);
                 if (beat16 % 4 === 3) this._ensPlayDrum('ride', vel * 0.5);
                 if (beat16 === 0 || beat16 === 8) this._ensPlayDrum('kick', vel * 0.6);
                 if (beat16 === 4 || beat16 === 12) this._ensPlayDrum('snare', vel * 0.8);
+                // Cross-stick variatie
+                if (beat16 === 4 && Math.random() < 0.25) this._ensPlayDrum('rimshot', vel * 0.5);
+                // Walking kick bij hogere intensiteit
+                if (ens.intensity > 0.5 && beat16 === 6 && Math.random() < 0.3)
+                    this._ensPlayDrum('kick', vel * 0.35);
                 break;
             }
             case 'rock': {
+                // Achtste noten hi-hat, open hi-hat op and-of-4
                 if (beat16 % 2 === 0) this._ensPlayDrum('hihat', vel * 0.6);
+                if (beat16 === 15 && ens.intensity > 0.5) this._ensPlayDrum('hihat_open', vel * 0.5);
+                // Kick
                 if (beat16 === 0 || beat16 === 8) this._ensPlayDrum('kick', vel * 0.9);
+                // Double kick bij hoge intensiteit
+                if (ens.intensity > 0.6 && beat16 === 10 && Math.random() < 0.3)
+                    this._ensPlayDrum('kick', vel * 0.6);
+                // Snare
                 if (beat16 === 4 || beat16 === 12) this._ensPlayDrum('snare', vel);
-                if (beat16 === 0 && ens.tick16 % 64 === 0 && ens.tick16 > 0) this._ensPlayDrum('ride', vel);
+                // Crash elke 8 maten
+                if (beat16 === 0 && ens.tick16 % (16 * 8) === 0 && ens.tick16 > 0) this._ensPlayDrum('crash', vel * 0.6);
                 break;
             }
             case 'pop': case 'neosoul': case 'gospel': {
                 if (beat16 % 4 === 0) this._ensPlayDrum('kick', vel * 0.8);
                 if (beat16 % 2 === 0) this._ensPlayDrum('hihat', vel * 0.4);
                 if (beat16 === 4 || beat16 === 12) this._ensPlayDrum('snare', vel * 0.9);
+                // Neosoul: ghost notes en rimshots
+                if (style === 'neosoul') {
+                    if ((beat16 === 7 || beat16 === 15) && Math.random() < 0.3)
+                        this._ensPlayDrum('snare', vel * 0.12);
+                    if (beat16 === 8 && Math.random() < 0.2)
+                        this._ensPlayDrum('rimshot', vel * 0.3);
+                }
+                // Gospel: open hi-hat, meer energie
+                if (style === 'gospel' && ens.intensity > 0.5) {
+                    if (beat16 === 14) this._ensPlayDrum('hihat_open', vel * 0.4);
+                    if (beat16 === 6 && Math.random() < 0.3) this._ensPlayDrum('kick', vel * 0.5);
+                }
                 break;
             }
             case 'spanish': {
                 if (beat16 === 0 || beat16 === 6 || beat16 === 12) this._ensPlayDrum('kick', vel * 0.5);
                 if (beat16 === 4 || beat16 === 10) this._ensPlayDrum('clave', vel * 0.6);
                 if (beat16 % 2 === 0) this._ensPlayDrum('shaker', vel * 0.2);
+                // Palmas (handclap-achtig via rimshot)
+                if ((beat16 === 2 || beat16 === 6 || beat16 === 10 || beat16 === 14) && Math.random() < 0.4)
+                    this._ensPlayDrum('rimshot', vel * 0.25);
+                // Cajon ghost notes
+                if (ens.intensity > 0.4 && beat16 % 4 === 3 && Math.random() < 0.3)
+                    this._ensPlayDrum('snare', vel * 0.15);
                 break;
             }
             case 'sad': {
                 if (beat16 === 0) this._ensPlayDrum('kick', vel * 0.3);
                 if (beat16 === 8) this._ensPlayDrum('brush', vel * 0.4);
+                // Subtiele ride bij hogere intensiteit
+                if (ens.intensity > 0.3 && beat16 % 4 === 0) this._ensPlayDrum('ride', vel * 0.15);
+                break;
+            }
+            case 'reggae': {
+                // One-drop: kick + snare ALLEEN op beat 3 (beat16=8), niets op 1
+                if (beat16 === 8) {
+                    this._ensPlayDrum('kick', vel * 0.8);
+                    this._ensPlayDrum('snare', vel * 0.6);
+                }
+                // Cross-stick op 2 en 4 (licht)
+                if (beat16 === 4 || beat16 === 12) this._ensPlayDrum('rimshot', vel * 0.35);
+                // Hi-hat op achtste noten
+                if (beat16 % 2 === 0) this._ensPlayDrum('hihat', vel * 0.3);
+                // Open hi-hat accenten op offbeats
+                if ((beat16 === 2 || beat16 === 6 || beat16 === 10 || beat16 === 14) && Math.random() < 0.3)
+                    this._ensPlayDrum('hihat_open', vel * 0.25);
+                break;
+            }
+            case 'dub': {
+                // Dub: sparse one-drop met veel ruimte voor echo
+                if (beat16 === 8) this._ensPlayDrum('kick', vel * 0.9);
+                // Rimshot op 3 (dub snare = cross-stick)
+                if (beat16 === 8) this._ensPlayDrum('rimshot', vel * 0.5);
+                // Sparse hi-hat
+                if (beat16 === 0 || beat16 === 8) this._ensPlayDrum('hihat', vel * 0.25);
+                // Occasional ghost kick
+                if (beat16 === 14 && Math.random() < 0.2 * ens.intensity)
+                    this._ensPlayDrum('kick', vel * 0.3);
                 break;
             }
         }
 
-        // Fills at phrase endings (every 4 bars)
-        if (ens.tick16 > 0 && ens.tick16 % (16 * 4) >= 14 * 4 && beat16 >= 8) {
-            if (Math.random() < 0.25 * ens.intensity) {
-                const fillDrums = ['snare', 'hihat', 'kick'];
-                this._ensPlayDrum(fillDrums[Math.floor(Math.random() * fillDrums.length)], vel * 0.5);
+        // Drum fills: stijl-afhankelijk, met rudiments en toms
+        if (isFillZone && ens.tick16 > 0) {
+            this._ensembleDrumFill(ens, beat16, vel, style);
+        }
+    }
+
+    // Rudiment helpers: flam (grace note + main hit), drag (2 grace notes + main)
+    _ensPlayFlam(type, vel) {
+        const ctx = this.audioEngine.ctx;
+        if (!ctx) return;
+        // Grace note ~30ms voor main hit, zachter
+        setTimeout(() => this._ensPlayDrum(type, vel * 0.3), 0);
+        setTimeout(() => this._ensPlayDrum(type, vel), 30);
+    }
+    _ensPlayDrag(type, vel) {
+        setTimeout(() => this._ensPlayDrum(type, vel * 0.2), 0);
+        setTimeout(() => this._ensPlayDrum(type, vel * 0.25), 18);
+        setTimeout(() => this._ensPlayDrum(type, vel), 35);
+    }
+
+    // Drum fills met rudiments, tom runs en energie-opbouw
+    _ensembleDrumFill(ens, beat16, vel, style) {
+        const fillBeat = beat16 - 8; // 0-7 within fill zone
+        const fi = ens.intensity;
+
+        // Kans op fill schaalt met intensiteit
+        if (Math.random() > 0.3 + fi * 0.5) return;
+
+        // Kies fill variant (meer variatie bij hogere intensiteit)
+        const variant = Math.floor(Math.random() * (fi > 0.6 ? 3 : 2));
+
+        if (style === 'jazz' || style === 'jazz2' || style === 'jazz3') {
+            const fills = [
+                // Variant 0: brush crescendo → kick
+                () => {
+                    if (fillBeat < 4) { if (Math.random() < 0.5) this._ensPlayDrum('brush', vel * (0.15 + fillBeat * 0.05)); }
+                    else { this._ensPlayDrum('snare', vel * (0.2 + (fillBeat-4) * 0.12)); if (fillBeat === 7) this._ensPlayDrum('kick', vel * 0.4); }
+                },
+                // Variant 1: ride bell → snare drag
+                () => {
+                    if (fillBeat < 4) { if (fillBeat % 2 === 0) this._ensPlayDrum('ride', vel * 0.4); }
+                    else if (fillBeat === 5) this._ensPlayDrag('snare', vel * 0.4);
+                    else if (fillBeat === 7) { this._ensPlayFlam('snare', vel * 0.5); this._ensPlayDrum('kick', vel * 0.35); }
+                },
+                // Variant 2: syncopated cross-stick → tom accent
+                () => {
+                    if (fillBeat === 1 || fillBeat === 3) this._ensPlayDrum('rimshot', vel * 0.3);
+                    if (fillBeat === 5) this._ensPlayDrum('tom_hi', vel * 0.35);
+                    if (fillBeat === 7) { this._ensPlayDrum('tom_mid', vel * 0.4); this._ensPlayDrum('ride', vel * 0.5); }
+                }
+            ];
+            fills[variant % fills.length]();
+        } else if (style === 'rock') {
+            const fills = [
+                // Variant 0: classic tom run hoog → laag
+                () => {
+                    const tomFill = ['tom_hi', 'tom_hi', 'tom_mid', 'tom_mid', 'tom_lo', 'tom_lo', 'snare', 'kick'];
+                    this._ensPlayDrum(tomFill[fillBeat], vel * (0.5 + fillBeat * 0.06));
+                },
+                // Variant 1: flam toms → crash
+                () => {
+                    if (fillBeat < 2) this._ensPlayFlam('tom_hi', vel * 0.6);
+                    else if (fillBeat < 4) this._ensPlayFlam('tom_mid', vel * 0.65);
+                    else if (fillBeat < 6) this._ensPlayDrum('tom_lo', vel * 0.7);
+                    else if (fillBeat === 6) { this._ensPlayDrum('snare', vel * 0.8); this._ensPlayDrum('kick', vel * 0.7); }
+                    else { this._ensPlayDrum('crash', vel * 0.7); this._ensPlayDrum('kick', vel * 0.9); }
+                },
+                // Variant 2: snare roll → power ending
+                () => {
+                    if (fillBeat < 6) this._ensPlayDrum('snare', vel * (0.3 + fillBeat * 0.08));
+                    else { this._ensPlayDrum('kick', vel * 0.9); this._ensPlayDrum('crash', vel * 0.7); }
+                }
+            ];
+            fills[variant % fills.length]();
+        } else if (style === 'funk') {
+            const fills = [
+                // Variant 0: syncopated snare/kick ghost notes
+                () => {
+                    const p = [
+                        () => this._ensPlayDrum('snare', vel * 0.3),
+                        () => { if (Math.random() < 0.6) this._ensPlayDrum('kick', vel * 0.5); },
+                        () => this._ensPlayDrum('snare', vel * 0.5),
+                        () => this._ensPlayDrum('snare', vel * 0.12),
+                        () => this._ensPlayDrum('kick', vel * 0.7),
+                        () => this._ensPlayFlam('snare', vel * 0.6),
+                        () => this._ensPlayDrum('tom_hi', vel * 0.5),
+                        () => { this._ensPlayDrum('snare', vel * 0.8); this._ensPlayDrum('kick', vel * 0.7); }
+                    ];
+                    p[fillBeat]();
+                },
+                // Variant 1: paradiddle (RLRR LRLL pattern)
+                () => {
+                    const hits = ['snare','tom_hi','snare','snare','tom_hi','snare','tom_hi','tom_hi'];
+                    const vels = [0.5, 0.35, 0.4, 0.45, 0.35, 0.5, 0.35, 0.6];
+                    this._ensPlayDrum(hits[fillBeat], vel * vels[fillBeat]);
+                    if (fillBeat === 7) this._ensPlayDrum('kick', vel * 0.7);
+                },
+                // Variant 2: drag → ghost → accent pattern
+                () => {
+                    if (fillBeat === 0 || fillBeat === 4) this._ensPlayDrag('snare', vel * 0.5);
+                    else if (fillBeat === 2 || fillBeat === 6) this._ensPlayDrum('kick', vel * 0.6);
+                    else if (fillBeat % 2 === 1) this._ensPlayDrum('snare', vel * 0.15);
+                    if (fillBeat === 7) this._ensPlayDrum('hihat_open', vel * 0.4);
+                }
+            ];
+            fills[variant % fills.length]();
+        } else if (style === 'blues') {
+            if (fillBeat >= 4) {
+                if (variant === 0) {
+                    this._ensPlayDrum('snare', vel * (0.3 + (fillBeat - 4) * 0.12));
+                    if (fillBeat === 7) this._ensPlayDrum('kick', vel * 0.5);
+                } else {
+                    // Shuffle triplet fill
+                    if (fillBeat === 4) this._ensPlayFlam('snare', vel * 0.4);
+                    if (fillBeat === 5) this._ensPlayDrum('tom_hi', vel * 0.4);
+                    if (fillBeat === 6) this._ensPlayDrum('tom_mid', vel * 0.45);
+                    if (fillBeat === 7) { this._ensPlayDrum('tom_lo', vel * 0.5); this._ensPlayDrum('kick', vel * 0.5); }
+                }
             }
+        } else if (style === 'pop' || style === 'neosoul' || style === 'gospel') {
+            const fills = [
+                // Variant 0: tom fill hoog → laag
+                () => { if (fillBeat >= 4) this._ensPlayDrum(['tom_hi','tom_mid','tom_lo','kick'][fillBeat-4], vel * 0.6); },
+                // Variant 1: snare build → crash
+                () => { if (fillBeat >= 4) this._ensPlayDrum('snare', vel * (0.3 + (fillBeat-4) * 0.15)); if (fillBeat === 7) this._ensPlayDrum('crash', vel * 0.5); },
+                // Variant 2 (gospel): floor tom groove
+                () => {
+                    if (fillBeat === 4) this._ensPlayDrum('tom_lo', vel * 0.5);
+                    if (fillBeat === 5) this._ensPlayDrum('snare', vel * 0.4);
+                    if (fillBeat === 6) { this._ensPlayDrum('tom_lo', vel * 0.6); this._ensPlayDrum('kick', vel * 0.5); }
+                    if (fillBeat === 7) { this._ensPlayFlam('snare', vel * 0.7); this._ensPlayDrum('crash', vel * 0.6); }
+                }
+            ];
+            fills[variant % fills.length]();
+        } else if (style === 'spanish') {
+            const fills = [
+                // Variant 0: redoble (snare roll) + rimshot
+                () => { if (fillBeat >= 4) { if (fillBeat % 2 === 0) this._ensPlayDrum('rimshot', vel * 0.4); else this._ensPlayDrum('snare', vel * (0.2 + fillBeat * 0.05)); } },
+                // Variant 1: palmas crescendo
+                () => {
+                    if (fillBeat >= 2) this._ensPlayDrum('rimshot', vel * (0.2 + (fillBeat-2) * 0.08));
+                    if (fillBeat === 7) this._ensPlayDrum('kick', vel * 0.5);
+                }
+            ];
+            fills[variant % fills.length]();
+        } else if (style === 'bossa') {
+            if (fillBeat >= 5) {
+                this._ensPlayDrum('brush', vel * 0.35);
+                if (fillBeat === 6) this._ensPlayDrum('clave', vel * 0.3);
+                if (fillBeat === 7) this._ensPlayDrum('rimshot', vel * 0.3);
+            }
+        } else if (style === 'reggae') {
+            const fills = [
+                // Variant 0: snare roll → one-drop accent
+                () => {
+                    if (fillBeat >= 4) this._ensPlayDrum('snare', vel * (0.2 + (fillBeat-4) * 0.1));
+                    if (fillBeat === 7) { this._ensPlayDrum('kick', vel * 0.7); this._ensPlayDrum('rimshot', vel * 0.4); }
+                },
+                // Variant 1: rim + tom fill → kick
+                () => {
+                    if (fillBeat === 4) this._ensPlayDrum('rimshot', vel * 0.35);
+                    if (fillBeat === 5) this._ensPlayDrum('tom_hi', vel * 0.4);
+                    if (fillBeat === 6) this._ensPlayDrum('tom_mid', vel * 0.45);
+                    if (fillBeat === 7) { this._ensPlayDrum('tom_lo', vel * 0.5); this._ensPlayDrum('kick', vel * 0.7); }
+                },
+                // Variant 2: stutter kick → flam snare
+                () => {
+                    if (fillBeat === 4 || fillBeat === 5) this._ensPlayDrum('kick', vel * 0.4);
+                    if (fillBeat === 6) this._ensPlayDrum('hihat_open', vel * 0.3);
+                    if (fillBeat === 7) this._ensPlayFlam('snare', vel * 0.6);
+                }
+            ];
+            fills[variant % fills.length]();
+        } else if (style === 'dub') {
+            // Dub: sparse maar impactvol
+            if (fillBeat === 5) this._ensPlayDrum('rimshot', vel * 0.3);
+            if (fillBeat === 6) this._ensPlayDrum('tom_lo', vel * 0.4);
+            if (fillBeat === 7) this._ensPlayDrum('kick', vel * 0.7);
         }
     }
 
@@ -6790,6 +7163,39 @@ class InstrumentEngine {
             }
             case 'sad': {
                 if (beat16 === 0) this._ensPlayNote('bass', this._midiToFreq(bassRoot), sixteenthDur * 14, vel * 0.5);
+                break;
+            }
+            case 'reggae': {
+                // Reggae bass: melodisch, one-drop feel, walking patterns
+                const regVar = (ens.tick16 >> 4) % 3; // wissel pattern elke maat
+                if (beat16 === 0) {
+                    this._ensPlayNote('bass', this._midiToFreq(bassRoot), sixteenthDur * 3, vel * 0.9);
+                } else if (beat16 === 8) {
+                    this._ensPlayNote('bass', this._midiToFreq(bassRoot + 7), sixteenthDur * 3, vel * 0.7);
+                } else if (regVar === 0 && beat16 === 6 && Math.random() < 0.5) {
+                    // Walk-up naar kwint
+                    this._ensPlayNote('bass', this._midiToFreq(bassRoot + 6), sixteenthDur * 1.5, vel * 0.5);
+                } else if (regVar === 1 && beat16 === 4 && Math.random() < 0.4) {
+                    // Terts pickup
+                    const third = chord.quality === 'min' ? 3 : 4;
+                    this._ensPlayNote('bass', this._midiToFreq(bassRoot + third), sixteenthDur * 2, vel * 0.5);
+                } else if (beat16 === 12 && Math.random() < 0.5) {
+                    // Octaaf drop of kwint pickup voor volgende akkoord
+                    const pickup = [5, 7, 12, -5][Math.floor(Math.random() * 4)];
+                    this._ensPlayNote('bass', this._midiToFreq(bassRoot + pickup), sixteenthDur * 2, vel * 0.55);
+                } else if (regVar === 2 && beat16 === 14 && Math.random() < 0.3 * ens.intensity) {
+                    // Staccato ghost note (dead note feel)
+                    this._ensPlayNote('bass', this._midiToFreq(bassRoot), sixteenthDur * 0.4, vel * 0.25);
+                }
+                break;
+            }
+            case 'dub': {
+                // Dub bass: zwaar, lang, sub-bass met slides
+                if (beat16 === 0) {
+                    this._ensPlayNote('bass', this._midiToFreq(bassRoot - 12), sixteenthDur * 6, vel * 0.9);
+                } else if (beat16 === 8) {
+                    this._ensPlayNote('bass', this._midiToFreq(bassRoot - 12 + 7), sixteenthDur * 5, vel * 0.7);
+                }
                 break;
             }
         }
@@ -6891,6 +7297,45 @@ class InstrumentEngine {
                 }
                 break;
             }
+            case 'reggae': {
+                // Reggae skank: staccato akkoorden op offbeats + muted "chika" ghost strums
+                if (beat16 % 4 === 2) {
+                    // Hoofdskank op elke offbeat
+                    voicing.forEach((midi, i) => {
+                        setTimeout(() => {
+                            this._ensPlayNote('guitar', this._midiToFreq(midi + 12), sixteenthDur * 0.7, vel * 0.5);
+                        }, i * 5);
+                    });
+                }
+                // Muted ghost strum (chika) tussen skanks bij hogere intensiteit
+                if (ens.intensity > 0.3 && beat16 % 4 === 0 && beat16 !== 0) {
+                    voicing.slice(0, 2).forEach((midi, i) => {
+                        setTimeout(() => {
+                            this._ensPlayNote('guitar', this._midiToFreq(midi + 12), sixteenthDur * 0.15, vel * 0.12);
+                        }, i * 3);
+                    });
+                }
+                // Extra skank accenten bij hogere intensiteit
+                if (ens.intensity > 0.5 && (beat16 === 10 || beat16 === 14)) {
+                    voicing.forEach((midi, i) => {
+                        setTimeout(() => {
+                            this._ensPlayNote('guitar', this._midiToFreq(midi + 12), sixteenthDur * 0.45, vel * 0.3);
+                        }, i * 5);
+                    });
+                }
+                break;
+            }
+            case 'dub': {
+                // Dub: sparse skank, meer ruimte, echo-vriendelijk
+                if (beat16 === 2 || beat16 === 10) {
+                    voicing.forEach((midi, i) => {
+                        setTimeout(() => {
+                            this._ensPlayNote('guitar', this._midiToFreq(midi + 12), sixteenthDur * 0.6, vel * 0.35);
+                        }, i * 5);
+                    });
+                }
+                break;
+            }
         }
     }
 
@@ -6974,6 +7419,35 @@ class InstrumentEngine {
                 if (beat16 % 4 === 0 && voicing.length > 0) {
                     const noteIdx = Math.floor(beat16 / 4) % voicing.length;
                     this._ensPlayNote('piano', this._midiToFreq(voicing[noteIdx]), sixteenthDur * 8, vel * 0.3);
+                }
+                break;
+            }
+            case 'reggae': {
+                // Reggae piano/organ: bubble pattern (offbeat staccato + variatie)
+                if (beat16 % 4 === 2) {
+                    // Hoofd-bubble op offbeats
+                    voicing.forEach(midi => {
+                        this._ensPlayNote('piano', this._midiToFreq(midi), sixteenthDur * 0.6, vel * 0.35);
+                    });
+                }
+                // Dubbele bubble (and-and) bij hogere intensiteit
+                if (ens.intensity > 0.4 && beat16 % 4 === 3 && Math.random() < 0.35) {
+                    voicing.slice(0, 2).forEach(midi => {
+                        this._ensPlayNote('piano', this._midiToFreq(midi), sixteenthDur * 0.4, vel * 0.2);
+                    });
+                }
+                // Ghost octaaf accent op beat 1 (subtiel)
+                if (beat16 === 0 && Math.random() < 0.2 * ens.intensity) {
+                    this._ensPlayNote('piano', this._midiToFreq(voicing[0] + 12), sixteenthDur * 0.3, vel * 0.15);
+                }
+                break;
+            }
+            case 'dub': {
+                // Dub piano: sparse stabs met delay-ruimte
+                if (beat16 === 2 && Math.random() < 0.6) {
+                    voicing.slice(0, 2).forEach(midi => {
+                        this._ensPlayNote('piano', this._midiToFreq(midi), sixteenthDur * 0.5, vel * 0.25);
+                    });
                 }
                 break;
             }
@@ -7537,6 +8011,98 @@ class InstrumentEngine {
         { name: 'U', f1: 350, f2: 600,  f3: 2400 },
     ];
 
+    // Text-to-singing: map letters/digrafen naar vowel index
+    // 0=A, 1=O, 2=E, 3=I, 4=U
+    _charToVowel = {
+        'a': 0, 'á': 0, 'à': 0, 'ä': 0,
+        'o': 1, 'ó': 1, 'ò': 1, 'ö': 1,
+        'e': 2, 'é': 2, 'è': 2, 'ë': 2,
+        'i': 3, 'í': 3, 'ì': 3, 'ï': 3, 'y': 3,
+        'u': 4, 'ú': 4, 'ù': 4, 'ü': 4,
+    };
+
+    // Consonant-attack types: kort/lang/nasaal/sibilant
+    _charToAttack = {
+        'b': 0.015, 'p': 0.008, 'd': 0.012, 't': 0.006,
+        'k': 0.008, 'g': 0.02, 'f': 0.03, 'v': 0.025,
+        's': 0.04, 'z': 0.035, 'h': 0.05, 'l': 0.03,
+        'm': 0.04, 'n': 0.035, 'r': 0.02, 'w': 0.04,
+        'j': 0.03, 'c': 0.01, 'x': 0.02, 'q': 0.01,
+    };
+
+    // Parse lyrics tekst naar syllable array [{vowel, attack, text}]
+    _lyricsPosition = 0;
+    _lyricsSyllables = [];
+
+    _parseLyrics(text) {
+        if (!text || !text.trim()) return [];
+        const syllables = [];
+        const lower = text.toLowerCase();
+        let i = 0;
+        while (i < lower.length) {
+            const ch = lower[i];
+            if (ch === ' ' || ch === ',' || ch === '.' || ch === '!' || ch === '?') {
+                // Pauze/rust syllable
+                syllables.push({ vowel: -1, attack: 0, text: ch, isRest: true });
+                i++;
+                continue;
+            }
+            // Zoek de klinker in dit cluster
+            let vowelIdx = this._charToVowel[ch];
+            let attack = this._charToAttack[ch] || 0.02;
+            let syllText = ch;
+
+            if (vowelIdx !== undefined) {
+                // Dit IS een klinker: neem eventuele medeklinker na op
+                i++;
+                while (i < lower.length && !this._charToVowel[lower[i]] && lower[i] !== ' ' && !',.!?'.includes(lower[i])) {
+                    syllText += lower[i]; i++;
+                }
+                syllables.push({ vowel: vowelIdx, attack, text: syllText, isRest: false });
+            } else {
+                // Medeklinker: zoek volgende klinker
+                i++;
+                while (i < lower.length && !this._charToVowel[lower[i]] && lower[i] !== ' ' && !',.!?'.includes(lower[i])) {
+                    syllText += lower[i]; i++;
+                }
+                // Neem de klinker mee als die er is
+                if (i < lower.length && this._charToVowel[lower[i]]) {
+                    vowelIdx = this._charToVowel[lower[i]];
+                    syllText += lower[i]; i++;
+                    // Neem trailing consonant mee
+                    while (i < lower.length && !this._charToVowel[lower[i]] && lower[i] !== ' ' && !',.!?'.includes(lower[i])) {
+                        syllText += lower[i]; i++;
+                    }
+                } else {
+                    vowelIdx = 2; // default: E klank voor consonant-clusters
+                }
+                syllables.push({ vowel: vowelIdx, attack, text: syllText, isRest: false });
+            }
+        }
+        return syllables;
+    }
+
+    _getNextLyricsSyllable() {
+        const lyricsEl = document.getElementById('ens-lyrics');
+        const text = lyricsEl ? lyricsEl.value : '';
+        if (!text.trim()) return null;
+
+        // Herparse als tekst veranderd is
+        if (this._lastLyricsText !== text) {
+            this._lyricsSyllables = this._parseLyrics(text);
+            this._lyricsPosition = 0;
+            this._lastLyricsText = text;
+        }
+
+        if (this._lyricsSyllables.length === 0) return null;
+
+        // Loop door syllables
+        const syl = this._lyricsSyllables[this._lyricsPosition % this._lyricsSyllables.length];
+        this._lyricsPosition++;
+        return syl;
+    }
+    _lastLyricsText = '';
+
     _playFormantNote(instrumentId, freq, duration, velocity, vowelIdx) {
         const ctx = this.audioEngine.ctx;
         if (!ctx) return;
@@ -7547,47 +8113,71 @@ class InstrumentEngine {
         const now = ctx.currentTime;
         const end = now + duration;
 
-        // Grondtoon: sawtooth (rijke boventonen voor formant filtering)
+        // ---- Oscillatoren ----
         const osc = ctx.createOscillator();
         osc.type = 'sawtooth';
         osc.frequency.value = freq;
 
-        // Tweede oscillator: licht gedetuned voor warmte
         const osc2 = ctx.createOscillator();
         osc2.type = 'sawtooth';
         osc2.frequency.value = freq * 1.003;
 
-        // Formant filters (3 bandpass filters = vocale tract simulatie)
-        const f1 = ctx.createBiquadFilter();
-        f1.type = 'bandpass'; f1.frequency.value = vowel.f1; f1.Q.value = 8;
-        const f2 = ctx.createBiquadFilter();
-        f2.type = 'bandpass'; f2.frequency.value = vowel.f2; f2.Q.value = 10;
-        const f3 = ctx.createBiquadFilter();
-        f3.type = 'bandpass'; f3.frequency.value = vowel.f3; f3.Q.value = 12;
+        const osc3 = ctx.createOscillator();
+        osc3.type = 'square';
+        osc3.frequency.value = freq;
 
-        // Mix de formanten
+        // ---- Vibrato: groeit in (koorzang stijl) ----
+        const vibLfo = ctx.createOscillator();
+        vibLfo.frequency.value = 4.5 + Math.random() * 1.5;
+        const vibGain = ctx.createGain();
+        const vibDepth = freq * 0.012;
+        vibGain.gain.setValueAtTime(0, now);
+        vibGain.gain.linearRampToValueAtTime(vibDepth * 0.3, now + duration * 0.4);
+        vibGain.gain.linearRampToValueAtTime(vibDepth, now + duration * 0.7);
+        vibLfo.connect(vibGain);
+        vibGain.connect(osc.frequency);
+        vibGain.connect(osc2.frequency);
+        vibLfo.start(now);
+
+        // ---- Formant filters ----
+        const f1 = ctx.createBiquadFilter();
+        f1.type = 'peaking'; f1.frequency.value = vowel.f1; f1.Q.value = 2; f1.gain.value = 12;
+        const f2 = ctx.createBiquadFilter();
+        f2.type = 'peaking'; f2.frequency.value = vowel.f2; f2.Q.value = 3; f2.gain.value = 10;
+        const f3 = ctx.createBiquadFilter();
+        f3.type = 'peaking'; f3.frequency.value = vowel.f3; f3.Q.value = 4; f3.gain.value = 8;
+
+        // ---- Directe grondtoon pad ----
+        const directGain = ctx.createGain();
+        directGain.gain.value = 0.3;
+
+        // ---- Envelope met expressie ----
         const formantMix = ctx.createGain();
         formantMix.gain.value = 0;
 
-        // Envelope: langzame attack (koorzang)
-        const attackTime = Math.min(duration * 0.3, 0.4);
+        const attackTime = Math.min(duration * 0.25, 0.35);
         const releaseTime = Math.min(duration * 0.2, 0.3);
         formantMix.gain.setValueAtTime(0, now);
         formantMix.gain.linearRampToValueAtTime(velocity * 0.4, now + attackTime);
-        formantMix.gain.linearRampToValueAtTime(velocity * 0.35, end - releaseTime);
+        // Sustain met lichte dynamiek
+        formantMix.gain.setValueAtTime(velocity * 0.38, now + attackTime + 0.01);
+        formantMix.gain.linearRampToValueAtTime(velocity * 0.33, end - releaseTime);
         formantMix.gain.linearRampToValueAtTime(0, end);
 
-        // Routing: osc → filters → mix → gainNode
-        const merger = ctx.createGain();
-        merger.gain.value = 0.5;
-        osc.connect(f1); osc.connect(f2); osc.connect(f3);
-        osc2.connect(f1); osc2.connect(f2); osc2.connect(f3);
-        f1.connect(merger); f2.connect(merger); f3.connect(merger);
-        merger.connect(formantMix);
+        // ---- Routing ----
+        const formantChain = ctx.createGain();
+        formantChain.gain.value = 0.4;
+        osc.connect(f1); f1.connect(f2); f2.connect(f3); f3.connect(formantChain);
+        osc2.connect(f1);
+        osc3.connect(directGain);
+
+        formantChain.connect(formantMix);
+        directGain.connect(formantMix);
         formantMix.connect(inst.gainNode);
 
-        osc.start(now); osc2.start(now);
-        osc.stop(end + 0.05); osc2.stop(end + 0.05);
+        osc.start(now); osc2.start(now); osc3.start(now);
+        osc.stop(end + 0.1); osc2.stop(end + 0.1); osc3.stop(end + 0.1);
+        vibLfo.stop(end + 0.1);
     }
 
     // ---- CHOIR: koorzang pads op akkoordwissels ----
@@ -7599,10 +8189,19 @@ class InstrumentEngine {
         if (ens.choirLastChordIdx === ens.currentChordIdx) return;
         ens.choirLastChordIdx = ens.currentChordIdx;
 
-        // Wissel klinker per akkoord (A→O→E→A→U cyclus)
-        const vowelCycle = [0, 1, 2, 0, 4]; // A, O, E, A, U
-        ens.choirVowelIdx = (ens.choirVowelIdx + 1) % vowelCycle.length;
-        const vowel = vowelCycle[ens.choirVowelIdx];
+        // Gebruik lyrics tekst als die er is
+        const lyricSyl = this._getNextLyricsSyllable();
+        let vowel;
+        if (lyricSyl && !lyricSyl.isRest) {
+            vowel = lyricSyl.vowel;
+        } else if (lyricSyl && lyricSyl.isRest) {
+            return; // Spatie/punt = rust
+        } else {
+            // Standaard: wissel klinker per akkoord (A→O→E→A→U cyclus)
+            const vowelCycle = [0, 1, 2, 0, 4];
+            ens.choirVowelIdx = (ens.choirVowelIdx + 1) % vowelCycle.length;
+            vowel = vowelCycle[ens.choirVowelIdx];
+        }
 
         const voicing = this._getChordVoicing(chord, 55); // Sopraan/alt register
         const duration = (60 / ens.bpm) * ens.beatsPerChord * 0.85;
@@ -7631,58 +8230,131 @@ class InstrumentEngine {
         { vowel: 0, attack: 0.02, name: 'sha' },  // A - sibilant
     ];
 
-    _playScatNote(freq, duration, velocity, syllable) {
+    _playScatNote(freq, duration, velocity, syllable, vowelOverride = null) {
         const ctx = this.audioEngine.ctx;
         if (!ctx) return;
         const inst = this._ensembleInstruments.scat;
         if (!inst || !inst.gainNode) return;
 
         const syl = this._scatSyllables[syllable % this._scatSyllables.length];
-        const vowel = this._vowelFormants[syl.vowel];
+        const vowelIdx = vowelOverride !== null ? vowelOverride : syl.vowel;
+        const vowel = this._vowelFormants[vowelIdx % this._vowelFormants.length];
         const now = ctx.currentTime;
         const end = now + duration;
+        const isLyrics = vowelOverride !== null;
 
-        // Grondtoon: mix van sawtooth + noise voor menselijk karakter
+        // ---- Oscillator 1: hoofdstem (sawtooth) ----
         const osc = ctx.createOscillator();
         osc.type = 'sawtooth';
-        osc.frequency.value = freq;
-        // Lichte vibrato
+
+        // Portamento/glide: schuif naar de noot toe (zangstijl)
+        const prevFreq = this._lastScatFreq || freq;
+        const glideTime = isLyrics ? Math.min(0.06, duration * 0.15) : 0.02;
+        osc.frequency.setValueAtTime(prevFreq, now);
+        osc.frequency.exponentialRampToValueAtTime(freq, now + glideTime);
+        this._lastScatFreq = freq;
+
+        // ---- Oscillator 2: licht gedetuned voor chorus effect ----
+        const osc2 = ctx.createOscillator();
+        osc2.type = 'sawtooth';
+        osc2.frequency.setValueAtTime(prevFreq * 1.004, now);
+        osc2.frequency.exponentialRampToValueAtTime(freq * 1.004, now + glideTime);
+
+        // ---- Vibrato: groeit in over tijd (natuurlijke zang) ----
         const vibLfo = ctx.createOscillator();
-        vibLfo.frequency.value = 5 + Math.random() * 2;
+        vibLfo.frequency.value = 5 + Math.random() * 1.5;
         const vibGain = ctx.createGain();
-        vibGain.gain.value = freq * 0.008;
+        // Vibrato start zacht en wordt sterker (zoals een zanger)
+        const vibDepth = freq * (isLyrics ? 0.015 : 0.008);
+        vibGain.gain.setValueAtTime(0, now);
+        vibGain.gain.linearRampToValueAtTime(vibDepth * 0.2, now + duration * 0.3);
+        vibGain.gain.linearRampToValueAtTime(vibDepth, now + duration * 0.6);
+        vibGain.gain.linearRampToValueAtTime(vibDepth * 0.8, end);
         vibLfo.connect(vibGain);
         vibGain.connect(osc.frequency);
+        vibGain.connect(osc2.frequency);
         vibLfo.start(now);
 
-        // Formant filters
-        const f1 = ctx.createBiquadFilter();
-        f1.type = 'bandpass'; f1.frequency.value = vowel.f1; f1.Q.value = 6;
-        const f2 = ctx.createBiquadFilter();
-        f2.type = 'bandpass'; f2.frequency.value = vowel.f2; f2.Q.value = 8;
+        // ---- Klemtoon: accent op eerste lettergreep van woord ----
+        const isStressed = isLyrics && (this._lyricsPosition % 2 === 1); // Elke 2e syllable = beklemtoond
+        const stressBoost = isStressed ? 1.15 : 1.0;
 
+        // ---- Formant filters (peaking EQ) ----
+        const f1 = ctx.createBiquadFilter();
+        f1.type = 'peaking'; f1.frequency.value = vowel.f1; f1.Q.value = 2.5; f1.gain.value = 14;
+        const f2 = ctx.createBiquadFilter();
+        f2.type = 'peaking'; f2.frequency.value = vowel.f2; f2.Q.value = 3; f2.gain.value = 10;
+        const f3 = ctx.createBiquadFilter();
+        f3.type = 'peaking'; f3.frequency.value = vowel.f3 || 2800; f3.Q.value = 4; f3.gain.value = 6;
+
+        // ---- Formant transitie: morph tussen klinkers (legato) ----
+        if (isLyrics && this._lastScatVowel !== undefined && this._lastScatVowel !== vowelIdx) {
+            const prevVowel = this._vowelFormants[this._lastScatVowel % this._vowelFormants.length];
+            const morphTime = Math.min(0.08, duration * 0.2);
+            f1.frequency.setValueAtTime(prevVowel.f1, now);
+            f1.frequency.linearRampToValueAtTime(vowel.f1, now + morphTime);
+            f2.frequency.setValueAtTime(prevVowel.f2, now);
+            f2.frequency.linearRampToValueAtTime(vowel.f2, now + morphTime);
+        }
+        this._lastScatVowel = vowelIdx;
+
+        // ---- Breath noise (adem aan begin van frase) ----
+        const breathGain = ctx.createGain();
+        breathGain.gain.value = 0;
+        if (isLyrics && this._lyricsPosition % 6 === 1) {
+            // Korte ademruis
+            const breathLen = Math.min(ctx.sampleRate * 0.04, ctx.sampleRate * duration * 0.1);
+            const breathBuf = ctx.createBuffer(1, breathLen, ctx.sampleRate);
+            const bd = breathBuf.getChannelData(0);
+            for (let i = 0; i < breathLen; i++) bd[i] = (Math.random() * 2 - 1) * Math.exp(-i / (breathLen * 0.3)) * 0.15;
+            const breathSrc = ctx.createBufferSource();
+            breathSrc.buffer = breathBuf;
+            const breathHp = ctx.createBiquadFilter();
+            breathHp.type = 'highpass'; breathHp.frequency.value = 2000;
+            breathSrc.connect(breathHp);
+            breathHp.connect(breathGain);
+            breathGain.gain.setValueAtTime(velocity * 0.3, now);
+            breathGain.gain.linearRampToValueAtTime(0, now + breathLen / ctx.sampleRate);
+            breathGain.connect(inst.gainNode);
+            breathSrc.start(now);
+        }
+
+        // ---- Directe grondtoon pad ----
+        const directGain = ctx.createGain();
+        directGain.gain.value = 0.3;
+
+        // ---- Master envelope met expressie ----
         const formantMix = ctx.createGain();
         formantMix.gain.value = 0;
 
-        // Snelle attack (scat = percussief)
-        const attackTime = syl.attack;
-        const releaseTime = Math.min(duration * 0.3, 0.08);
+        const attackTime = isLyrics ? Math.min(0.04, duration * 0.1) : syl.attack;
+        const releaseTime = Math.min(duration * 0.25, isLyrics ? 0.12 : 0.08);
+        const peakVel = velocity * 0.5 * stressBoost;
+
         formantMix.gain.setValueAtTime(0, now);
-        formantMix.gain.linearRampToValueAtTime(velocity * 0.5, now + attackTime);
-        formantMix.gain.setValueAtTime(velocity * 0.45, end - releaseTime);
+        formantMix.gain.linearRampToValueAtTime(peakVel, now + attackTime);
+        // Sustain met lichte afname (natuurlijk)
+        formantMix.gain.setValueAtTime(peakVel * 0.9, now + attackTime + 0.01);
+        formantMix.gain.linearRampToValueAtTime(peakVel * 0.75, end - releaseTime);
         formantMix.gain.linearRampToValueAtTime(0, end);
 
-        osc.connect(f1); osc.connect(f2);
-        const merger = ctx.createGain();
-        merger.gain.value = 0.7;
-        f1.connect(merger); f2.connect(merger);
-        merger.connect(formantMix);
+        // ---- Routing ----
+        const formantChain = ctx.createGain();
+        formantChain.gain.value = 0.4;
+        osc.connect(f1); f1.connect(f2); f2.connect(f3); f3.connect(formantChain);
+        osc2.connect(f1); // Chorus stem ook door formanten
+        osc.connect(directGain);
+
+        formantChain.connect(formantMix);
+        directGain.connect(formantMix);
         formantMix.connect(inst.gainNode);
 
-        osc.start(now);
-        osc.stop(end + 0.05);
-        vibLfo.stop(end + 0.05);
+        osc.start(now); osc2.start(now);
+        osc.stop(end + 0.1); osc2.stop(end + 0.1);
+        vibLfo.stop(end + 0.1);
     }
+    _lastScatFreq = null;
+    _lastScatVowel = undefined;
 
     // ---- SCAT: bebop improvisatie met voice leading ----
     _ensembleScatTick(ens, beat16, chord) {
@@ -7724,13 +8396,24 @@ class InstrumentEngine {
         const note = this._improviseMelody(ens, chord, ens.scatLastMidi, [58, 77], 'scat');
         if (!note) return;
 
-        // Kies syllable: patronen creëren (ba-da-bee-bop ritme)
-        const syllable = (() => {
-            const pos = ens.scatPhrasePos;
-            if (pos === 0) return [0, 1, 7][Math.floor(Math.random() * 3)]; // ba, da, sha
-            if (isBeat) return [3, 4][Math.floor(Math.random() * 2)];       // bop, doo
-            return [2, 5, 6][Math.floor(Math.random() * 3)];                // dee, bee, bi
-        })();
+        // Lyrics mode: gebruik tekst-syllables als die er zijn
+        const lyricSyl = this._getNextLyricsSyllable();
+        let syllable, lyricVowelOverride = null;
+        if (lyricSyl && !lyricSyl.isRest) {
+            // Map lyrics vowel naar dichtstbijzijnde scat syllable
+            lyricVowelOverride = lyricSyl.vowel;
+            syllable = [0, 3, 2, 6, 4][lyricSyl.vowel] || 0; // Map A→ba, O→bop, E→dee, I→bi, U→doo
+        } else if (lyricSyl && lyricSyl.isRest) {
+            return; // Spatie in tekst = rust
+        } else {
+            // Standaard scat syllables
+            syllable = (() => {
+                const pos = ens.scatPhrasePos;
+                if (pos === 0) return [0, 1, 7][Math.floor(Math.random() * 3)]; // ba, da, sha
+                if (isBeat) return [3, 4][Math.floor(Math.random() * 2)];       // bop, doo
+                return [2, 5, 6][Math.floor(Math.random() * 3)];                // dee, bee, bi
+            })();
+        }
 
         const durMultiplier = isBeat ? 2 : (isEighth ? 1.5 : 1);
         const duration = sixteenthDur * durMultiplier;
@@ -7740,9 +8423,9 @@ class InstrumentEngine {
             ? sixteenthDur * ens.swingAmount * 1000 : 0;
 
         if (swingDelay > 0) {
-            setTimeout(() => this._playScatNote(this._midiToFreq(note.midi), duration, vel, syllable), swingDelay);
+            setTimeout(() => this._playScatNote(this._midiToFreq(note.midi), duration, vel, syllable, lyricVowelOverride), swingDelay);
         } else {
-            this._playScatNote(this._midiToFreq(note.midi), duration, vel, syllable);
+            this._playScatNote(this._midiToFreq(note.midi), duration, vel, syllable, lyricVowelOverride);
         }
 
         ens.scatLastMidi = note.midi;
@@ -9145,6 +9828,8 @@ class DAWController {
         const tlCanvas = document.getElementById('timeline-canvas');
         let regionDrag = null; // {region, track, offsetBeat}
 
+        const EDGE_PX = 8; // Pixels voor rand-detectie (resize)
+
         const hitTestRegion = (mx, my) => {
             const trackHeight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--track-height'));
             const scroll = document.getElementById('timeline-scroll');
@@ -9160,12 +9845,30 @@ class DAWController {
                     const isMidi = track.type === 'midi';
                     const rw = isMidi ? beatsToPixels(region.lengthBeats || 4) : beatsToPixels(secondsToBeats(region.duration));
                     if (mx >= rx && mx <= rx + rw) {
-                        return { region, track, trackIndex: ti };
+                        // Detecteer welke rand (links, rechts, of midden)
+                        let edge = 'center';
+                        if (mx <= rx + EDGE_PX) edge = 'left';
+                        else if (mx >= rx + rw - EDGE_PX) edge = 'right';
+                        return { region, track, trackIndex: ti, edge, regionWidth: rw };
                     }
                 }
             }
             return null;
         };
+
+        // Cursor feedback voor resize
+        tlCanvas.addEventListener('mousemove', e => {
+            if (regionDrag) return; // Al aan het slepen
+            const rect = tlCanvas.getBoundingClientRect();
+            const hit = hitTestRegion(e.clientX - rect.left, e.clientY - rect.top);
+            if (hit && (hit.edge === 'left' || hit.edge === 'right')) {
+                tlCanvas.style.cursor = 'col-resize';
+            } else if (hit) {
+                tlCanvas.style.cursor = 'grab';
+            } else {
+                tlCanvas.style.cursor = 'default';
+            }
+        });
 
         tlCanvas.addEventListener('mousedown', e => {
             if (state.transport.state === 'playing') return;
@@ -9176,13 +9879,29 @@ class DAWController {
             if (hit) {
                 const sx = document.getElementById('timeline-scroll').scrollLeft;
                 const beatAtMouse = pixelsToBeats(mx + sx);
-                regionDrag = {
-                    region: hit.region,
-                    track: hit.track,
-                    trackIndex: hit.trackIndex,
-                    offsetBeat: beatAtMouse - hit.region.startBeat,
-                    moved: false
-                };
+
+                if (hit.edge === 'left' || hit.edge === 'right') {
+                    // Resize mode
+                    regionDrag = {
+                        region: hit.region,
+                        track: hit.track,
+                        trackIndex: hit.trackIndex,
+                        resizeEdge: hit.edge,
+                        originalStart: hit.region.startBeat,
+                        originalLength: hit.region.lengthBeats || secondsToBeats(hit.region.duration),
+                        originalDuration: hit.region.duration,
+                        moved: false
+                    };
+                } else {
+                    // Move mode
+                    regionDrag = {
+                        region: hit.region,
+                        track: hit.track,
+                        trackIndex: hit.trackIndex,
+                        offsetBeat: beatAtMouse - hit.region.startBeat,
+                        moved: false
+                    };
+                }
                 e.preventDefault();
             }
         });
@@ -9194,22 +9913,59 @@ class DAWController {
             const my = e.clientY - rect.top;
             const sx = document.getElementById('timeline-scroll').scrollLeft;
             const beatAtMouse = pixelsToBeats(mx + sx);
-            const newBeat = snapBeat(Math.max(0, beatAtMouse - regionDrag.offsetBeat));
-            regionDrag.region.startBeat = newBeat;
-            regionDrag.moved = true;
 
-            // Move to different track if mouse is on another track
-            const trackHeight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--track-height'));
-            const sy = document.getElementById('timeline-scroll').scrollTop;
-            const newTrackIdx = Math.floor((my + sy) / trackHeight);
-            if (newTrackIdx >= 0 && newTrackIdx < state.tracks.length && newTrackIdx !== regionDrag.trackIndex) {
-                const newTrack = state.tracks[newTrackIdx];
-                if (newTrack.type === regionDrag.track.type) {
-                    const idx = regionDrag.track.regions.indexOf(regionDrag.region);
-                    if (idx !== -1) regionDrag.track.regions.splice(idx, 1);
-                    newTrack.regions.push(regionDrag.region);
-                    regionDrag.track = newTrack;
-                    regionDrag.trackIndex = newTrackIdx;
+            if (regionDrag.resizeEdge) {
+                // Resize mode
+                regionDrag.moved = true;
+                const snappedBeat = snapBeat(beatAtMouse);
+                const isMidi = regionDrag.track.type === 'midi';
+
+                if (regionDrag.resizeEdge === 'right') {
+                    // Rechterrand slepen: verander lengte
+                    const newLength = Math.max(1, snappedBeat - regionDrag.region.startBeat);
+                    if (isMidi) {
+                        regionDrag.region.lengthBeats = newLength;
+                    } else {
+                        // Audio: pas duration aan (trim)
+                        const maxDur = regionDrag.originalDuration + beatsToSeconds(regionDrag.originalStart - regionDrag.region.startBeat);
+                        regionDrag.region.duration = Math.min(beatsToSeconds(newLength), maxDur > 0 ? maxDur : beatsToSeconds(newLength));
+                    }
+                } else if (regionDrag.resizeEdge === 'left') {
+                    // Linkerrand slepen: verplaats start, pas lengte aan
+                    const newStart = Math.max(0, snappedBeat);
+                    const endBeat = regionDrag.originalStart + regionDrag.originalLength;
+                    if (newStart < endBeat) {
+                        const newLength = endBeat - newStart;
+                        regionDrag.region.startBeat = newStart;
+                        if (isMidi) {
+                            regionDrag.region.lengthBeats = newLength;
+                        } else {
+                            // Audio: offset bijhouden
+                            const startDelta = newStart - regionDrag.originalStart;
+                            regionDrag.region.trimStart = (regionDrag.region.trimStart || 0) + beatsToSeconds(startDelta);
+                            regionDrag.region.duration = beatsToSeconds(newLength);
+                        }
+                    }
+                }
+            } else {
+                // Move mode
+                const newBeat = snapBeat(Math.max(0, beatAtMouse - regionDrag.offsetBeat));
+                regionDrag.region.startBeat = newBeat;
+                regionDrag.moved = true;
+
+                // Move to different track if mouse is on another track
+                const trackHeight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--track-height'));
+                const sy = document.getElementById('timeline-scroll').scrollTop;
+                const newTrackIdx = Math.floor((my + sy) / trackHeight);
+                if (newTrackIdx >= 0 && newTrackIdx < state.tracks.length && newTrackIdx !== regionDrag.trackIndex) {
+                    const newTrack = state.tracks[newTrackIdx];
+                    if (newTrack.type === regionDrag.track.type) {
+                        const idx = regionDrag.track.regions.indexOf(regionDrag.region);
+                        if (idx !== -1) regionDrag.track.regions.splice(idx, 1);
+                        newTrack.regions.push(regionDrag.region);
+                        regionDrag.track = newTrack;
+                        regionDrag.trackIndex = newTrackIdx;
+                    }
                 }
             }
         });
@@ -9221,7 +9977,120 @@ class DAWController {
                 const x = e.clientX - rect.left + document.getElementById('timeline-scroll').scrollLeft;
                 state.transport.position = beatsToSeconds(snapBeat(pixelsToBeats(x)));
             }
+            if (regionDrag) tlCanvas.style.cursor = 'default';
             regionDrag = null;
+        });
+
+        // Dubbelklik op MIDI track: maak MIDI regio van 4 beats + open piano roll
+        tlCanvas.addEventListener('dblclick', e => {
+            const rect = tlCanvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+            const trackHeight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--track-height'));
+            const scroll = document.getElementById('timeline-scroll');
+            const sx = scroll.scrollLeft;
+            const sy = scroll.scrollTop;
+            const trackIdx = Math.floor((my + sy) / trackHeight);
+
+            if (trackIdx < 0 || trackIdx >= state.tracks.length) return;
+            const track = state.tracks[trackIdx];
+            if (track.type !== 'midi') return;
+
+            // Check of we op een bestaande region klikken
+            const clickBeat = pixelsToBeats(mx + sx);
+            const existing = track.regions.find(r => clickBeat >= r.startBeat && clickBeat < r.startBeat + (r.lengthBeats || 4));
+            if (existing) {
+                // Open piano roll voor bestaande region
+                if (typeof daw !== 'undefined' && daw.openPianoRoll) daw.openPianoRoll(track.id);
+                return;
+            }
+
+            // Maak nieuwe region van 4 beats op de geklikte positie
+            const beat = snapBeat(clickBeat);
+            const newRegion = {
+                id: 'mr-' + Date.now(),
+                startBeat: beat,
+                lengthBeats: 4,
+                name: `MIDI ${track.regions.length + 1}`,
+                notes: []
+            };
+            track.regions.push(newRegion);
+            if (typeof daw !== 'undefined' && daw.openPianoRoll) daw.openPianoRoll(track.id);
+            toast(`MIDI regio aangemaakt op beat ${beat + 1}. Dubbelklik om noten te tekenen.`, 'success');
+        });
+
+        // Rechtermuisklik op MIDI track: teken MIDI regio (sleep voor lengte)
+        let midiDraw = null; // {track, trackIndex, startBeat}
+        tlCanvas.addEventListener('contextmenu', e => {
+            e.preventDefault();
+            const rect = tlCanvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+            const trackHeight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--track-height'));
+            const scroll = document.getElementById('timeline-scroll');
+            const sx = scroll.scrollLeft;
+            const sy = scroll.scrollTop;
+            const trackIdx = Math.floor((my + sy) / trackHeight);
+
+            if (trackIdx < 0 || trackIdx >= state.tracks.length) return;
+            const track = state.tracks[trackIdx];
+            if (track.type !== 'midi') return;
+
+            const beat = snapBeat(pixelsToBeats(mx + sx));
+            midiDraw = { track, trackIndex: trackIdx, startBeat: beat };
+        });
+
+        // Rechtermuisklik + sleep voor MIDI regio lengte
+        tlCanvas.addEventListener('mousedown', e => {
+            if (e.button === 2 && midiDraw) {
+                // Start drawing
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('mousemove', e => {
+            if (!midiDraw || e.buttons !== 2) {
+                if (midiDraw && e.buttons === 0) {
+                    // Rechtermuisknop losgelaten: maak MIDI regio
+                    const rect = tlCanvas.getBoundingClientRect();
+                    const mx = e.clientX - rect.left;
+                    const sx = document.getElementById('timeline-scroll').scrollLeft;
+                    const endBeat = snapBeat(pixelsToBeats(mx + sx));
+                    const length = Math.max(1, endBeat - midiDraw.startBeat);
+
+                    const newRegion = {
+                        id: 'mr-' + Date.now(),
+                        startBeat: midiDraw.startBeat,
+                        lengthBeats: length > 0 ? length : 4,
+                        name: `MIDI ${midiDraw.track.regions.length + 1}`,
+                        notes: []
+                    };
+                    midiDraw.track.regions.push(newRegion);
+                    midiDraw = null;
+                }
+                return;
+            }
+        });
+
+        // Fallback: als rechtermuisknop losgelaten wordt zonder mousemove
+        document.addEventListener('mouseup', e => {
+            if (e.button === 2 && midiDraw) {
+                const rect = tlCanvas.getBoundingClientRect();
+                const mx = e.clientX - rect.left;
+                const sx = document.getElementById('timeline-scroll').scrollLeft;
+                const endBeat = snapBeat(pixelsToBeats(mx + sx));
+                const length = Math.max(1, endBeat - midiDraw.startBeat);
+
+                const newRegion = {
+                    id: 'mr-' + Date.now(),
+                    startBeat: midiDraw.startBeat,
+                    lengthBeats: length > 0 ? length : 4,
+                    name: `MIDI ${midiDraw.track.regions.length + 1}`,
+                    notes: []
+                };
+                midiDraw.track.regions.push(newRegion);
+                midiDraw = null;
+            }
         });
 
         // Ruler click + loop drag
@@ -9370,11 +10239,33 @@ class DAWController {
                     }
                     if (!track || track.type !== 'audio') { toast('Geen audio track beschikbaar', 'error'); return; }
                     toast(`Laden: ${data.name}...`, 'info');
-                    const res = await fetch(`${API_BASE}/api/sounds/${data.id}/file`);
-                    const arrayBuffer = await res.arrayBuffer();
-                    const audioBuffer = await this.engine.ctx.decodeAudioData(arrayBuffer);
-                    const soundId = uuid();
-                    this.engine.audioBuffers.set(soundId, audioBuffer);
+
+                    let audioBuffer;
+                    let soundId;
+
+                    // Check of het een eigen geluid is (al in geheugen of localStorage)
+                    if (data.id && data.id.startsWith('user-') && this.engine.audioBuffers.has(data.id)) {
+                        audioBuffer = this.engine.audioBuffers.get(data.id);
+                        soundId = data.id;
+                    } else if (data.id && data.id.startsWith('user-')) {
+                        // Laad uit localStorage
+                        const base64 = localStorage.getItem(`daw_audio_${data.id}`);
+                        if (base64) {
+                            const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+                            audioBuffer = await this.engine.ctx.decodeAudioData(bytes.buffer);
+                            soundId = data.id;
+                            this.engine.audioBuffers.set(soundId, audioBuffer);
+                        } else {
+                            toast('Audio data niet gevonden', 'error'); return;
+                        }
+                    } else {
+                        // API sound
+                        const res = await fetch(`${API_BASE}/api/sounds/${data.id}/file`);
+                        const arrayBuffer = await res.arrayBuffer();
+                        audioBuffer = await this.engine.ctx.decodeAudioData(arrayBuffer);
+                        soundId = uuid();
+                        this.engine.audioBuffers.set(soundId, audioBuffer);
+                    }
                     const peaks = this.engine.computePeaks(audioBuffer);
                     track.regions.push({
                         id: uuid(), soundId, startBeat: dropBeat, offset: 0,
@@ -9792,6 +10683,14 @@ class DAWController {
             // Populate dropdown
             const select = document.getElementById('library-category');
             select.innerHTML = '<option value="">Alle categorieën</option>';
+            // Eigen geluiden categorie
+            const userSounds = JSON.parse(localStorage.getItem('daw_user_sounds') || '[]');
+            if (userSounds.length > 0) {
+                const eigenOpt = document.createElement('option');
+                eigenOpt.value = 'eigen';
+                eigenOpt.textContent = `Eigen geluiden (${userSounds.length})`;
+                select.appendChild(eigenOpt);
+            }
             categories.forEach(c => {
                 if (c.sound_count > 0 && !c.parent_id) {
                     const opt = document.createElement('option');
@@ -9856,13 +10755,37 @@ class DAWController {
 
     async _loadSounds(filters = {}) {
         try {
-            const params = new URLSearchParams();
-            if (filters.q) params.set('q', filters.q);
-            if (filters.category) params.set('category', filters.category);
-            if (filters.favorite) params.set('favorite', 'true');
-            const url = `${API_BASE}/api/sounds${params.toString() ? '?' + params : ''}`;
-            const res = await fetch(url);
-            let sounds = await res.json();
+            let sounds = [];
+
+            // Alleen eigen geluiden tonen als dat filter actief is
+            if (filters.category === 'eigen') {
+                sounds = JSON.parse(localStorage.getItem('daw_user_sounds') || '[]');
+            } else {
+                // Laad API sounds
+                const params = new URLSearchParams();
+                if (filters.q) params.set('q', filters.q);
+                if (filters.category) params.set('category', filters.category);
+                if (filters.favorite) params.set('favorite', 'true');
+                const url = `${API_BASE}/api/sounds${params.toString() ? '?' + params : ''}`;
+                try {
+                    const res = await fetch(url);
+                    sounds = await res.json();
+                } catch(apiErr) {
+                    sounds = [];
+                }
+
+                // Voeg eigen geluiden toe (uit localStorage)
+                const userSounds = JSON.parse(localStorage.getItem('daw_user_sounds') || '[]');
+                if (userSounds.length > 0) {
+                    // Filter op zoekopdracht als die er is
+                    let filteredUser = userSounds;
+                    if (filters.q) {
+                        const q = filters.q.toLowerCase();
+                        filteredUser = filteredUser.filter(s => s.name.toLowerCase().includes(q));
+                    }
+                    sounds = [...filteredUser, ...sounds];
+                }
+            }
 
             // Client-side metadata filtering (API may not support all filters)
             if (filters.bpm) {
@@ -10241,6 +11164,57 @@ class DAWController {
     }
 
     // ---- Lokale audio scanner ----
+    // Upload eigen geluid naar library (opgeslagen in localStorage)
+    uploadToLibrary() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'audio/*';
+        input.multiple = true;
+        input.onchange = async (e) => {
+            for (const file of e.target.files) {
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const audioBuffer = await this.engine.ctx.decodeAudioData(arrayBuffer.slice(0));
+                    const soundId = 'user-' + uuid();
+
+                    // Bewaar buffer voor playback
+                    this.engine.audioBuffers.set(soundId, audioBuffer);
+                    const peaks = this.engine.computePeaks(audioBuffer);
+
+                    // Bewaar metadata in localStorage
+                    const userSounds = JSON.parse(localStorage.getItem('daw_user_sounds') || '[]');
+                    const soundMeta = {
+                        id: soundId,
+                        name: file.name.replace(/\.[^.]+$/, ''),
+                        filename: file.name,
+                        category_name: 'Eigen',
+                        duration_ms: Math.round(audioBuffer.duration * 1000),
+                        file_size: file.size,
+                        file_format: file.name.split('.').pop().toLowerCase(),
+                        waveform_peaks: peaks,
+                        created_at: new Date().toISOString(),
+                        is_user_sound: true
+                    };
+                    userSounds.push(soundMeta);
+                    localStorage.setItem('daw_user_sounds', JSON.stringify(userSounds));
+
+                    // Bewaar audio data als base64 in localStorage (voor kleine bestanden)
+                    if (file.size < 5 * 1024 * 1024) { // Max 5MB
+                        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+                        localStorage.setItem(`daw_audio_${soundId}`, base64);
+                    }
+
+                    toast(`${file.name} toegevoegd aan library`, 'success');
+                } catch(err) {
+                    toast(`Fout bij ${file.name}: ${err.message}`, 'error');
+                }
+            }
+            // Refresh library
+            this._loadSounds(this._getLibraryFilters());
+        };
+        input.click();
+    }
+
     scanLocalAudio() {
         document.getElementById('scan-panel').style.display = 'flex';
         document.getElementById('scan-backdrop').style.display = 'block';

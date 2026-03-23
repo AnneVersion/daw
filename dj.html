@@ -1019,6 +1019,13 @@ body {
         <span id="bb-listeners" style="font-size:11px;color:var(--text-dim)">0 luisteraars</span>
     </div>
     <div style="flex:1"></div>
+    <video id="bb-cam" autoplay muted playsinline style="display:none;width:80px;height:60px;border-radius:6px;object-fit:cover;border:2px solid var(--accent)"></video>
+    <button id="bb-cam-btn" onclick="djApp.toggleBroadcastCamera()" style="background:var(--bg-darkest);border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--text-dim);font-size:10px;cursor:pointer;display:flex;align-items:center;gap:4px">
+        <span class="material-icons" style="font-size:14px">videocam</span>Camera
+    </button>
+    <button id="bb-mic-btn" onclick="djApp.toggleBroadcastMic()" style="background:var(--bg-darkest);border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--text-dim);font-size:10px;cursor:pointer;display:flex;align-items:center;gap:4px">
+        <span class="material-icons" style="font-size:14px">mic</span>Mic
+    </button>
     <button onclick="navigator.clipboard?.writeText(document.getElementById('bb-link').value)" style="background:var(--bg-darkest);border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--text-dim);font-size:10px;cursor:pointer;display:flex;align-items:center;gap:4px">
         <span class="material-icons" style="font-size:14px">content_copy</span>Kopieer link
     </button>
@@ -2875,42 +2882,88 @@ class DJApp {
                 loadFill.style.width = '100%';
             } else {
                 // Fetch via proxy (localhost) of direct (GitHub Pages)
-                let response;
+                let fetchSuccess = false;
                 try {
-                    const proxyUrl = `/api/proxy/audio?url=${encodeURIComponent(url)}`;
-                    response = await fetch(proxyUrl);
-                    if (!response.ok) throw new Error('Proxy niet beschikbaar');
-                } catch(proxyErr) {
-                    // Fallback: direct laden (werkt voor Jamendo die CORS toestaat)
-                    response = await fetch(url);
-                }
-                const contentLength = response.headers.get('content-length');
-                const total = contentLength ? parseInt(contentLength) : 0;
-                const reader = response.body.getReader();
-                const chunks = [];
-                let received = 0;
+                    let response;
+                    try {
+                        const proxyUrl = `/api/proxy/audio?url=${encodeURIComponent(url)}`;
+                        response = await fetch(proxyUrl);
+                        if (!response.ok) throw new Error('Proxy niet beschikbaar');
+                    } catch(proxyErr) {
+                        // Direct laden (werkt voor Jamendo/Archive die CORS toestaan)
+                        response = await fetch(url, { mode: 'cors' });
+                    }
+                    const contentLength = response.headers.get('content-length');
+                    const total = contentLength ? parseInt(contentLength) : 0;
+                    const reader = response.body.getReader();
+                    const chunks = [];
+                    let received = 0;
 
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    chunks.push(value);
-                    received += value.length;
-                    if (total > 0) {
-                        loadFill.style.width = Math.min(90, (received / total * 90)).toFixed(0) + '%';
-                    } else {
-                        // Estimate based on expected duration
-                        const estBytes = (estimatedDur || 180) * 16000; // rough mp3 bitrate
-                        loadFill.style.width = Math.min(90, (received / estBytes * 90)).toFixed(0) + '%';
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        chunks.push(value);
+                        received += value.length;
+                        if (total > 0) {
+                            loadFill.style.width = Math.min(90, (received / total * 90)).toFixed(0) + '%';
+                        } else {
+                            const estBytes = (estimatedDur || 180) * 16000;
+                            loadFill.style.width = Math.min(90, (received / estBytes * 90)).toFixed(0) + '%';
+                        }
+                    }
+
+                    const blob = new Blob(chunks);
+                    const arrayBuffer = await blob.arrayBuffer();
+                    loadFill.style.width = '95%';
+
+                    audioBuffer = await this.audioCtx.decodeAudioData(arrayBuffer);
+                    fetchSuccess = true;
+                } catch(fetchErr) {
+                    console.warn('Fetch/CORS mislukt, fallback naar Audio element:', fetchErr.message);
+                }
+
+                // Fallback: HTMLAudioElement + MediaElementSource (werkt zonder CORS)
+                if (!fetchSuccess) {
+                    try {
+                        loadFill.style.width = '30%';
+                        audioBuffer = await new Promise((resolve, reject) => {
+                            const audio = new Audio();
+                            audio.crossOrigin = 'anonymous';
+                            audio.src = url;
+
+                            audio.addEventListener('canplaythrough', async () => {
+                                loadFill.style.width = '70%';
+                                // Decode via offline context
+                                try {
+                                    const duration = audio.duration || estimatedDur || 30;
+                                    const sampleRate = this.audioCtx.sampleRate;
+                                    const offCtx = new OfflineAudioContext(2, Math.ceil(duration * sampleRate), sampleRate);
+                                    const source = offCtx.createMediaElementSource(audio);
+                                    source.connect(offCtx.destination);
+                                    audio.play();
+                                    loadFill.style.width = '85%';
+                                    const rendered = await offCtx.startRendering();
+                                    loadFill.style.width = '95%';
+                                    resolve(rendered);
+                                } catch(offErr) {
+                                    // Als OfflineAudioContext niet werkt: gebruik no-cors fetch als laatste poging
+                                    reject(offErr);
+                                }
+                            }, { once: true });
+
+                            audio.addEventListener('error', () => reject(new Error('Audio laden mislukt')), { once: true });
+
+                            // Timeout na 15 seconden
+                            setTimeout(() => reject(new Error('Timeout bij laden')), 15000);
+                        });
+                    } catch(audioErr) {
+                        console.warn('Audio element fallback mislukt:', audioErr.message);
+                        throw new Error(`Kan audio niet laden (CORS). Probeer Jamendo of Internet Archive.`);
                     }
                 }
 
-                const blob = new Blob(chunks);
-                const arrayBuffer = await blob.arrayBuffer();
-                loadFill.style.width = '95%';
-
-                audioBuffer = await this.audioCtx.decodeAudioData(arrayBuffer);
                 // Cache it
-                this.audioCache.set(url, audioBuffer);
+                if (audioBuffer) this.audioCache.set(url, audioBuffer);
             }
 
             loadFill.style.width = '100%';
@@ -3754,8 +3807,94 @@ class DJApp {
         }
     }
 
+    // Camera toggle voor broadcast
+    async toggleBroadcastCamera() {
+        if (!this._broadcasting) return;
+        const camBtn = document.getElementById('bb-cam-btn');
+        const camVideo = document.getElementById('bb-cam');
+
+        if (this._camStream) {
+            // Camera uitzetten
+            this._camStream.getTracks().forEach(t => t.stop());
+            this._camStream = null;
+            camVideo.style.display = 'none';
+            camVideo.srcObject = null;
+            camBtn.style.background = 'var(--bg-darkest)';
+            camBtn.style.color = 'var(--text-dim)';
+            // Verwijder video tracks van alle peer connections
+            (this._listeners || []).forEach(pc => {
+                pc.getSenders().forEach(s => {
+                    if (s.track && s.track.kind === 'video') pc.removeTrack(s);
+                });
+            });
+            return;
+        }
+
+        try {
+            this._camStream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240, facingMode: 'user' }, audio: false });
+            camVideo.srcObject = this._camStream;
+            camVideo.style.display = 'block';
+            camBtn.style.background = 'var(--accent)';
+            camBtn.style.color = '#fff';
+            // Voeg video track toe aan alle bestaande peer connections
+            const videoTrack = this._camStream.getVideoTracks()[0];
+            (this._listeners || []).forEach(pc => {
+                pc.addTrack(videoTrack, this._camStream);
+            });
+        } catch(e) {
+            console.warn('Camera niet beschikbaar:', e);
+            if (typeof toast === 'function') toast('Camera niet beschikbaar', 'error');
+        }
+    }
+
+    // Mic toggle voor broadcast (commentaar over muziek)
+    async toggleBroadcastMic() {
+        if (!this._broadcasting) return;
+        const micBtn = document.getElementById('bb-mic-btn');
+
+        if (this._micStream) {
+            // Mic uitzetten
+            this._micStream.getTracks().forEach(t => t.stop());
+            if (this._micSource) { try { this._micSource.disconnect(); } catch(e) {} }
+            this._micStream = null;
+            this._micSource = null;
+            micBtn.style.background = 'var(--bg-darkest)';
+            micBtn.style.color = 'var(--text-dim)';
+            return;
+        }
+
+        try {
+            this._micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            // Mix mic audio in de master output zodat het via de broadcast stream gaat
+            this._micSource = this.audioCtx.createMediaStreamSource(this._micStream);
+            const micGain = this.audioCtx.createGain();
+            micGain.gain.value = 0.8; // Mic volume
+            this._micSource.connect(micGain);
+            micGain.connect(this.masterGain);
+            this._micGain = micGain;
+            micBtn.style.background = 'var(--red)';
+            micBtn.style.color = '#fff';
+        } catch(e) {
+            console.warn('Microfoon niet beschikbaar:', e);
+            if (typeof toast === 'function') toast('Microfoon niet beschikbaar', 'error');
+        }
+    }
+
     stopBroadcast() {
         this._broadcasting = false;
+
+        // Stop camera en mic
+        if (this._camStream) {
+            this._camStream.getTracks().forEach(t => t.stop());
+            this._camStream = null;
+            const camVideo = document.getElementById('bb-cam');
+            if (camVideo) { camVideo.style.display = 'none'; camVideo.srcObject = null; }
+        }
+        if (this._micStream) {
+            this._micStream.getTracks().forEach(t => t.stop());
+            if (this._micSource) { try { this._micSource.disconnect(); } catch(e) {} }
+            this._micStream = null; this._micSource = null;
+        }
 
         // Sluit alle peer connections
         (this._listeners || []).forEach(pc => { try { pc.close(); } catch(e) {} });
@@ -3808,6 +3947,13 @@ class DJApp {
         this._broadcastStream.getTracks().forEach(track => {
             pc.addTrack(track, this._broadcastStream);
         });
+
+        // Voeg camera video track toe als die actief is
+        if (this._camStream) {
+            this._camStream.getVideoTracks().forEach(track => {
+                pc.addTrack(track, this._camStream);
+            });
+        }
 
         // ICE candidates verzamelen
         pc.onicecandidate = (e) => {
