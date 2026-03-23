@@ -1,7 +1,7 @@
 # DAW - Claude Code Instructies
 
 ## Project
-Web-based muziekproductie platform met 6 pagina's.
+Web-based muziekproductie platform met 8 pagina's.
 Locatie: `E:\scripts\webscraper\CBSbuurt\daw\`
 GitHub: AnneVersion/daw
 GitHub Pages: https://anneversion.github.io/daw/
@@ -20,11 +20,13 @@ python serve.py  # Start Flask API + static files: http://localhost:8086
 ## Pagina's
 | Pagina | URL | Beschrijving |
 |--------|-----|-------------|
-| `index.html` | `/` | DAW Studio - Multi-track timeline, mixer, improvisatie, library |
-| `dj.html` | `/dj.html` | DJ App - Twee decks, crossfader, FX, broadcasting, muziek streaming |
+| `index.html` | `/` | DAW Studio - Multi-track timeline, mixer, library sidebar, MIDI import |
 | `editor.html` | `/editor.html` | Audio Editor - 31 effects, cut/copy/paste, spectrum, WAV export |
-| `sampler.html` | `/sampler.html` | MPC Sampler - 16 pads, step sequencer, ADSR, master FX |
-| `contests.html` | `/contests.html` | Producer Contests - Battles, voting, leaderboard |
+| `sampler.html` | `/sampler.html` | MPC Sampler - 16 pads, step sequencer, ADSR, chaos mode, 9 FX |
+| `improvisator.html` | `/improvisator.html` | Improvisator - 17 instrumenten, 14 stijlen, formant zang, MIDI export |
+| `vocals.html` | `/vocals.html` | Vocals - Real-time mic effecten, autotune, vocoder, pitch shift |
+| `community.html` | `/community.html` | Community - Contests + Live streaming + DJ link |
+| `dj.html` | `/dj.html` | DJ App - Twee decks, crossfader, FX, broadcasting (via Community) |
 | `live.html` | `/live.html` | Live - WebRTC luisteren, Twitch/YouTube embed, broadcast chat |
 
 ## Architectuur
