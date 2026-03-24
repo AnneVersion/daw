@@ -382,36 +382,44 @@ curl -s http://localhost:8086/api/scan-audio?path=audio | python -c "import sys,
 
 ---
 
-## TODO — Bugs & Issues (prioriteit)
+## TODO — Bugs & Issues
 
 ### Studio (index.html)
-- [ ] **BUG: MIDI noten vallen boven het blokje** — noten die je tekent in piano roll verschijnen buiten/boven de MIDI regio op de timeline
-- [ ] **BUG: Loop kan niet breder gemaakt worden** — sleep de loop-randen in de ruler om de loop langer te maken werkt niet
-- [ ] **Library sidebar opent niet bij eerste klik** — knop werkt pas na tweede klik (AudioContext init blokkeert eerste event)
-- [ ] **Library sidebar: op GitHub Pages toont "geen geluiden"** — sidebar moet fallback naar Jamendo/Archive als /api/sounds faalt
-- [ ] **Gitaarhals panel** — het Instrumenten tab toont piano keyboard + gitaarhals, maar gitaarhals rendering/interactie checken
-- [ ] **Piano keyboard** — controleer of alle noten klikbaar zijn en geluid produceren via synth/soundfont
+- [ ] Projecten opslaan/laden (laatste project automatisch laden bij openen)
+- [ ] Gitaarhals panel testen
+- [ ] Piano keyboard — alle noten klikbaar + geluid via synth/soundfont
 
 ### Sampler (sampler.html)
-- [ ] **"Laad Sample" knop** — checken of file picker correct opent en sample op geselecteerde pad laadt
-- [ ] **Library knop** — opent LibraryPanel, controleer of 3 tabs werken (Library, Opnames, Online)
-- [ ] **Opname workflow** — Neem Op → Stop → klik pad = sample op pad. Testen volledige flow
-
-### DJ (dj.html)
-- [ ] DJ tracks laden fixen op GitHub Pages (Freesound CORS, Jamendo als fallback)
+- [ ] Opname workflow testen (Neem Op → Stop → klik pad)
 
 ### Algemeen
 - [ ] Camera + mic in broadcast (video boven chat, commentaar)
-- [ ] Opnames opslaan en terugluisteren (localStorage + Supabase)
+- [ ] Broadcast state persistent houden tot app echt gesloten wordt
 - [ ] Supabase tabellen aanmaken: sql/04_supabase_community.sql uitvoeren
+- [ ] Alle pagina's testen op GitHub Pages
 
-### Afgerond (maart 2026)
+### Afgerond (23-24 maart 2026)
 - [x] Drum improvisatie: rudiments (flam/drag), meerdere fill varianten per stijl
 - [x] Reggae improvisatie: walking bass, muted chika skank, dubbele piano bubble
 - [x] Random FX per pad: 9 effecten (reverse, pitch, filter, echo, halfspeed, stutter, bitcrush, ringmod, tapestop)
 - [x] MIDI regio tekenen: dubbelklik op MIDI track maakt region + opent piano roll
-- [x] Library sidebar rechts in studio met zoeken + categorie chips
-- [x] Sampler: community knop weg, dubbele library weg, context menu met afspelen/stoppen
+- [x] Library sidebar rechts met AudioBrowser (12 bronnen, 500K+ tracks)
+- [x] Sampler: opgeruimd, context menu met afspelen/stoppen
+- [x] 7 instrument synths: sax, fluit, orgel, vibrafoon, contrabas, strings, brass
+- [x] MIDI parser + import + playback (BitMidi API, per-kanaal tracks)
+- [x] Drag & drop van library naar timeline (audio + MIDI)
+- [x] Opnames in IndexedDB (permanent, werkt op GitHub Pages)
+- [x] Loop resize: grotere handles, cursor feedback
+- [x] MIDI noten zichtbaar in regio's + noot-count
+- [x] Regio context menu: verwijderen, dupliceren, hernoemen
+- [x] BPM sync per audio regio (time-stretch)
+- [x] Mixer faders groter (100px hoog)
+- [x] improvisator.html: standalone improvisatie app (2769 regels)
+- [x] vocals.html: real-time mic effecten, autotune, vocoder (1439 regels)
+- [x] community.html: contests + live gecombineerd (407 regels)
+- [x] Navigatie herstructurering: Studio|Editor|Sampler|Improvisator|Vocals|Community
+- [x] Rad van Fortuin tik-geluid in DJ app
+- [x] 12 audio bronnen: Freesound, Jamendo, Archive, BBC, BitMidi, ccMixter, Deezer, Netlabels, FMA, Vintage 78rpm, Community, Opnames
 
 ---
 
